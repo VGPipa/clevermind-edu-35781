@@ -10,6 +10,7 @@ import ProfesorPlanificacion from "./pages/profesor/Planificacion";
 import ProfesorGenerarClase from "./pages/profesor/GenerarClase";
 import ProfesorMetricas from "./pages/profesor/Metricas";
 import AlumnoDashboard from "./pages/alumno/Dashboard";
+import AlumnoClases from "./pages/alumno/Clases";
 import ApoderadoDashboard from "./pages/apoderado/Dashboard";
 import NotFound from "./pages/NotFound";
 
@@ -36,6 +37,7 @@ const App = () => (
           
           {/* Alumno Routes */}
           <Route path="/alumno/dashboard" element={<AlumnoDashboard />} />
+          <Route path="/alumno/clases" element={<AlumnoClases />} />
           
           {/* Apoderado Routes */}
           <Route path="/apoderado/dashboard" element={<ApoderadoDashboard />} />
