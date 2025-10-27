@@ -6,6 +6,9 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Auth from "./pages/Auth";
 import AdminDashboard from "./pages/admin/Dashboard";
 import ProfesorDashboard from "./pages/profesor/Dashboard";
+import ProfesorPlanificacion from "./pages/profesor/Planificacion";
+import ProfesorGenerarClase from "./pages/profesor/GenerarClase";
+import ProfesorMetricas from "./pages/profesor/Metricas";
 import AlumnoDashboard from "./pages/alumno/Dashboard";
 import ApoderadoDashboard from "./pages/apoderado/Dashboard";
 import NotFound from "./pages/NotFound";
@@ -27,6 +30,9 @@ const App = () => (
           
           {/* Profesor Routes */}
           <Route path="/profesor/dashboard" element={<ProfesorDashboard />} />
+          <Route path="/profesor/planificacion" element={<ProfesorPlanificacion />} />
+          <Route path="/profesor/generar-clase" element={<ProfesorGenerarClase />} />
+          <Route path="/profesor/metricas" element={<ProfesorMetricas />} />
           
           {/* Alumno Routes */}
           <Route path="/alumno/dashboard" element={<AlumnoDashboard />} />

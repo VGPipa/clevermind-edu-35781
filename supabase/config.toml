@@ -1,1 +1,4 @@
 project_id = "zbsuylkrihifoihbyvxx"
+
+[functions.generar-clase]
+verify_jwt = false
