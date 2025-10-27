@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { formatPeruTime, formatPeruDateTime } from "@/lib/timezone";
 
 export default function Clases() {
   const [selectedMateria, setSelectedMateria] = useState<string | null>(null);

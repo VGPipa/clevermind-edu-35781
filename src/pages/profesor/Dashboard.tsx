@@ -4,6 +4,7 @@ import { Calendar, BookOpen, Users, TrendingUp, FileText, Brain, CheckCircle2, C
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { formatPeruTime } from "@/lib/timezone";
 
 export default function ProfesorDashboard() {
   const mockStats = {

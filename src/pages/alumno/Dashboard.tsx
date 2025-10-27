@@ -4,6 +4,7 @@ import { BookOpen, TrendingUp, Clock, Target, Award, Calendar, Brain, Play } fro
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { formatPeruTime, formatPeruDateTime } from "@/lib/timezone";
 
 export default function AlumnoDashboard() {
   const mockStats = {

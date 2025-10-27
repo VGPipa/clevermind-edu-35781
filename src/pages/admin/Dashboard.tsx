@@ -4,6 +4,9 @@ import { Users, BookOpen, GraduationCap, BarChart3, Building2, CalendarDays, Tre
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { formatPeruDateTimeShort, toPeruTime } from "@/lib/timezone";
+import { formatDistanceToNow } from "date-fns";
+import { es } from "date-fns/locale";
 
 export default function AdminDashboard() {
   const mockStats = {

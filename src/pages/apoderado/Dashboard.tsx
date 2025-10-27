@@ -4,6 +4,7 @@ import { TrendingUp, BookOpen, Clock, Trophy, Award, Brain, AlertCircle, Calenda
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
+import { formatPeruTime } from "@/lib/timezone";
 
 export default function ApoderadoDashboard() {
   const alumnoInfo = {

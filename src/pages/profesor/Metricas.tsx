@@ -4,6 +4,9 @@ import { TrendingUp, Users, Target, Award, AlertCircle, BookOpen } from "lucide-
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { formatPeruDateTimeShort, toPeruTime } from "@/lib/timezone";
+import { formatDistanceToNow } from "date-fns";
+import { es } from "date-fns/locale";
 
 export default function Metricas() {
   const mockEstadisticas = {

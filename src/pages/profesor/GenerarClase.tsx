@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { formatPeruDateTime, parsePeruDateTime } from "@/lib/timezone";
 
 export default function GenerarClase() {
   const [loading, setLoading] = useState(false);
