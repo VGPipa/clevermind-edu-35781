@@ -147,7 +147,7 @@ export default function ProfesorCapacitacion() {
       case "completed":
         return <CheckCircle2 className="h-6 w-6 text-success" />;
       case "available":
-        return <Play className="h-6 w-6 text-primary" />;
+        return <Play className="h-6 w-6 text-orange-600 dark:text-orange-400" />;
       case "locked":
         return <Lock className="h-5 w-5 text-muted-foreground" />;
       default:
@@ -326,13 +326,13 @@ export default function ProfesorCapacitacion() {
                             {module.nodes.map((node, nodeIdx) => (
                               <div key={node.id}>
                                 <Button
-                                  variant={node.status === "available" ? "default" : "outline"}
+                                  variant="outline"
                                   className={`w-full justify-start gap-3 h-auto py-3 ${
                                     node.status === "locked" 
-                                      ? "cursor-not-allowed opacity-60 bg-muted/50 hover:bg-muted/50" 
+                                      ? "cursor-not-allowed opacity-60 bg-muted/50 hover:bg-muted/50 border-muted" 
                                       : node.status === "completed"
                                       ? "bg-success/20 border-success text-success-foreground hover:bg-success/30"
-                                      : "bg-primary hover:bg-primary/90 text-primary-foreground"
+                                      : "bg-orange-100 border-orange-400 text-orange-900 hover:bg-orange-200 dark:bg-orange-950 dark:text-orange-100 dark:border-orange-600 dark:hover:bg-orange-900"
                                   }`}
                                   onClick={() => handleNodeClick(node.id, node.status)}
                                   disabled={node.status === "locked"}
