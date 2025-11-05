@@ -1,3 +1,5 @@
+
+-- Migration: 20251027030951
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
@@ -735,3 +737,17 @@ CREATE TRIGGER on_auth_user_created
 AFTER INSERT ON auth.users
 FOR EACH ROW
 EXECUTE FUNCTION public.handle_new_user();
+
+-- Migration: 20251027032309
+-- Agregar política para permitir a usuarios crear su primer rol al registrarse
+CREATE POLICY "Users can create their first role on signup"
+ON public.user_roles
+FOR INSERT
+TO authenticated
+WITH CHECK (
+  user_id = auth.uid() 
+  AND NOT EXISTS (
+    SELECT 1 FROM public.user_roles 
+    WHERE user_id = auth.uid()
+  )
+);
