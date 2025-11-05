@@ -40,6 +40,7 @@ export default function Auth() {
       if (data.user) {
         // Fetch user role to redirect appropriately
         const { data: roleData } = await supabase
+          // @ts-ignore - Supabase types not yet synced
           .from("user_roles")
           .select("role")
           .eq("user_id", data.user.id)
@@ -48,7 +49,7 @@ export default function Auth() {
         toast.success("¡Bienvenido de vuelta!");
         
         if (roleData) {
-          navigate(`/${roleData.role}/dashboard`);
+          navigate(`/${(roleData as any).role}/dashboard`);
         } else {
           navigate("/");
         }
@@ -88,23 +89,26 @@ export default function Auth() {
       if (data.user) {
         // Create user role
         const { error: roleError } = await supabase
+          // @ts-ignore - Supabase types not yet synced
           .from("user_roles")
-          .insert({
+          .insert([{
             user_id: data.user.id,
-            role: role as any,
-          });
+            role: role,
+          }] as any);
 
         if (roleError) throw roleError;
 
         // Create specific role table entry
         if (role === "profesor") {
-          await supabase.from("profesores").insert({ user_id: data.user.id });
+          // @ts-ignore - Supabase types not yet synced
+          await supabase.from("profesores").insert([{ user_id: data.user.id }] as any);
         } else if (role === "alumno") {
-          await supabase.from("alumnos").insert({ 
+          // @ts-ignore - Supabase types not yet synced
+          await supabase.from("alumnos").insert([{
             user_id: data.user.id,
             grado: "Sin asignar",
             seccion: "Sin asignar"
-          });
+          }] as any);
         }
 
         toast.success("¡Cuenta creada exitosamente!");

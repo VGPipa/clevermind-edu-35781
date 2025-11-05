@@ -51,6 +51,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       const fetchUserData = async () => {
         try {
           const { data: roleData, error: roleError } = await supabase
+            // @ts-ignore - Supabase types not yet synced
             .from("user_roles")
             .select("role")
             .eq("user_id", user.id)
@@ -64,15 +65,16 @@ export function AppLayout({ children }: AppLayoutProps) {
           }
 
           const { data: profileData } = await supabase
+            // @ts-ignore - Supabase types not yet synced
             .from("profiles")
             .select("nombre, apellido")
             .eq("user_id", user.id)
             .single();
 
-          setRole(roleData.role);
+          setRole((roleData as any)?.role || "");
           setUserName(
-            profileData?.nombre
-              ? `${profileData.nombre} ${profileData.apellido || ""}`.trim()
+            (profileData as any)?.nombre
+              ? `${(profileData as any).nombre} ${(profileData as any).apellido || ""}`.trim()
               : ""
           );
           setLoading(false);
