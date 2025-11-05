@@ -22,12 +22,13 @@ export default function ProfesorCapacitacion() {
     async function loadProfile() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        // @ts-ignore - Supabase types not fully configured
+        // @ts-ignore
         const { data } = await supabase
+          // @ts-ignore
           .from('profiles')
           .select('*')
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
         setUserProfile(data);
       }
     }
