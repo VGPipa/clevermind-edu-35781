@@ -328,8 +328,12 @@ export default function ProfesorCapacitacion() {
                                 <Button
                                   variant={node.status === "available" ? "default" : "outline"}
                                   className={`w-full justify-start gap-3 h-auto py-3 ${
-                                    node.status === "locked" ? "cursor-not-allowed opacity-60" : ""
-                                  } ${node.status === "completed" ? "bg-success/10 border-success hover:bg-success/20" : ""}`}
+                                    node.status === "locked" 
+                                      ? "cursor-not-allowed opacity-60 bg-muted/50 hover:bg-muted/50" 
+                                      : node.status === "completed"
+                                      ? "bg-success/20 border-success text-success-foreground hover:bg-success/30"
+                                      : "bg-primary hover:bg-primary/90 text-primary-foreground"
+                                  }`}
                                   onClick={() => handleNodeClick(node.id, node.status)}
                                   disabled={node.status === "locked"}
                                 >
@@ -337,15 +341,15 @@ export default function ProfesorCapacitacion() {
                                     {getNodeIcon(node.status)}
                                     <div className="text-left">
                                       <p className="font-medium">{node.title}</p>
-                                      <p className="text-xs text-muted-foreground">
+                                      <p className="text-xs opacity-80">
                                         {node.status === "completed" && "✓ Completado"}
-                                        {node.status === "available" && "Disponible"}
+                                        {node.status === "available" && "Disponible ahora"}
                                         {node.status === "locked" && "🔒 Bloqueado"}
                                       </p>
                                     </div>
                                   </div>
                                   {node.status === "completed" && (
-                                    <Badge className="bg-success">+100 XP</Badge>
+                                    <Badge className="bg-success/80">+100 XP</Badge>
                                   )}
                                 </Button>
                                 {nodeIdx < module.nodes.length - 1 && (

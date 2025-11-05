@@ -88,8 +88,14 @@ export default function ProfesorNodoAprendizaje() {
       setFeedback(rating);
       setIsGenerating(false);
 
-      if (rating.total === 5) {
+      if (rating.total >= 9) {
         toast.success("¡Excelente! Has creado un prompt perfecto");
+      } else if (rating.total >= 7) {
+        toast.success("¡Muy bien! Buen prompt con pequeñas mejoras posibles");
+      } else if (rating.total >= 5) {
+        toast.info("Buen intento. Revisa las sugerencias para mejorar");
+      } else {
+        toast.error("Intenta seguir más de cerca los tips del nodo");
       }
     }, 2000);
   };
@@ -106,12 +112,25 @@ export default function ProfesorNodoAprendizaje() {
     const hasCriteria = criteria.hasCriteria.some((term: string) => lowerText.includes(term.toLowerCase()));
     const hasLevels = criteria.hasLevels.some((term: string) => lowerText.includes(term.toLowerCase()));
 
+    // Calcular puntuación de 1-10 para cada componente
+    const rolScore = hasRole ? 10 : 4;
+    const contextoScore = hasContext ? 10 : 5;
+    const formatoScore = hasFormat ? 10 : 2;
+    const criteriosScore = hasCriteria ? 10 : 4;
+    const nivelesScore = hasLevels ? 10 : 4;
+
+    // Promedio ponderado (total sobre 10)
+    const totalScore = Math.round(
+      (rolScore * 0.25 + contextoScore * 0.20 + formatoScore * 0.20 + criteriosScore * 0.20 + nivelesScore * 0.15)
+    );
+
     return {
-      rol: hasRole ? 5 : 2,
-      contexto: hasContext ? 5 : 3,
-      formato: hasFormat ? 5 : 1,
-      criterios: hasCriteria ? 5 : 2,
-      total: (hasRole && hasContext && hasFormat && hasCriteria && hasLevels) ? 5 : 3,
+      rol: rolScore,
+      contexto: contextoScore,
+      formato: formatoScore,
+      criterios: criteriosScore,
+      niveles: nivelesScore,
+      total: totalScore,
       suggestions: [
         !hasRole && "Agrega el rol de la IA (ej: 'Eres un profesor de...')",
         !hasContext && "Especifica el nivel educativo y contexto",
@@ -140,14 +159,20 @@ export default function ProfesorNodoAprendizaje() {
   };
 
   const handleSaveToPortfolio = () => {
+    if (!feedback || feedback.total < 7) {
+      toast.error("Necesitas una calificación de 7/10 o mayor para guardar en el portafolio");
+      return;
+    }
     toast.success("¡Guardado en tu portafolio! +100 XP");
     // Aquí guardaríamos en Supabase
     navigate("/profesor/capacitacion");
   };
 
-  const getStarColor = (index: number) => {
-    if (!feedback) return "text-gray-300";
-    return index < feedback.total ? "fill-yellow-400 text-yellow-400" : "text-gray-300";
+  const getScoreColor = (score: number) => {
+    if (score >= 9) return "text-success";
+    if (score >= 7) return "text-primary";
+    if (score >= 5) return "text-warning";
+    return "text-destructive";
   };
 
   if (!nodoData) {
@@ -384,67 +409,106 @@ export default function ProfesorNodoAprendizaje() {
                     {feedback ? (
                       <>
                         <div className="text-center space-y-2">
-                          <p className="text-sm text-muted-foreground">Calidad del Prompt</p>
-                          <div className="flex justify-center gap-1">
-                            {Array.from({ length: 5 }).map((_, i) => (
-                              <Star key={i} className={`h-6 w-6 ${getStarColor(i)}`} />
-                            ))}
+                          <p className="text-sm text-muted-foreground">Calificación del Prompt</p>
+                          <div className="flex items-center justify-center gap-2">
+                            <span className={`text-5xl font-bold ${getScoreColor(feedback.total)}`}>
+                              {feedback.total}
+                            </span>
+                            <span className="text-2xl text-muted-foreground">/10</span>
                           </div>
+                          <Progress value={feedback.total * 10} className="h-2 mt-2" />
                         </div>
 
                         <div className="space-y-3">
-                          <div className="flex items-center justify-between text-sm">
-                            <span>Claridad del rol</span>
-                            <span className={feedback.rol === 5 ? "text-success" : "text-warning"}>
-                              {feedback.rol === 5 ? "✅ Excelente" : "⚠️ Mejorable"}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between text-sm">
-                            <span>Especificidad del contexto</span>
-                            <span className={feedback.contexto === 5 ? "text-success" : "text-warning"}>
-                              {feedback.contexto === 5 ? "✅ Excelente" : "⚠️ Mejorable"}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between text-sm">
-                            <span>Formato solicitado</span>
-                            <span className={feedback.formato === 5 ? "text-success" : "text-destructive"}>
-                              {feedback.formato === 5 ? "✅ Bien definido" : "❌ Falta detalle"}
-                            </span>
+                          <h4 className="font-semibold text-sm">Análisis por Componentes:</h4>
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between text-sm">
+                              <span>Claridad del rol</span>
+                              <div className="flex items-center gap-2">
+                                <Progress value={feedback.rol * 10} className="w-20 h-2" />
+                                <span className={`font-semibold min-w-[3ch] ${getScoreColor(feedback.rol)}`}>
+                                  {feedback.rol}/10
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between text-sm">
+                              <span>Especificidad del contexto</span>
+                              <div className="flex items-center gap-2">
+                                <Progress value={feedback.contexto * 10} className="w-20 h-2" />
+                                <span className={`font-semibold min-w-[3ch] ${getScoreColor(feedback.contexto)}`}>
+                                  {feedback.contexto}/10
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between text-sm">
+                              <span>Formato solicitado</span>
+                              <div className="flex items-center gap-2">
+                                <Progress value={feedback.formato * 10} className="w-20 h-2" />
+                                <span className={`font-semibold min-w-[3ch] ${getScoreColor(feedback.formato)}`}>
+                                  {feedback.formato}/10
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between text-sm">
+                              <span>Criterios específicos</span>
+                              <div className="flex items-center gap-2">
+                                <Progress value={feedback.criterios * 10} className="w-20 h-2" />
+                                <span className={`font-semibold min-w-[3ch] ${getScoreColor(feedback.criterios)}`}>
+                                  {feedback.criterios}/10
+                                </span>
+                              </div>
+                            </div>
                           </div>
                         </div>
 
                         {feedback.suggestions.length > 0 && (
-                          <div className="p-4 bg-muted rounded-lg">
-                            <p className="font-semibold text-sm mb-2">💡 Sugerencias:</p>
-                            <ol className="text-sm space-y-1 list-decimal list-inside">
+                          <div className="space-y-2">
+                            <h4 className="font-semibold text-sm">💡 Sugerencias de Mejora:</h4>
+                            <ul className="space-y-2">
                               {feedback.suggestions.map((suggestion: string, i: number) => (
-                                <li key={i}>{suggestion}</li>
+                                <li key={i} className="flex items-start gap-2 text-sm">
+                                  <AlertCircle className="h-4 w-4 text-warning mt-0.5 flex-shrink-0" />
+                                  <span>{suggestion}</span>
+                                </li>
                               ))}
-                            </ol>
+                            </ul>
                           </div>
                         )}
 
-                        <div>
-                          <p className="text-sm text-muted-foreground mb-2">Nivel de Calidad</p>
-                          <Progress value={(feedback.total / 5) * 100} className="h-3" />
-                          <p className="text-sm text-center mt-2 font-medium">
-                            Nivel {feedback.total}/5
-                          </p>
+                        <div className="pt-4">
+                          <div className="p-4 bg-muted rounded-lg space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium">Calidad del Producto</span>
+                              <span className={`text-lg font-bold ${getScoreColor(feedback.total)}`}>
+                                {feedback.total >= 9 ? "Excelente" : feedback.total >= 7 ? "Muy Bueno" : feedback.total >= 5 ? "Bueno" : "Mejorable"}
+                              </span>
+                            </div>
+                            <Progress value={feedback.total * 10} className="h-3" />
+                          </div>
                         </div>
 
-                        {feedback.total === 5 && (
-                          <div className="p-4 bg-success/10 border border-success rounded-lg space-y-3">
-                            <div className="flex items-center gap-2 text-success">
+                        {feedback.total >= 7 && (
+                          <div className="space-y-3 pt-2">
+                            <div className="flex items-center justify-center gap-2 text-success">
                               <Trophy className="h-5 w-5" />
-                              <span className="font-semibold">¡Excelente trabajo!</span>
+                              <span className="font-semibold">¡Logro Desbloqueado!</span>
                             </div>
                             <Button
                               onClick={handleSaveToPortfolio}
                               className="w-full bg-success hover:bg-success/90"
+                              size="lg"
                             >
-                              <Star className="mr-2 h-4 w-4" />
+                              <Star className="mr-2 h-5 w-5" />
                               Guardar en Mi Portafolio
                             </Button>
+                          </div>
+                        )}
+
+                        {feedback.total < 7 && (
+                          <div className="p-4 bg-warning/10 border border-warning rounded-lg">
+                            <p className="text-sm text-center">
+                              Necesitas una calificación de 7/10 o mayor para guardar este producto en tu portafolio. ¡Sigue las sugerencias y vuelve a intentar!
+                            </p>
                           </div>
                         )}
                       </>
