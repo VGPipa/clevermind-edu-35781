@@ -1,4 +1,4 @@
-import { Home, Users, BookOpen, FileText, Settings, BarChart3, Calendar, GraduationCap, UserCircle, LogOut } from "lucide-react";
+import { Home, Users, BookOpen, FileText, Settings, BarChart3, Calendar, GraduationCap, UserCircle, LogOut, Sparkles } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -49,6 +49,7 @@ export function AppSidebar({ role, userName, userEmail }: AppSidebarProps) {
     { title: "Planificación", icon: Calendar, url: "/profesor/planificacion" },
     { title: "Generar Clase", icon: FileText, url: "/profesor/generar-clase" },
     { title: "Métricas", icon: BarChart3, url: "/profesor/metricas" },
+    { title: "Capacitación IA", icon: Sparkles, url: "/profesor/capacitacion" },
   ];
 
   const alumnoItems = [

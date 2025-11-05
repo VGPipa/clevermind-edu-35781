@@ -9,6 +9,9 @@ import ProfesorDashboard from "./pages/profesor/Dashboard";
 import ProfesorPlanificacion from "./pages/profesor/Planificacion";
 import ProfesorGenerarClase from "./pages/profesor/GenerarClase";
 import ProfesorMetricas from "./pages/profesor/Metricas";
+import ProfesorCapacitacion from "./pages/profesor/Capacitacion";
+import ProfesorEvaluacionInicial from "./pages/profesor/EvaluacionInicial";
+import ProfesorNodoAprendizaje from "./pages/profesor/NodoAprendizaje";
 import AlumnoDashboard from "./pages/alumno/Dashboard";
 import AlumnoClases from "./pages/alumno/Clases";
 import ApoderadoDashboard from "./pages/apoderado/Dashboard";
@@ -34,6 +37,9 @@ const App = () => (
           <Route path="/profesor/planificacion" element={<ProfesorPlanificacion />} />
           <Route path="/profesor/generar-clase" element={<ProfesorGenerarClase />} />
           <Route path="/profesor/metricas" element={<ProfesorMetricas />} />
+          <Route path="/profesor/capacitacion" element={<ProfesorCapacitacion />} />
+          <Route path="/profesor/capacitacion/evaluacion-inicial" element={<ProfesorEvaluacionInicial />} />
+          <Route path="/profesor/capacitacion/nodo/:nodoId" element={<ProfesorNodoAprendizaje />} />
           
           {/* Alumno Routes */}
           <Route path="/alumno/dashboard" element={<AlumnoDashboard />} />
