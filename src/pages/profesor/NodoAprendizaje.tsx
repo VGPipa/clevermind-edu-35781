@@ -260,7 +260,7 @@ export default function ProfesorNodoAprendizaje() {
                   <div key={question.id} className="space-y-3">
                     <p className="text-sm font-medium">{question.question}</p>
                     <RadioGroup
-                      value={microEvalAnswers[question.id]}
+                      value={microEvalAnswers[question.id] || ""}
                       onValueChange={(value) => handleMicroEvalAnswer(question.id, value)}
                     >
                       {question.options.map((option) => (

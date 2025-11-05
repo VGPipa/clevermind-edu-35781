@@ -1,4 +1,5 @@
 import { AppLayout } from "@/components/layout/AppLayout";
+import { useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -10,7 +11,18 @@ import { useState } from "react";
 
 export default function ProfesorCapacitacion() {
   const navigate = useNavigate();
-  const [hasCompletedInitial, setHasCompletedInitial] = useState(false); // En producción esto vendría de la DB
+  const [hasCompletedInitial, setHasCompletedInitial] = useState(false);
+  const [userLevel, setUserLevel] = useState("");
+
+  // Verificar si completó la evaluación inicial
+  useEffect(() => {
+    const evaluationData = localStorage.getItem("evaluacion_inicial");
+    if (evaluationData) {
+      const data = JSON.parse(evaluationData);
+      setHasCompletedInitial(data.completed);
+      setUserLevel(data.nivel);
+    }
+  }, []);
 
   // Mock data - en producción vendría de Supabase
   const userProgress = {
@@ -155,6 +167,11 @@ export default function ProfesorCapacitacion() {
                 <div className="h-16 w-16 rounded-full bg-white/20 flex items-center justify-center text-2xl font-bold">
                   {userProgress.level}
                 </div>
+                {userLevel && (
+                  <Badge className="bg-white/20 text-white border-white/30">
+                    Nivel: {userLevel}
+                  </Badge>
+                )}
                 <div>
                   <h2 className="text-2xl font-bold">Nivel {userProgress.level}</h2>
                   <p className="text-white/80">Maestro de IA en Formación</p>

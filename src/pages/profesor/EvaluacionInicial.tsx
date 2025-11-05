@@ -5,7 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { CheckCircle2, ArrowRight, ArrowLeft } from "lucide-react";
@@ -14,6 +14,10 @@ export default function ProfesorEvaluacionInicial() {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(0);
   const [answers, setAnswers] = useState<Record<number, string>>({});
+  const [evaluationResults, setEvaluationResults] = useState({
+    nivel: "",
+    score: 0,
+  });
   const [promptAnswer, setPromptAnswer] = useState("");
 
   const questions = [
@@ -88,11 +92,70 @@ export default function ProfesorEvaluacionInicial() {
     if (currentStep < totalSteps - 1) {
       setCurrentStep(currentStep + 1);
     } else {
-      // Evaluación completada
-      toast.success("¡Evaluación completada!");
-      // Aquí guardaríamos los resultados en la base de datos
+      // Evaluación completada - calcular nivel
+      const totalScore = calculateScore();
+      const nivel = determineLevel(totalScore);
+      
+      // Guardar en localStorage temporalmente (en producción iría a DB)
+      const results = {
+        completed: true,
+        nivel,
+        score: totalScore,
+        date: new Date().toISOString(),
+        answers,
+        promptAnswer,
+      };
+      
+      localStorage.setItem("evaluacion_inicial", JSON.stringify(results));
+      
+      toast.success(`¡Evaluación completada! Nivel detectado: ${nivel}`);
       navigate("/profesor/capacitacion");
     }
+  };
+
+  const calculateScore = () => {
+    let score = 0;
+    
+    // Pregunta 0: familiaridad con IA
+    if (answers[0] === "avanzado") score += 3;
+    else if (answers[0] === "intermedio") score += 2;
+    else if (answers[0] === "basico") score += 1;
+    
+    // Pregunta 1: uso de herramientas
+    if (answers[1] === "frecuentemente") score += 3;
+    else if (answers[1] === "regularmente") score += 2;
+    else if (answers[1] === "pocas") score += 1;
+    
+    // Pregunta 2: qué es un prompt (respuesta correcta: b)
+    if (answers[2] === "b") score += 2;
+    
+    // Pregunta 3: elementos de prompt efectivo (respuesta correcta: b)
+    if (answers[3] === "b") score += 2;
+    
+    // Pregunta 4: calidad del prompt escrito
+    const promptQuality = evaluatePromptQuality(promptAnswer);
+    score += promptQuality;
+    
+    return score;
+  };
+
+  const evaluatePromptQuality = (text: string) => {
+    let quality = 0;
+    const lower = text.toLowerCase();
+    
+    if (lower.includes("profesor") || lower.includes("eres") || lower.includes("actúa")) quality += 1;
+    if (lower.includes("4") || lower.includes("cuarto") || lower.includes("básico")) quality += 1;
+    if (lower.includes("rúbrica")) quality += 1;
+    if (lower.includes("criterio") || lower.includes("nivel")) quality += 1;
+    if (text.length > 100) quality += 1; // Prompt detallado
+    
+    return quality;
+  };
+
+  const determineLevel = (score: number) => {
+    if (score >= 11) return "Avanzado";
+    if (score >= 6) return "Intermedio";
+    return "Básico";
   };
 
   const handleBack = () => {
@@ -125,7 +188,7 @@ export default function ProfesorEvaluacionInicial() {
 
               {currentQuestion.type === "multiple" && (
                 <RadioGroup
-                  value={answers[currentStep]}
+                  value={answers[currentStep] || ""}
                   onValueChange={(value) =>
                     setAnswers({ ...answers, [currentStep]: value })
                   }
