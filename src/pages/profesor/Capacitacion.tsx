@@ -65,9 +65,21 @@ export default function ProfesorCapacitacion() {
           title: "IA para Planificación Educativa",
           color: "from-primary to-primary/80",
           nodes: [
-            { id: 1, title: "Introducción a Prompts", status: "completed" },
-            { id: 2, title: "Crear Objetivos de Aprendizaje", status: "completed" },
-            { id: 3, title: "Planificación de Unidades", status: "available" },
+            { 
+              id: 1, 
+              title: "Introducción a Prompts", 
+              status: userLevel === "Avanzado" ? "completed" : (userLevel === "Intermedio" ? "available" : "available")
+            },
+            { 
+              id: 2, 
+              title: "Crear Objetivos de Aprendizaje", 
+              status: userLevel === "Avanzado" ? "completed" : (userLevel === "Intermedio" ? "available" : "locked")
+            },
+            { 
+              id: 3, 
+              title: "Planificación de Unidades", 
+              status: userLevel === "Avanzado" ? "available" : "locked"
+            },
             { id: 4, title: "Secuencias Didácticas", status: "locked" },
             { id: 5, title: "Adaptación Curricular", status: "locked" },
           ],

@@ -7,9 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { getNodeContent } from "@/data/nodosContent";
 import { 
   Sparkles, 
   RotateCcw, 
@@ -35,55 +36,17 @@ export default function ProfesorNodoAprendizaje() {
   const [feedback, setFeedback] = useState<any>(null);
   const [microEvalAnswers, setMicroEvalAnswers] = useState<Record<string, string>>({});
   const [isEvalComplete, setIsEvalComplete] = useState(false);
+  const [nodoData, setNodoData] = useState<any>(null);
 
-  // Mock data - en producción vendría de Supabase basado en nodoId
-  const nodoData = {
-    id: parseInt(nodoId || "3"),
-    title: "Crear Rúbricas con IA",
-    module: "IA para Planificación Educativa",
-    teoria: [
-      {
-        title: "¿Qué es una rúbrica?",
-        content: "Una rúbrica es una herramienta de evaluación que establece criterios claros y niveles de desempeño.",
-        example: "Permite evaluar trabajos complejos de manera objetiva y consistente.",
-      },
-      {
-        title: "Componentes de un buen prompt",
-        badExample: "Crea una rúbrica de ciencias",
-        goodExample: "Eres un profesor de 5° básico. Crea una rúbrica para evaluar un proyecto sobre 'El Sistema Solar' con 3 criterios (contenido, presentación, creatividad) y 4 niveles (sobresaliente, bueno, suficiente, insuficiente).",
-      },
-      {
-        title: "Tips clave",
-        tips: [
-          "Define el rol de la IA",
-          "Especifica el contexto (grado, materia)",
-          "Detalla los criterios esperados",
-          "Indica el formato deseado",
-        ],
-      },
-    ],
-    mision: "Crea una rúbrica para evaluar un proyecto de Ciencias Naturales de 5to grado sobre 'El Sistema Solar' con 3 criterios y 4 niveles de desempeño",
-    microeval: [
-      {
-        id: "q1",
-        question: "¿Cuál es el PRIMER paso al crear un prompt efectivo?",
-        options: [
-          { value: "a", label: "Describir el formato final" },
-          { value: "b", label: "Definir el rol y contexto", correct: true },
-          { value: "c", label: "Listar todos los criterios" },
-        ],
-      },
-      {
-        id: "q2",
-        question: "¿Qué hace más específico un prompt?",
-        options: [
-          { value: "a", label: "Usar palabras complejas" },
-          { value: "b", label: "Incluir números y detalles concretos", correct: true },
-          { value: "c", label: "Hacerlo lo más largo posible" },
-        ],
-      },
-    ],
-  };
+  useEffect(() => {
+    const nodeContent = getNodeContent(parseInt(nodoId || "1"));
+    if (!nodeContent) {
+      toast.error("Nodo no encontrado");
+      navigate("/profesor/capacitacion");
+      return;
+    }
+    setNodoData(nodeContent);
+  }, [nodoId, navigate]);
 
   const handleGenerate = async () => {
     if (!prompt.trim()) {
@@ -132,11 +95,16 @@ export default function ProfesorNodoAprendizaje() {
   };
 
   const evaluatePrompt = (text: string): any => {
-    const hasRole = text.toLowerCase().includes("profesor") || text.toLowerCase().includes("eres");
-    const hasContext = text.includes("5") || text.toLowerCase().includes("quinto") || text.toLowerCase().includes("básico");
-    const hasFormat = text.toLowerCase().includes("rúbrica");
-    const hasCriteria = text.includes("3") || text.toLowerCase().includes("tres");
-    const hasLevels = text.includes("4") || text.toLowerCase().includes("cuatro") || text.toLowerCase().includes("niveles");
+    if (!nodoData) return { total: 0, suggestions: [] };
+    
+    const criteria = nodoData.evaluationCriteria;
+    const lowerText = text.toLowerCase();
+    
+    const hasRole = criteria.hasRole.some((term: string) => lowerText.includes(term.toLowerCase()));
+    const hasContext = criteria.hasContext.some((term: string) => lowerText.includes(term.toLowerCase()));
+    const hasFormat = criteria.hasFormat.some((term: string) => lowerText.includes(term.toLowerCase()));
+    const hasCriteria = criteria.hasCriteria.some((term: string) => lowerText.includes(term.toLowerCase()));
+    const hasLevels = criteria.hasLevels.some((term: string) => lowerText.includes(term.toLowerCase()));
 
     return {
       rol: hasRole ? 5 : 2,
@@ -145,21 +113,23 @@ export default function ProfesorNodoAprendizaje() {
       criterios: hasCriteria ? 5 : 2,
       total: (hasRole && hasContext && hasFormat && hasCriteria && hasLevels) ? 5 : 3,
       suggestions: [
-        !hasRole && "Agrega el rol: 'Eres un profesor de ciencias'",
-        !hasContext && "Especifica el grado: '5° básico'",
-        !hasCriteria && "Indica la cantidad de criterios: '3 criterios'",
-        !hasLevels && "Especifica los niveles: '4 niveles de desempeño'",
+        !hasRole && "Agrega el rol de la IA (ej: 'Eres un profesor de...')",
+        !hasContext && "Especifica el nivel educativo y contexto",
+        !hasCriteria && "Detalla los elementos específicos que necesitas",
+        !hasLevels && "Especifica detalles importantes del formato",
       ].filter(Boolean),
     };
   };
 
   const handleMicroEvalAnswer = (questionId: string, value: string) => {
+    if (!nodoData) return;
+    
     setMicroEvalAnswers({ ...microEvalAnswers, [questionId]: value });
     
     // Verificar si todas las respuestas son correctas
-    const allCorrect = nodoData.microeval.every((q) => {
+    const allCorrect = nodoData.microeval.every((q: any) => {
       const userAnswer = questionId === q.id ? value : microEvalAnswers[q.id];
-      const correctAnswer = q.options.find((opt) => opt.correct)?.value;
+      const correctAnswer = q.options.find((opt: any) => opt.correct)?.value;
       return userAnswer === correctAnswer;
     });
 
@@ -179,6 +149,16 @@ export default function ProfesorNodoAprendizaje() {
     if (!feedback) return "text-gray-300";
     return index < feedback.total ? "fill-yellow-400 text-yellow-400" : "text-gray-300";
   };
+
+  if (!nodoData) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <p className="text-muted-foreground">Cargando nodo...</p>
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
@@ -209,27 +189,28 @@ export default function ProfesorNodoAprendizaje() {
                 <CardTitle className="text-lg">📚 Teoría</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {nodoData.teoria.map((teoria, idx) => (
+                {nodoData.teoria.map((teoria: any, idx: number) => (
                   <div key={idx} className="p-4 bg-muted rounded-lg space-y-2">
                     <h4 className="font-semibold text-sm">{teoria.title}</h4>
                     {teoria.content && <p className="text-sm text-muted-foreground">{teoria.content}</p>}
+                    {teoria.example && <p className="text-sm italic text-muted-foreground">{teoria.example}</p>}
                     {teoria.badExample && (
                       <div className="space-y-2 text-sm">
                         <p className="flex items-start gap-2">
-                          <XCircle className="h-4 w-4 text-destructive mt-0.5" />
+                          <XCircle className="h-4 w-4 text-destructive mt-0.5 flex-shrink-0" />
                           <span className="text-destructive">{teoria.badExample}</span>
                         </p>
                         <p className="flex items-start gap-2">
-                          <CheckCircle2 className="h-4 w-4 text-success mt-0.5" />
+                          <CheckCircle2 className="h-4 w-4 text-success mt-0.5 flex-shrink-0" />
                           <span className="text-success">{teoria.goodExample}</span>
                         </p>
                       </div>
                     )}
                     {teoria.tips && (
                       <ul className="text-sm space-y-1">
-                        {teoria.tips.map((tip, i) => (
+                        {teoria.tips.map((tip: string, i: number) => (
                           <li key={i} className="flex items-start gap-2">
-                            <CheckCircle2 className="h-4 w-4 text-primary mt-0.5" />
+                            <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
                             <span>{tip}</span>
                           </li>
                         ))}
@@ -256,14 +237,14 @@ export default function ProfesorNodoAprendizaje() {
                 <CardTitle className="text-lg">✍️ Micro-Evaluación</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {nodoData.microeval.map((question) => (
+                {nodoData.microeval.map((question: any) => (
                   <div key={question.id} className="space-y-3">
                     <p className="text-sm font-medium">{question.question}</p>
                     <RadioGroup
                       value={microEvalAnswers[question.id] || ""}
                       onValueChange={(value) => handleMicroEvalAnswer(question.id, value)}
                     >
-                      {question.options.map((option) => (
+                      {question.options.map((option: any) => (
                         <div key={option.value} className="flex items-center space-x-2">
                           <RadioGroupItem value={option.value} id={`${question.id}-${option.value}`} />
                           <Label htmlFor={`${question.id}-${option.value}`} className="text-sm cursor-pointer">
@@ -335,7 +316,15 @@ export default function ProfesorNodoAprendizaje() {
                   </Button>
                 </div>
 
-                <Button variant="outline" className="w-full" size="sm">
+                <Button 
+                  variant="outline" 
+                  className="w-full" 
+                  size="sm"
+                  onClick={() => {
+                    setPrompt(nodoData.promptExample);
+                    toast.info("Ejemplo cargado. Puedes modificarlo y probar.");
+                  }}
+                >
                   <Lightbulb className="mr-2 h-4 w-4" />
                   Ver Ejemplo
                 </Button>
