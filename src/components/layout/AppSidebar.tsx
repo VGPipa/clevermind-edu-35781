@@ -10,6 +10,7 @@ import {
   SidebarMenuItem,
   SidebarFooter,
   SidebarHeader,
+  SidebarRail,
 } from "@/components/ui/sidebar";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -79,13 +80,14 @@ export function AppSidebar({ role, userName, userEmail }: AppSidebarProps) {
   const menuItems = getMenuItems();
 
   return (
-    <Sidebar>
+    <Sidebar collapsible="icon" variant="inset">
+      <SidebarRail />
       <SidebarHeader className="border-b border-sidebar-border p-4">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-gradient-primary flex items-center justify-center">
+          <div className="h-10 w-10 rounded-lg bg-gradient-primary flex items-center justify-center shrink-0">
             <GraduationCap className="h-6 w-6 text-white" />
           </div>
-          <div>
+          <div className="group-data-[collapsible=icon]:hidden">
             <h2 className="font-bold text-lg text-sidebar-foreground">EduThink</h2>
             <p className="text-xs text-sidebar-foreground/70 capitalize">{role}</p>
           </div>
@@ -113,14 +115,14 @@ export function AppSidebar({ role, userName, userEmail }: AppSidebarProps) {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter className="border-t border-sidebar-border p-4">
-        <div className="flex items-center gap-3 mb-3">
-          <Avatar className="h-9 w-9">
+        <div className="flex items-center gap-3 mb-3 group-data-[collapsible=icon]:justify-center">
+          <Avatar className="h-9 w-9 shrink-0">
             <AvatarImage src="" />
             <AvatarFallback className="bg-primary text-primary-foreground">
               {userName?.charAt(0).toUpperCase() || userEmail?.charAt(0).toUpperCase()}
             </AvatarFallback>
           </Avatar>
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 group-data-[collapsible=icon]:hidden">
             <p className="text-sm font-medium text-sidebar-foreground truncate">
               {userName || "Usuario"}
             </p>
@@ -129,9 +131,9 @@ export function AppSidebar({ role, userName, userEmail }: AppSidebarProps) {
             </p>
           </div>
         </div>
-        <SidebarMenuButton onClick={handleLogout} className="w-full">
+        <SidebarMenuButton onClick={handleLogout} className="w-full" tooltip="Cerrar Sesión">
           <LogOut />
-          <span>Cerrar Sesión</span>
+          <span className="group-data-[collapsible=icon]:hidden">Cerrar Sesión</span>
         </SidebarMenuButton>
       </SidebarFooter>
     </Sidebar>
