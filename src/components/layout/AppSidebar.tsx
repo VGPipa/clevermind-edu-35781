@@ -1,10 +1,11 @@
 import { Home, Users, BookOpen, FileText, Settings, BarChart3, Calendar, GraduationCap, LogOut, Sparkles } from "lucide-react";
-import { AnimatedSidebar, SidebarBody, SidebarLink } from "@/components/ui/sidebar-animated";
+import { AnimatedSidebar, SidebarBody, SidebarLink, useSidebar } from "@/components/ui/sidebar-animated";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 interface AppSidebarProps {
   role: string;
@@ -97,7 +98,7 @@ export function AppSidebar({ role, userName, userEmail }: AppSidebarProps) {
   return (
     <AnimatedSidebar>
       <SidebarBody className="justify-between gap-10">
-        <div className="flex flex-col flex-1 overflow-y-auto overflow-x-hidden">
+        <div className="flex flex-col flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
           <div className="md:block hidden">
             <Logo />
           </div>
@@ -117,42 +118,60 @@ export function AppSidebar({ role, userName, userEmail }: AppSidebarProps) {
             ))}
           </div>
         </div>
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-3 px-2">
-            <Avatar className="h-9 w-9 flex-shrink-0">
-              <AvatarImage src="" />
-              <AvatarFallback className="bg-primary text-primary-foreground">
-                {userName?.charAt(0).toUpperCase() || userEmail?.charAt(0).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <motion.div
-              className="flex-1 min-w-0"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-            >
-              <p className="text-sm font-medium text-sidebar-foreground truncate">
-                {userName || "Usuario"}
-              </p>
-              <p className="text-xs text-sidebar-foreground/70 truncate">
-                {userEmail}
-              </p>
-            </motion.div>
-          </div>
-          <div
-            onClick={handleLogout}
-            className="flex items-center gap-2 px-2 py-2 rounded-lg cursor-pointer text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all duration-150"
-          >
-            <LogOut className="h-5 w-5 flex-shrink-0" />
-            <motion.span
-              className="text-sm whitespace-pre"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-            >
-              Cerrar Sesión
-            </motion.span>
-          </div>
-        </div>
+        <BottomSection userName={userName} userEmail={userEmail} handleLogout={handleLogout} />
       </SidebarBody>
     </AnimatedSidebar>
+  );
+}
+
+function BottomSection({ userName, userEmail, handleLogout }: { userName?: string; userEmail?: string; handleLogout: () => void }) {
+  const { open } = useSidebar();
+
+  return (
+    <div className="flex flex-col gap-2 pb-2">
+      <div className={cn(
+        "flex items-center gap-3",
+        open ? "px-2" : "justify-center px-0"
+      )}>
+        <Avatar className="h-9 w-9 flex-shrink-0">
+          <AvatarImage src="" />
+          <AvatarFallback className="bg-primary text-primary-foreground">
+            {userName?.charAt(0).toUpperCase() || userEmail?.charAt(0).toUpperCase()}
+          </AvatarFallback>
+        </Avatar>
+        <motion.div
+          className="flex-1 min-w-0"
+          animate={{
+            display: open ? "block" : "none",
+            opacity: open ? 1 : 0,
+          }}
+        >
+          <p className="text-sm font-medium text-sidebar-foreground truncate">
+            {userName || "Usuario"}
+          </p>
+          <p className="text-xs text-sidebar-foreground/70 truncate">
+            {userEmail}
+          </p>
+        </motion.div>
+      </div>
+      <div
+        onClick={handleLogout}
+        className={cn(
+          "flex items-center gap-2 py-2 rounded-lg cursor-pointer text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all duration-150",
+          open ? "px-2 justify-start" : "px-0 justify-center"
+        )}
+      >
+        <LogOut className="h-5 w-5 flex-shrink-0" />
+        <motion.span
+          className="text-sm whitespace-pre"
+          animate={{
+            display: open ? "inline-block" : "none",
+            opacity: open ? 1 : 0,
+          }}
+        >
+          Cerrar Sesión
+        </motion.span>
+      </div>
+    </div>
   );
 }
