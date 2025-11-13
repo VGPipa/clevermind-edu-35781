@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
 import { toast } from "sonner";
 import { User, Session } from "@supabase/supabase-js";
@@ -103,11 +104,13 @@ export function AppLayout({ children }: AppLayoutProps) {
   }
 
   return (
-    <div className="flex min-h-screen w-full">
-      <AppSidebar role={role} userName={userName} userEmail={user.email} />
-      <main className="flex-1 overflow-auto bg-background p-6">
-        {children}
-      </main>
-    </div>
+    <SidebarProvider>
+      <div className="flex min-h-screen w-full">
+        <AppSidebar role={role} userName={userName} userEmail={user.email} />
+        <main className="flex-1 overflow-auto bg-background p-6">
+          {children}
+        </main>
+      </div>
+    </SidebarProvider>
   );
 }
