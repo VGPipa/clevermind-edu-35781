@@ -8,35 +8,35 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Educational Platform Design System */
-    --background: 210 40% 98%;
-    --foreground: 217 33% 17%;
+    /* Educational Platform Design System - Purple & Orange Theme */
+    --background: 0 0% 100%;
+    --foreground: 258 48% 15%;
 
     --card: 0 0% 100%;
-    --card-foreground: 217 33% 17%;
+    --card-foreground: 258 48% 15%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 217 33% 17%;
+    --popover-foreground: 258 48% 15%;
 
-    /* Primary: Deep Blue (Trust, Education) */
-    --primary: 217 91% 60%;
+    /* Primary: Light Purple (Main Interactive Color) */
+    --primary: 239 84% 67%;
     --primary-foreground: 0 0% 100%;
-    --primary-light: 217 91% 70%;
-    --primary-dark: 217 91% 45%;
+    --primary-light: 239 100% 94%;
+    --primary-dark: 266 69% 42%;
 
-    /* Secondary: Fresh Green (Growth, Progress) */
-    --secondary: 142 76% 36%;
+    /* Secondary: Dark Purple (Supporting Color) */
+    --secondary: 266 69% 42%;
     --secondary-foreground: 0 0% 100%;
-    --secondary-light: 142 76% 50%;
+    --secondary-light: 239 84% 67%;
 
-    /* Accent: Energetic Orange (Action, Energy) */
-    --accent: 25 95% 53%;
+    /* Accent: Orange (Call to Action) */
+    --accent: 35 100% 50%;
     --accent-foreground: 0 0% 100%;
     
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 4% 46%;
 
-    /* Success: Vibrant Green */
+    /* Success: Green */
     --success: 142 76% 36%;
     --success-foreground: 0 0% 100%;
 
@@ -47,34 +47,34 @@ All colors MUST be HSL.
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 217 91% 60%;
+    --border: 240 6% 90%;
+    --input: 240 6% 90%;
+    --ring: 239 84% 67%;
 
     --radius: 0.75rem;
 
     /* Sidebar */
-    --sidebar-background: 217 91% 60%;
+    --sidebar-background: 239 84% 67%;
     --sidebar-foreground: 0 0% 100%;
     --sidebar-primary: 0 0% 100%;
-    --sidebar-primary-foreground: 217 91% 60%;
-    --sidebar-accent: 217 91% 65%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 217 91% 55%;
+    --sidebar-primary-foreground: 239 84% 67%;
+    --sidebar-accent: 239 100% 94%;
+    --sidebar-accent-foreground: 239 84% 67%;
+    --sidebar-border: 239 84% 60%;
     --sidebar-ring: 0 0% 100%;
 
     /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(217, 91%, 60%) 0%, hsl(217, 91%, 45%) 100%);
-    --gradient-secondary: linear-gradient(135deg, hsl(142, 76%, 36%) 0%, hsl(142, 76%, 50%) 100%);
-    --gradient-accent: linear-gradient(135deg, hsl(25, 95%, 53%) 0%, hsl(25, 95%, 63%) 100%);
-    --gradient-hero: linear-gradient(135deg, hsl(217, 91%, 60%) 0%, hsl(142, 76%, 36%) 100%);
+    --gradient-primary: linear-gradient(135deg, hsl(239, 84%, 67%) 0%, hsl(266, 69%, 42%) 100%);
+    --gradient-secondary: linear-gradient(135deg, hsl(266, 69%, 42%) 0%, hsl(258, 48%, 15%) 100%);
+    --gradient-accent: linear-gradient(135deg, hsl(35, 100%, 50%) 0%, hsl(35, 100%, 60%) 100%);
+    --gradient-hero: linear-gradient(135deg, hsl(239, 84%, 67%) 0%, hsl(35, 100%, 50%) 100%);
 
     /* Shadows */
     --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
     --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
     --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-    --shadow-primary: 0 10px 30px -10px hsla(217, 91%, 60%, 0.4);
+    --shadow-primary: 0 10px 30px -10px hsla(239, 84%, 67%, 0.4);
     --shadow-success: 0 10px 30px -10px hsla(142, 76%, 36%, 0.4);
 
     /* Animations */
@@ -83,29 +83,29 @@ All colors MUST be HSL.
   }
 
   .dark {
-    --background: 217 33% 9%;
-    --foreground: 210 40% 98%;
+    --background: 258 48% 15%;
+    --foreground: 0 0% 100%;
 
-    --card: 217 33% 12%;
-    --card-foreground: 210 40% 98%;
+    --card: 258 48% 20%;
+    --card-foreground: 0 0% 100%;
 
-    --popover: 217 33% 12%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 258 48% 20%;
+    --popover-foreground: 0 0% 100%;
 
-    --primary: 217 91% 70%;
-    --primary-foreground: 217 33% 9%;
-    --primary-light: 217 91% 80%;
-    --primary-dark: 217 91% 55%;
+    --primary: 239 84% 67%;
+    --primary-foreground: 0 0% 100%;
+    --primary-light: 239 100% 94%;
+    --primary-dark: 266 69% 42%;
 
-    --secondary: 142 76% 45%;
+    --secondary: 266 69% 42%;
     --secondary-foreground: 0 0% 100%;
-    --secondary-light: 142 76% 60%;
+    --secondary-light: 239 84% 67%;
 
-    --accent: 25 95% 63%;
+    --accent: 35 100% 50%;
     --accent-foreground: 0 0% 100%;
 
-    --muted: 217 33% 15%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 258 48% 25%;
+    --muted-foreground: 240 5% 65%;
 
     --success: 142 76% 45%;
     --success-foreground: 0 0% 100%;
@@ -114,20 +114,20 @@ All colors MUST be HSL.
     --warning-foreground: 0 0% 100%;
 
     --destructive: 0 62% 50%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 217 33% 18%;
-    --input: 217 33% 18%;
-    --ring: 217 91% 70%;
+    --border: 258 48% 30%;
+    --input: 258 48% 30%;
+    --ring: 239 84% 67%;
 
-    --sidebar-background: 217 33% 12%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 217 91% 70%;
-    --sidebar-primary-foreground: 217 33% 9%;
-    --sidebar-accent: 217 33% 18%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217 33% 18%;
-    --sidebar-ring: 217 91% 70%;
+    --sidebar-background: 258 48% 20%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 239 84% 67%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 258 48% 30%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 258 48% 30%;
+    --sidebar-ring: 239 84% 67%;
   }
 }
 
