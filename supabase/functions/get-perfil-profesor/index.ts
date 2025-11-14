@@ -92,6 +92,9 @@ Deno.serve(async (req) => {
       console.error('Error obteniendo asignaciones:', asignacionesError);
     }
 
+    console.log('Asignaciones obtenidas:', asignaciones?.length || 0);
+    console.log('Asignaciones con datos completos:', asignaciones?.filter((a: any) => a.materias && a.grupos).length || 0);
+
     const asignacionesConEstadisticas = await Promise.all(
       (asignaciones || [])
         .filter((a: any) => a.materias && a.grupos) // Filtrar asignaciones con datos válidos
@@ -148,15 +151,20 @@ Deno.serve(async (req) => {
       })
     );
 
-    // Calcular estadísticas generales
+
+    // Calcular estadísticas generales - manejar caso sin asignaciones
     const totalMaterias = asignacionesConEstadisticas.length;
-    const gruposUnicos = new Set(asignacionesConEstadisticas.map(a => a.grupo.id));
+    const gruposUnicos = new Set(
+      asignacionesConEstadisticas
+        .map(a => a.grupo?.id)
+        .filter(id => id && id !== '')
+    );
     const totalGrupos = gruposUnicos.size;
     const totalEstudiantes = asignacionesConEstadisticas.reduce(
-      (sum, a) => sum + a.grupo.cantidad_alumnos, 0
+      (sum, a) => sum + (a.grupo?.cantidad_alumnos || 0), 0
     );
     const horasSemanales = asignacionesConEstadisticas.reduce(
-      (sum, a) => sum + (a.materia.horas_semanales || 0), 0
+      (sum, a) => sum + (a.materia?.horas_semanales || 0), 0
     );
 
     const { count: clasesProgramadasMes } = await supabase
