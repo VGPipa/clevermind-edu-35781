@@ -93,7 +93,9 @@ Deno.serve(async (req) => {
     }
 
     const asignacionesConEstadisticas = await Promise.all(
-      (asignaciones || []).map(async (asignacion: any) => {
+      (asignaciones || [])
+        .filter((a: any) => a.materias && a.grupos) // Filtrar asignaciones con datos válidos
+        .map(async (asignacion: any) => {
         // Contar temas de la materia
         const { count: totalTemas } = await supabase
           .from('temas')
@@ -122,18 +124,18 @@ Deno.serve(async (req) => {
         return {
           id: asignacion.id,
           materia: {
-            id: asignacion.materias.id,
-            nombre: asignacion.materias.nombre,
-            horas_semanales: asignacion.materias.horas_semanales,
+            id: asignacion.materias?.id || '',
+            nombre: asignacion.materias?.nombre || '',
+            horas_semanales: asignacion.materias?.horas_semanales || 0,
             total_temas: totalTemas || 0,
-            descripcion: asignacion.materias.descripcion
+            descripcion: asignacion.materias?.descripcion || ''
           },
           grupo: {
-            id: asignacion.grupos.id,
-            nombre: asignacion.grupos.nombre,
-            grado: asignacion.grupos.grado,
-            seccion: asignacion.grupos.seccion,
-            cantidad_alumnos: asignacion.grupos.cantidad_alumnos || 0
+            id: asignacion.grupos?.id || '',
+            nombre: asignacion.grupos?.nombre || '',
+            grado: asignacion.grupos?.grado || '',
+            seccion: asignacion.grupos?.seccion || '',
+            cantidad_alumnos: asignacion.grupos?.cantidad_alumnos || 0
           },
           anio_escolar: asignacion.anio_escolar,
           estadisticas: {
