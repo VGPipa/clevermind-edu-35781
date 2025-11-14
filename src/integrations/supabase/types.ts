@@ -165,6 +165,27 @@ export type Database = {
             referencedRelation: "profesores"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_asignaciones_profesor_grupo"
+            columns: ["id_grupo"]
+            isOneToOne: false
+            referencedRelation: "grupos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_asignaciones_profesor_materia"
+            columns: ["id_materia"]
+            isOneToOne: false
+            referencedRelation: "materias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_asignaciones_profesor_profesor"
+            columns: ["id_profesor"]
+            isOneToOne: false
+            referencedRelation: "profesores"
+            referencedColumns: ["id"]
+          },
         ]
       }
       calificaciones: {
