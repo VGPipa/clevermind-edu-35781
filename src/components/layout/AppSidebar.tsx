@@ -15,7 +15,6 @@ interface AppSidebarProps {
 
 export function AppSidebar({ role, userName, userEmail }: AppSidebarProps) {
   const navigate = useNavigate();
-  const { open } = useSidebar();
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
@@ -95,29 +94,37 @@ export function AppSidebar({ role, userName, userEmail }: AppSidebarProps) {
   return (
     <AnimatedSidebar>
       <SidebarBody className="justify-between gap-10">
-        <div className="flex flex-col flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
-          <div className="md:block hidden">
-            {open ? <Logo /> : <LogoIcon />}
-          </div>
-          <div className="md:hidden">
-            <LogoIcon />
-          </div>
-          <div className="mt-8 flex flex-col gap-2">
-            {menuItems.map((item, idx) => (
-              <SidebarLink
-                key={idx}
-                link={{
-                  label: item.title,
-                  href: item.url,
-                  icon: item.icon,
-                }}
-              />
-            ))}
-          </div>
-        </div>
+        <SidebarContent menuItems={menuItems} Logo={Logo} LogoIcon={LogoIcon} />
         <BottomSection userName={userName} userEmail={userEmail} handleLogout={handleLogout} />
       </SidebarBody>
     </AnimatedSidebar>
+  );
+}
+
+function SidebarContent({ menuItems, Logo, LogoIcon }: { menuItems: any[]; Logo: () => JSX.Element; LogoIcon: () => JSX.Element }) {
+  const { open } = useSidebar();
+
+  return (
+    <div className="flex flex-col flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+      <div className="md:block hidden">
+        {open ? <Logo /> : <LogoIcon />}
+      </div>
+      <div className="md:hidden">
+        <LogoIcon />
+      </div>
+      <div className="mt-8 flex flex-col gap-2">
+        {menuItems.map((item, idx) => (
+          <SidebarLink
+            key={idx}
+            link={{
+              label: item.title,
+              href: item.url,
+              icon: item.icon,
+            }}
+          />
+        ))}
+      </div>
+    </div>
   );
 }
 
