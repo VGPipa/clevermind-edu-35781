@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Auth from "./pages/Auth";
 import AdminDashboard from "./pages/admin/Dashboard";
+import AdminPlanAnual from "./pages/admin/PlanAnual";
 import ProfesorDashboard from "./pages/profesor/Dashboard";
 import ProfesorPlanificacion from "./pages/profesor/Planificacion";
 import ProfesorGenerarClase from "./pages/profesor/GenerarClase";
@@ -32,6 +33,7 @@ const App = () => (
           
           {/* Admin Routes */}
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
+          <Route path="/admin/plan-anual" element={<AdminPlanAnual />} />
           
           {/* Profesor Routes */}
           <Route path="/profesor/dashboard" element={<ProfesorDashboard />} />
