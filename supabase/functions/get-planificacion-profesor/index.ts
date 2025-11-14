@@ -1,47 +1,17 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  authenticateProfesor,
+  handleCors,
+  createErrorResponse,
+  createSuccessResponse,
+} from '../_shared/auth.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return handleCors();
   }
 
   try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
-        },
-      }
-    );
-
-    // Get authenticated user
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      throw new Error('Usuario no autenticado');
-    }
-
-    console.log('Usuario autenticado:', user.id);
-
-    // Get profesor ID
-    const { data: profesor, error: profesorError } = await supabase
-      .from('profesores')
-      .select('id')
-      .eq('user_id', user.id)
-      .single();
-
-    if (profesorError || !profesor) {
-      throw new Error('Profesor no encontrado');
-    }
-
-    console.log('Profesor encontrado:', profesor.id);
+    const { supabase, profesor } = await authenticateProfesor(req, false);
 
     // Get asignaciones for 2025
     const { data: asignaciones, error: asignacionesError } = await supabase
@@ -180,19 +150,11 @@ serve(async (req) => {
 
     console.log('Respuesta generada con', response.materias.length, 'materias');
 
-    return new Response(JSON.stringify(response), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return createSuccessResponse(response);
 
   } catch (error) {
     console.error('Error en get-planificacion-profesor:', error);
     const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
+    return createErrorResponse(errorMessage, 400);
   }
 });

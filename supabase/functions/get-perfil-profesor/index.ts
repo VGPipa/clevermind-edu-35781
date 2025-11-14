@@ -1,56 +1,17 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.76.1';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import {
+  authenticateProfesor,
+  handleCors,
+  createErrorResponse,
+  createSuccessResponse,
+} from '../_shared/auth.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return handleCors();
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-    const authHeader = req.headers.get('Authorization')!;
-    
-    const supabase = createClient(supabaseUrl, supabaseKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    
-    if (userError || !user) {
-      console.error('Error de autenticación:', userError);
-      return new Response(
-        JSON.stringify({ error: 'No autenticado' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log('Usuario autenticado:', user.id);
-
-    // Obtener datos del profesor
-    const { data: profesor, error: profesorError } = await supabase
-      .from('profesores')
-      .select(`
-        id,
-        user_id,
-        especialidad,
-        activo,
-        created_at
-      `)
-      .eq('user_id', user.id)
-      .single();
-
-    if (profesorError || !profesor) {
-      console.error('Error obteniendo profesor:', profesorError);
-      return new Response(
-        JSON.stringify({ error: 'Profesor no encontrado' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    const { supabase, user, profesor } = await authenticateProfesor(req, false);
 
     // Obtener perfil del usuario
     const { data: profile, error: profileError } = await supabase
@@ -76,7 +37,12 @@ Deno.serve(async (req) => {
           id,
           nombre,
           horas_semanales,
-          descripcion
+          descripcion,
+          id_plan_anual,
+          plan_anual (
+            grado,
+            anio_escolar
+          )
         ),
         grupos (
           id,
@@ -93,66 +59,130 @@ Deno.serve(async (req) => {
     }
 
     console.log('Asignaciones obtenidas:', asignaciones?.length || 0);
-    console.log('Asignaciones con datos completos:', asignaciones?.filter((a: any) => a.materias && a.grupos).length || 0);
 
     const asignacionesConEstadisticas = await Promise.all(
       (asignaciones || [])
-        .filter((a: any) => a.materias && a.grupos) // Filtrar asignaciones con datos válidos
+        .filter((a: any) => a.materias && a.grupos)
         .map(async (asignacion: any) => {
-        // Contar temas de la materia
-        const { count: totalTemas } = await supabase
-          .from('temas')
-          .select('*', { count: 'exact', head: true })
-          .eq('id_materia', asignacion.id_materia);
+          // Get temas for this materia
+          const { data: temas, error: temasError } = await supabase
+            .from('temas')
+            .select('*')
+            .eq('id_materia', asignacion.id_materia)
+            .order('bimestre', { ascending: true })
+            .order('orden', { ascending: true });
 
-        // Contar clases de esta asignación
-        const { data: temasData } = await supabase
-          .from('temas')
-          .select('id')
-          .eq('id_materia', asignacion.id_materia);
-        
-        const temasIds = temasData?.map(t => t.id) || [];
-        
-        const { data: clases } = await supabase
-          .from('clases')
-          .select('id, estado, fecha_programada, id_tema')
-          .eq('id_profesor', profesor.id)
-          .eq('id_grupo', asignacion.id_grupo)
-          .in('id_tema', temasIds.length > 0 ? temasIds : ['00000000-0000-0000-0000-000000000000']);
-
-        const clasesProgramadas = clases?.filter(c => c.estado === 'programada').length || 0;
-        const clasesCompletadas = clases?.filter(c => c.estado === 'ejecutada').length || 0;
-        const temasConClases = new Set(clases?.map(c => c.id_tema)).size;
-
-        return {
-          id: asignacion.id,
-          materia: {
-            id: asignacion.materias?.id || '',
-            nombre: asignacion.materias?.nombre || '',
-            horas_semanales: asignacion.materias?.horas_semanales || 0,
-            total_temas: totalTemas || 0,
-            descripcion: asignacion.materias?.descripcion || ''
-          },
-          grupo: {
-            id: asignacion.grupos?.id || '',
-            nombre: asignacion.grupos?.nombre || '',
-            grado: asignacion.grupos?.grado || '',
-            seccion: asignacion.grupos?.seccion || '',
-            cantidad_alumnos: asignacion.grupos?.cantidad_alumnos || 0
-          },
-          anio_escolar: asignacion.anio_escolar,
-          estadisticas: {
-            clases_programadas: clasesProgramadas,
-            clases_completadas: clasesCompletadas,
-            temas_cubiertos: temasConClases,
-            porcentaje_cobertura: totalTemas ? Math.round((temasConClases / totalTemas) * 100) : 0
+          if (temasError) {
+            console.error('Error obteniendo temas:', temasError);
           }
-        };
-      })
+
+          // Get clases for this asignacion
+          const { data: clases, error: clasesError } = await supabase
+            .from('clases')
+            .select('id, id_tema, estado, fecha_programada, fecha_ejecutada')
+            .eq('id_grupo', asignacion.id_grupo)
+            .eq('id_profesor', profesor.id);
+
+          if (clasesError) {
+            console.error('Error obteniendo clases:', clasesError);
+          }
+
+          // Organize temas by bimestre and calculate progress
+          const bimestres = [
+            { numero: 1, nombre: 'Bimestre I', periodo: 'Marzo - Mayo', temas: [] as any[] },
+            { numero: 2, nombre: 'Bimestre II', periodo: 'Mayo - Julio', temas: [] as any[] },
+            { numero: 3, nombre: 'Bimestre III', periodo: 'Agosto - Octubre', temas: [] as any[] },
+            { numero: 4, nombre: 'Bimestre IV', periodo: 'Octubre - Diciembre', temas: [] as any[] },
+          ];
+
+          (temas || []).forEach((tema: any) => {
+            const bimestreIndex = (tema.bimestre || 1) - 1;
+            
+            // Calculate progress for this tema
+            const clasesDelTema = (clases || []).filter((c: any) => c.id_tema === tema.id);
+            const clasesProgramadas = clasesDelTema.length;
+            const clasesEjecutadas = clasesDelTema.filter((c: any) => c.estado === 'ejecutada').length;
+            const clasesEnProgreso = clasesDelTema.filter((c: any) => c.estado === 'programada').length;
+            
+            let estado = 'pendiente';
+            if (clasesEjecutadas > 0 && clasesEjecutadas === clasesProgramadas) {
+              estado = 'completado';
+            } else if (clasesEnProgreso > 0 || clasesEjecutadas > 0) {
+              estado = 'en_progreso';
+            }
+
+            const progreso = clasesProgramadas > 0 
+              ? Math.round((clasesEjecutadas / clasesProgramadas) * 100) 
+              : 0;
+
+            bimestres[bimestreIndex].temas.push({
+              id: tema.id,
+              nombre: tema.nombre,
+              descripcion: tema.descripcion,
+              objetivos: tema.objetivos,
+              duracion_estimada: tema.duracion_estimada,
+              estado,
+              clases_programadas: clasesProgramadas,
+              clases_ejecutadas: clasesEjecutadas,
+              progreso,
+              es_modificado: tema.tema_base_id !== null,
+            });
+          });
+
+          // Calculate statistics
+          const totalTemas = temas?.length || 0;
+          const temasCompletados = bimestres.reduce((acc, b) => 
+            acc + b.temas.filter(t => t.estado === 'completado').length, 0
+          );
+          const temasEnProgreso = bimestres.reduce((acc, b) => 
+            acc + b.temas.filter(t => t.estado === 'en_progreso').length, 0
+          );
+          const temasPendientes = totalTemas - temasCompletados - temasEnProgreso;
+
+          const progresoGeneral = totalTemas > 0 
+            ? Math.round((temasCompletados / totalTemas) * 100) 
+            : 0;
+
+          const clasesProgramadas = clases?.filter(c => c.estado === 'programada').length || 0;
+          const clasesCompletadas = clases?.filter(c => c.estado === 'ejecutada').length || 0;
+          const temasConClases = new Set(clases?.map(c => c.id_tema)).size;
+
+          return {
+            id: asignacion.id,
+            materia: {
+              id: asignacion.materias?.id || '',
+              nombre: asignacion.materias?.nombre || '',
+              horas_semanales: asignacion.materias?.horas_semanales || 0,
+              total_temas: totalTemas,
+              descripcion: asignacion.materias?.descripcion || ''
+            },
+            grupo: {
+              id: asignacion.grupos?.id || '',
+              nombre: asignacion.grupos?.nombre || '',
+              grado: asignacion.grupos?.grado || '',
+              seccion: asignacion.grupos?.seccion || '',
+              cantidad_alumnos: asignacion.grupos?.cantidad_alumnos || 0
+            },
+            anio_escolar: asignacion.anio_escolar,
+            estadisticas: {
+              clases_programadas: clasesProgramadas,
+              clases_completadas: clasesCompletadas,
+              temas_cubiertos: temasConClases,
+              porcentaje_cobertura: totalTemas ? Math.round((temasConClases / totalTemas) * 100) : 0,
+              total_temas: totalTemas,
+              temas_completados: temasCompletados,
+              temas_en_progreso: temasEnProgreso,
+              temas_pendientes: temasPendientes,
+            },
+            planificacion: {
+              progreso_general: progresoGeneral,
+              bimestres,
+            }
+          };
+        })
     );
 
-
-    // Calcular estadísticas generales - manejar caso sin asignaciones
+    // Calcular estadísticas generales
     const totalMaterias = asignacionesConEstadisticas.length;
     const gruposUnicos = new Set(
       asignacionesConEstadisticas
@@ -206,17 +236,11 @@ Deno.serve(async (req) => {
 
     console.log('Perfil del profesor obtenido exitosamente');
 
-    return new Response(
-      JSON.stringify(resultado),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return createSuccessResponse(resultado);
 
   } catch (error) {
     console.error('Error en get-perfil-profesor:', error);
     const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return createErrorResponse(errorMessage, 500);
   }
 });

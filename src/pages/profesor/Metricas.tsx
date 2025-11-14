@@ -7,78 +7,64 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatPeruDateTimeShort, toPeruTime } from "@/lib/timezone";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function Metricas() {
-  const mockEstadisticas = {
-    promedioGeneral: 7.5,
-    alumnosTotal: 85,
-    quizzesCompletados: 156,
-    tasaAprobacion: 88
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['metricas-profesor'],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke('get-metricas-profesor');
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <AppLayout>
+        <div className="space-y-6">
+          <div>
+            <Skeleton className="h-10 w-64" />
+            <Skeleton className="h-5 w-96 mt-2" />
+          </div>
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-32" />
+            ))}
+          </div>
+          <Skeleton className="h-96" />
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <AppLayout>
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Error al cargar las métricas. Por favor, intenta de nuevo.
+          </AlertDescription>
+        </Alert>
+      </AppLayout>
+    );
+  }
+
+  const estadisticas = data?.estadisticas || {
+    promedioGeneral: 0,
+    alumnosTotal: 0,
+    quizzesCompletados: 0,
+    tasaAprobacion: 0,
   };
 
-  const mockCursos = [
-    {
-      nombre: "Matemáticas 1°A",
-      alumnos: 28,
-      promedio: 7.8,
-      tendencia: "up",
-      quizzes: 12,
-      asistencia: 92
-    },
-    {
-      nombre: "Lenguaje 2°B",
-      alumnos: 25,
-      promedio: 7.2,
-      tendencia: "stable",
-      quizzes: 10,
-      asistencia: 88
-    },
-    {
-      nombre: "Matemáticas 3°A",
-      alumnos: 32,
-      promedio: 7.6,
-      tendencia: "up",
-      quizzes: 15,
-      asistencia: 95
-    }
-  ];
-
-  const mockTemasDesafiantes = [
-    {
-      tema: "Multiplicación",
-      curso: "3° Básico A",
-      promedio: 6.2,
-      intentos: 45,
-      dificultad: "alta"
-    },
-    {
-      tema: "Comprensión Lectora",
-      curso: "2° Básico B",
-      promedio: 6.8,
-      intentos: 38,
-      dificultad: "media"
-    },
-    {
-      tema: "Geometría",
-      curso: "3° Básico A",
-      promedio: 6.5,
-      intentos: 52,
-      dificultad: "media"
-    }
-  ];
-
-  const mockAlumnosDestacados = [
-    { nombre: "María González", curso: "1°A", promedio: 9.2, racha: 12 },
-    { nombre: "Pedro Martínez", curso: "3°A", promedio: 8.9, racha: 8 },
-    { nombre: "Ana López", curso: "2°B", promedio: 8.7, racha: 10 },
-    { nombre: "Carlos Ruiz", curso: "1°A", promedio: 8.5, racha: 6 },
-  ];
-
-  const mockAlumnosAtencion = [
-    { nombre: "Juan Pérez", curso: "2°B", promedio: 5.8, quizzesPendientes: 3 },
-    { nombre: "Sofía Torres", curso: "3°A", promedio: 6.1, quizzesPendientes: 2 },
-    { nombre: "Diego Silva", curso: "1°A", promedio: 6.0, quizzesPendientes: 4 },
-  ];
+  const cursos = data?.cursos || [];
+  const temasDesafiantes = data?.temasDesafiantes || [];
+  const alumnosDestacados = data?.alumnosDestacados || [];
+  const alumnosAtencion = data?.alumnosAtencion || [];
 
   return (
     <AppLayout>
@@ -158,7 +144,12 @@ export default function Metricas() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {mockCursos.map((curso, idx) => (
+                  {cursos.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <p>No hay datos de cursos disponibles</p>
+                    </div>
+                  ) : (
+                    cursos.map((curso: any, idx: number) => (
                     <div key={idx} className="p-4 rounded-lg border bg-card/50 space-y-3">
                       <div className="flex items-start justify-between">
                         <div>
@@ -192,7 +183,8 @@ export default function Metricas() {
                         </div>
                       </div>
                     </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -210,7 +202,12 @@ export default function Metricas() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {mockAlumnosDestacados.map((alumno, idx) => (
+                    {alumnosDestacados.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        No hay alumnos destacados aún
+                      </p>
+                    ) : (
+                      alumnosDestacados.map((alumno: any, idx: number) => (
                       <div key={idx} className="flex items-center justify-between p-3 rounded-lg border bg-card/50">
                         <div>
                           <p className="font-medium text-sm">{alumno.nombre}</p>
@@ -225,7 +222,8 @@ export default function Metricas() {
                           </Badge>
                         </div>
                       </div>
-                    ))}
+                      ))
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -240,7 +238,12 @@ export default function Metricas() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {mockAlumnosAtencion.map((alumno, idx) => (
+                    {alumnosAtencion.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        No hay alumnos que requieran atención
+                      </p>
+                    ) : (
+                      alumnosAtencion.map((alumno: any, idx: number) => (
                       <div key={idx} className="flex items-center justify-between p-3 rounded-lg border bg-card/50">
                         <div>
                           <p className="font-medium text-sm">{alumno.nombre}</p>
@@ -255,7 +258,8 @@ export default function Metricas() {
                           </p>
                         </div>
                       </div>
-                    ))}
+                      ))
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -273,7 +277,12 @@ export default function Metricas() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {mockTemasDesafiantes.map((tema, idx) => (
+                  {temasDesafiantes.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <p>No hay datos de temas desafiantes disponibles</p>
+                    </div>
+                  ) : (
+                    temasDesafiantes.map((tema: any, idx: number) => (
                     <div key={idx} className="p-4 rounded-lg border bg-card/50 space-y-3">
                       <div className="flex items-start justify-between">
                         <div>
@@ -296,7 +305,8 @@ export default function Metricas() {
                         </p>
                       </div>
                     </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </CardContent>
             </Card>
