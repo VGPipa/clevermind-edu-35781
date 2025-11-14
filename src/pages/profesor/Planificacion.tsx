@@ -1,108 +1,177 @@
 import { AppLayout } from "@/components/layout/AppLayout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, BookOpen, Target, Clock } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { formatPeruTime } from "@/lib/timezone";
+import { BookOpen, Calendar, CheckCircle2, AlertCircle, TrendingUp } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { TemaCard } from "@/components/profesor/TemaCard";
+import { TemaDetailModal } from "@/components/profesor/TemaDetailModal";
+import { StatsCard } from "@/components/profesor/StatsCard";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+
+interface Tema {
+  id: string;
+  nombre: string;
+  descripcion: string;
+  objetivos: string;
+  duracion_estimada: number;
+  estado: 'completado' | 'en_progreso' | 'pendiente';
+  clases_programadas: number;
+  clases_ejecutadas: number;
+  progreso: number;
+  es_modificado: boolean;
+}
+
+interface Bimestre {
+  numero: number;
+  nombre: string;
+  periodo: string;
+  temas: Tema[];
+}
+
+interface Materia {
+  id: string;
+  nombre: string;
+  descripcion: string;
+  grado: string;
+  grupo: string;
+  seccion: string;
+  horas_semanales: number;
+  progreso_general: number;
+  bimestres: Bimestre[];
+}
+
+interface PlanificacionData {
+  anio_escolar: string;
+  materias: Materia[];
+}
 
 export default function Planificacion() {
-  const mockMaterias = [
-    {
-      nombre: "Matemáticas",
-      grado: "1° Básico",
-      seccion: "A",
-      horasSemana: 6,
-      temas: 12,
-      avance: 45,
-      proximoTema: "Suma y Resta hasta 100"
-    },
-    {
-      nombre: "Lenguaje",
-      grado: "2° Básico",
-      seccion: "B",
-      horasSemana: 5,
-      temas: 10,
-      avance: 60,
-      proximoTema: "Comprensión Lectora"
-    },
-    {
-      nombre: "Matemáticas",
-      grado: "3° Básico",
-      seccion: "A",
-      horasSemana: 6,
-      temas: 15,
-      avance: 30,
-      proximoTema: "Geometría Básica"
-    }
-  ];
+  const navigate = useNavigate();
+  const [selectedMateria, setSelectedMateria] = useState<string | null>(null);
+  const [selectedTema, setSelectedTema] = useState<Tema | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const mockTemasSemana = [
-    {
-      dia: "Lunes",
-      hora: "08:00 - 09:30",
-      materia: "Matemáticas 1°A",
-      tema: "Suma y Resta",
-      estado: "pendiente"
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['planificacion-profesor'],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke('get-planificacion-profesor');
+      
+      if (error) throw error;
+      return data as PlanificacionData;
     },
-    {
-      dia: "Lunes",
-      hora: "10:00 - 11:30",
-      materia: "Lenguaje 2°B",
-      tema: "Comprensión Lectora",
-      estado: "pendiente"
-    },
-    {
-      dia: "Martes",
-      hora: "08:00 - 09:30",
-      materia: "Matemáticas 3°A",
-      tema: "Geometría",
-      estado: "pendiente"
-    },
-    {
-      dia: "Martes",
-      hora: "14:00 - 15:30",
-      materia: "Matemáticas 1°A",
-      tema: "Problemas de Suma",
-      estado: "pendiente"
-    }
-  ];
+  });
 
-  const mockPlanAnual = [
-    {
-      unidad: "Unidad 1: Números hasta 100",
-      materia: "Matemáticas 1°A",
-      duracion: "8 semanas",
-      temas: 6,
-      completado: 4,
-      estado: "en_progreso"
-    },
-    {
-      unidad: "Unidad 2: Textos Narrativos",
-      materia: "Lenguaje 2°B",
-      duracion: "6 semanas",
-      temas: 5,
-      completado: 5,
-      estado: "completado"
-    },
-    {
-      unidad: "Unidad 3: Figuras Geométricas",
-      materia: "Matemáticas 3°A",
-      duracion: "5 semanas",
-      temas: 4,
-      completado: 1,
-      estado: "en_progreso"
+  const handleProgramarClase = (temaId: string) => {
+    navigate(`/profesor/generar-clase?temaId=${temaId}`);
+  };
+
+  const handleVerDetalle = (temaId: string) => {
+    // Encontrar el tema completo basado en el ID
+    for (const materia of data.materias) {
+      for (const bimestre of materia.bimestres) {
+        const tema = bimestre.temas.find(t => t.id === temaId);
+        if (tema) {
+          setSelectedTema(tema);
+          setIsModalOpen(true);
+          return;
+        }
+      }
     }
-  ];
+  };
+
+  if (isLoading) {
+    return (
+      <AppLayout>
+        <div className="space-y-6">
+          <div>
+            <Skeleton className="h-10 w-64" />
+            <Skeleton className="h-5 w-96 mt-2" />
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            <Skeleton className="h-32" />
+            <Skeleton className="h-32" />
+            <Skeleton className="h-32" />
+          </div>
+          <Skeleton className="h-96" />
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <AppLayout>
+        <Card className="border-destructive">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 text-destructive">
+              <AlertCircle className="h-5 w-5" />
+              <p>Error al cargar la planificación. Por favor, intenta nuevamente.</p>
+            </div>
+          </CardContent>
+        </Card>
+      </AppLayout>
+    );
+  }
+
+  if (!data || data.materias.length === 0) {
+    return (
+      <AppLayout>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center py-8">
+              <BookOpen className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <p className="text-muted-foreground">No tienes materias asignadas para el año {data?.anio_escolar || '2025'}.</p>
+            </div>
+          </CardContent>
+        </Card>
+      </AppLayout>
+    );
+  }
+
+  // Seleccionar la primera materia por defecto
+  const currentMateria = selectedMateria 
+    ? data.materias.find(m => m.id === selectedMateria) 
+    : data.materias[0];
+
+  if (currentMateria && !selectedMateria) {
+    setSelectedMateria(currentMateria.id);
+  }
+
+  // Calcular estadísticas generales
+  const totalTemas = data.materias.reduce((acc, m) => 
+    acc + m.bimestres.reduce((b, bi) => b + bi.temas.length, 0), 0
+  );
+  
+  const temasCompletados = data.materias.reduce((acc, m) => 
+    acc + m.bimestres.reduce((b, bi) => 
+      b + bi.temas.filter(t => t.estado === 'completado').length, 0
+    ), 0
+  );
+
+  const progresoGeneral = totalTemas > 0 
+    ? Math.round((temasCompletados / totalTemas) * 100) 
+    : 0;
+
+  const clasesEjecutadas = data.materias.reduce((acc, m) =>
+    acc + m.bimestres.reduce((b, bi) =>
+      b + bi.temas.reduce((t, tema) => t + tema.clases_ejecutadas, 0), 0
+    ), 0
+  );
 
   return (
     <AppLayout>
       <div className="space-y-6">
+        {/* Header */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-              Planificación Académica
+              Planificación Académica {data.anio_escolar}
             </h1>
             <p className="text-muted-foreground mt-2">
               Gestiona tus materias y planifica tus clases
@@ -110,132 +179,140 @@ export default function Planificacion() {
           </div>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-3">
-          {mockMaterias.map((materia, idx) => (
-            <Card key={idx} className="hover:shadow-elegant transition-all hover:-translate-y-1">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-lg">{materia.nombre}</CardTitle>
-                    <CardDescription>
-                      {materia.grado} {materia.seccion}
-                    </CardDescription>
-                  </div>
-                  <Badge variant="secondary">{materia.horasSemana}h/sem</Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Avance del curso</span>
-                  <span className="font-medium">{materia.avance}%</span>
-                </div>
-                <Progress value={materia.avance} className="h-2" />
-                
-                <div className="pt-2 space-y-2">
-                  <div className="flex items-center gap-2 text-sm">
-                    <Target className="h-4 w-4 text-primary" />
-                    <span className="text-muted-foreground">{materia.temas} temas totales</span>
-                  </div>
-                  <div className="p-2 rounded-lg bg-accent/10 border border-accent/20">
-                    <p className="text-xs text-muted-foreground mb-1">Próximo tema:</p>
-                    <p className="text-sm font-medium">{materia.proximoTema}</p>
-                  </div>
-                </div>
-
-                <Button className="w-full mt-3" variant="outline">
-                  <BookOpen className="mr-2 h-4 w-4" />
-                  Ver Planificación
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
+        {/* Stats Overview */}
+        <div className="grid gap-4 md:grid-cols-4">
+          <StatsCard
+            title="Materias Asignadas"
+            value={data.materias.length}
+            icon={BookOpen}
+            iconColor="text-primary"
+          />
+          <StatsCard
+            title="Progreso General"
+            value={`${progresoGeneral}%`}
+            icon={TrendingUp}
+            iconColor="text-success"
+          />
+          <StatsCard
+            title="Temas Completados"
+            value={`${temasCompletados}/${totalTemas}`}
+            icon={CheckCircle2}
+            iconColor="text-success"
+          />
+          <StatsCard
+            title="Clases Ejecutadas"
+            value={clasesEjecutadas}
+            icon={Calendar}
+            iconColor="text-primary"
+          />
         </div>
 
-        <Tabs defaultValue="semana" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="semana">Esta Semana</TabsTrigger>
-            <TabsTrigger value="plan">Plan Anual</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="semana" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5 text-primary" />
-                  Temas de esta Semana
-                </CardTitle>
-                <CardDescription>Tu calendario de temas por día</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {mockTemasSemana.map((clase, idx) => (
-                    <div key={idx} className="flex items-start gap-3 p-3 rounded-lg border bg-card/50 hover:bg-accent/10 transition-colors">
-                      <div className="mt-1">
-                        <div className="text-xs font-medium text-muted-foreground mb-1">{clase.dia}</div>
-                        <Badge variant="outline" className="text-xs whitespace-nowrap">
-                          {clase.hora}
-                        </Badge>
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-medium">{clase.materia}</p>
-                        <p className="text-sm text-muted-foreground mt-1">📚 {clase.tema}</p>
-                      </div>
-                      <Button size="sm" variant="ghost">
-                        Preparar
-                      </Button>
+        {/* Subject Selector */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Selecciona una Materia</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Tabs value={selectedMateria || undefined} onValueChange={setSelectedMateria}>
+              <TabsList className="w-full flex flex-wrap h-auto">
+                {data.materias.map((materia) => (
+                  <TabsTrigger key={materia.id} value={materia.id} className="flex-1 min-w-[200px]">
+                    <div className="flex flex-col items-start">
+                      <span className="font-semibold">{materia.nombre}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {materia.grado}° Primaria - {materia.grupo}
+                      </span>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+                  </TabsTrigger>
+                ))}
+              </TabsList>
 
-          <TabsContent value="plan" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BookOpen className="h-5 w-5 text-primary" />
-                  Plan Anual
-                </CardTitle>
-                <CardDescription>Unidades y progreso general</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {mockPlanAnual.map((unidad, idx) => (
-                    <div key={idx} className="p-4 rounded-lg border bg-card/50 space-y-3">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-medium">{unidad.unidad}</h3>
-                            <Badge variant={unidad.estado === "completado" ? "default" : "secondary"}>
-                              {unidad.estado === "completado" ? "Completado" : "En Progreso"}
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-muted-foreground mt-1">{unidad.materia}</p>
-                        </div>
-                        <div className="text-right">
-                          <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                            <Clock className="h-3 w-3" />
-                            {unidad.duracion}
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">Temas completados</span>
-                          <span className="font-medium">{unidad.completado}/{unidad.temas}</span>
-                        </div>
-                        <Progress value={(unidad.completado / unidad.temas) * 100} className="h-2" />
+              {data.materias.map((materia) => (
+                <TabsContent key={materia.id} value={materia.id} className="space-y-4 mt-6">
+                  {/* Materia Info */}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold">{materia.nombre}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {materia.descripcion || `${materia.grado}° Primaria - ${materia.grupo} (Sección ${materia.seccion})`}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <Badge variant="secondary">{materia.horas_semanales}h/semana</Badge>
+                      <div className="text-right">
+                        <p className="text-sm text-muted-foreground">Progreso</p>
+                        <p className="text-2xl font-bold text-primary">{materia.progreso_general}%</p>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+                  </div>
+
+                  <Progress value={materia.progreso_general} className="h-2" />
+
+                  {/* Bimestres */}
+                  <Accordion type="single" collapsible defaultValue="bimestre-1" className="w-full">
+                    {materia.bimestres.map((bimestre) => {
+                      const temasCompletadosBimestre = bimestre.temas.filter(t => t.estado === 'completado').length;
+                      const progesoBimestre = bimestre.temas.length > 0
+                        ? Math.round((temasCompletadosBimestre / bimestre.temas.length) * 100)
+                        : 0;
+
+                      return (
+                        <AccordionItem key={bimestre.numero} value={`bimestre-${bimestre.numero}`}>
+                          <AccordionTrigger className="hover:no-underline">
+                            <div className="flex items-center justify-between w-full pr-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                  <span className="text-primary font-bold">{bimestre.numero}</span>
+                                </div>
+                                <div className="text-left">
+                                  <h4 className="font-semibold">{bimestre.nombre}</h4>
+                                  <p className="text-sm text-muted-foreground">{bimestre.periodo}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-4">
+                                <Badge variant={progesoBimestre === 100 ? "default" : "secondary"}>
+                                  {temasCompletadosBimestre}/{bimestre.temas.length} temas
+                                </Badge>
+                                <div className="text-right">
+                                  <p className="text-sm font-medium">{progesoBimestre}%</p>
+                                </div>
+                              </div>
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent>
+                            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 pt-4">
+                              {bimestre.temas.map((tema) => (
+                                <TemaCard
+                                  key={tema.id}
+                                  tema={tema}
+                                  onProgramarClase={handleProgramarClase}
+                                  onVerDetalle={handleVerDetalle}
+                                />
+                              ))}
+                            </div>
+                            {bimestre.temas.length === 0 && (
+                              <p className="text-center text-muted-foreground py-8">
+                                No hay temas registrados para este bimestre
+                              </p>
+                            )}
+                          </AccordionContent>
+                        </AccordionItem>
+                      );
+                    })}
+                  </Accordion>
+                </TabsContent>
+              ))}
+            </Tabs>
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Tema Detail Modal */}
+      <TemaDetailModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        tema={selectedTema}
+      />
     </AppLayout>
   );
 }
