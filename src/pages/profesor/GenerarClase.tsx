@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Brain, Loader2, FileText, CheckCircle2, AlertCircle, Edit, Trash2, Plus, Target, Clock } from "lucide-react";
+import { Brain, Loader2, FileText, CheckCircle2, AlertCircle, Target, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -43,13 +43,11 @@ export default function GenerarClase() {
     fecha_programada: new Date().toISOString().split('T')[0],
     duracionClase: "90",
     contextoEspecifico: "",
-    areasTransversales: "",
   });
 
   const [guiaGenerada, setGuiaGenerada] = useState<any>(null);
   const [preguntasPre, setPreguntasPre] = useState<any[]>([]);
   const [preguntasPost, setPreguntasPost] = useState<any[]>([]);
-  const [previousClass, setPreviousClass] = useState<any>(null);
 
   const toggleMetodologia = (metodologia: string) => {
     if (metodologiasSeleccionadas.includes(metodologia)) {
@@ -59,295 +57,398 @@ export default function GenerarClase() {
     }
   };
 
-  const handleCrearClase = async () => {
-    if (!formData.id_tema || !formData.id_grupo || !edadSeleccionada || metodologiasSeleccionadas.length === 0) {
-      toast.error("Por favor completa los campos obligatorios");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('crear-clase', {
-        body: {
-          id_tema: formData.id_tema,
-          id_grupo: formData.id_grupo,
-          fecha_programada: formData.fecha_programada,
-          duracion_minutos: parseInt(formData.duracionClase),
-          grupo_edad: edadSeleccionada,
-          metodologia: metodologiasSeleccionadas.join(', '),
-          contexto: formData.contextoEspecifico,
-          areas_transversales: formData.areasTransversales ? [formData.areasTransversales] : null
-        }
-      });
-
-      if (error) throw error;
-
-      setClaseId(data.class.id);
-      if (data.previousClass) {
-        setPreviousClass(data.previousClass);
-      }
-      setCurrentStep(2);
-      toast.success("Contexto guardado exitosamente");
-    } catch (error: any) {
-      console.error('Error creating class:', error);
-      toast.error(error.message || "Error al crear la clase");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGenerarGuia = async () => {
-    if (!claseId) {
-      toast.error("Primero debes crear el contexto de la clase");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('generar-guia-clase', {
-        body: { id_clase: claseId }
-      });
-
-      if (error) {
-        if (error.message?.includes('429')) {
-          toast.error("Límite de solicitudes excedido. Intenta en unos momentos.");
-        } else if (error.message?.includes('402')) {
-          toast.error("Fondos insuficientes. Contacta al administrador.");
-        } else {
-          throw error;
-        }
+  const handleNextStep = async () => {
+    if (currentStep === 1) {
+      if (!formData.id_tema || !formData.id_grupo || !edadSeleccionada || metodologiasSeleccionadas.length === 0) {
+        toast.error("Por favor completa los campos obligatorios");
         return;
       }
 
-      setGuiaGenerada(data.guide);
-      setCurrentStep(3);
-      toast.success("Guía generada exitosamente");
-    } catch (error: any) {
-      console.error('Error generating guide:', error);
-      toast.error(error.message || "Error al generar la guía");
-    } finally {
-      setLoading(false);
-    }
-  };
-        { id: 3, texto: "Propón una solución innovadora al problema", puntos: 30, tipo: "Síntesis" },
-      ]);
+      setLoading(true);
+      try {
+        const { data, error } = await supabase.functions.invoke('crear-clase', {
+          body: {
+            id_tema: formData.id_tema,
+            id_grupo: formData.id_grupo,
+            fecha_programada: formData.fecha_programada,
+            duracion_minutos: parseInt(formData.duracionClase),
+            grupo_edad: edadSeleccionada,
+            metodologia: metodologiasSeleccionadas.join(', '),
+            contexto: formData.contextoEspecifico,
+            areas_transversales: null
+          }
+        });
 
-      setCurrentStep(2);
-      toast.success("Guía generada exitosamente");
-    } catch (error: any) {
-      console.error('Error:', error);
-      toast.error(error.message || "Error al generar la guía de clase");
-    } finally {
-      setLoading(false);
+        if (error) throw error;
+
+        setClaseId(data.class.id);
+        setCurrentStep(2);
+        toast.success("Contexto guardado exitosamente");
+      } catch (error: any) {
+        console.error('Error creating class:', error);
+        toast.error(error.message || "Error al crear la clase");
+      } finally {
+        setLoading(false);
+      }
+    } else if (currentStep === 2) {
+      if (!claseId) return;
+
+      setLoading(true);
+      try {
+        const { data, error } = await supabase.functions.invoke('generar-guia-clase', {
+          body: { id_clase: claseId }
+        });
+
+        if (error) throw error;
+
+        setGuiaGenerada(data.guide);
+        setCurrentStep(3);
+        toast.success("Guía generada exitosamente");
+      } catch (error: any) {
+        toast.error(error.message || "Error al generar la guía");
+      } finally {
+        setLoading(false);
+      }
+    } else if (currentStep === 3) {
+      if (!claseId) return;
+
+      setLoading(true);
+      try {
+        const { data, error } = await supabase.functions.invoke('generar-evaluacion', {
+          body: { id_clase: claseId, tipo: 'pre' }
+        });
+
+        if (error) throw error;
+
+        setPreguntasPre(data.preguntas);
+        setCurrentStep(4);
+        toast.success("Evaluación pre generada exitosamente");
+      } catch (error: any) {
+        toast.error(error.message || "Error al generar evaluación");
+      } finally {
+        setLoading(false);
+      }
+    } else if (currentStep === 4) {
+      if (!claseId) return;
+
+      setLoading(true);
+      try {
+        const { data, error } = await supabase.functions.invoke('generar-evaluacion', {
+          body: { id_clase: claseId, tipo: 'post' }
+        });
+
+        if (error) throw error;
+
+        setPreguntasPost(data.preguntas);
+        setCurrentStep(5);
+        toast.success("Evaluación post generada exitosamente");
+      } catch (error: any) {
+        toast.error(error.message || "Error al generar evaluación");
+      } finally {
+        setLoading(false);
+      }
+    } else if (currentStep === 5) {
+      if (!claseId) return;
+
+      setLoading(true);
+      try {
+        const { data, error } = await supabase.functions.invoke('validar-clase', {
+          body: { id_clase: claseId }
+        });
+
+        if (error) throw error;
+
+        if (data.is_valid) {
+          toast.success("Clase confirmada y programada exitosamente!");
+        } else {
+          toast.error("Faltan completar algunos pasos");
+        }
+      } catch (error: any) {
+        toast.error(error.message || "Error al validar clase");
+      } finally {
+        setLoading(false);
+      }
     }
   };
+
+  const renderStep1 = () => (
+    <div className="space-y-6">
+      <div className="grid gap-4">
+        <div>
+          <Label>Tema *</Label>
+          <Select value={formData.id_tema} onValueChange={(val) => setFormData({...formData, id_tema: val})}>
+            <SelectTrigger>
+              <SelectValue placeholder="Selecciona un tema" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="tema-1">Álgebra Básica</SelectItem>
+              <SelectItem value="tema-2">Comprensión Lectora</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
+          <Label>Grupo *</Label>
+          <Select value={formData.id_grupo} onValueChange={(val) => setFormData({...formData, id_grupo: val})}>
+            <SelectTrigger>
+              <SelectValue placeholder="Selecciona un grupo" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="grupo-1">7mo A</SelectItem>
+              <SelectItem value="grupo-2">7mo B</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
+          <Label>Metodologías de Pensamiento Crítico *</Label>
+          <div className="flex flex-wrap gap-2 mt-2">
+            {METODOLOGIAS.map((met) => (
+              <Badge
+                key={met}
+                variant={metodologiasSeleccionadas.includes(met) ? "default" : "outline"}
+                className="cursor-pointer"
+                onClick={() => toggleMetodologia(met)}
+              >
+                {met}
+              </Badge>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <Label>Duración de la Clase (minutos) *</Label>
+          <Input
+            type="number"
+            value={formData.duracionClase}
+            onChange={(e) => setFormData({...formData, duracionClase: e.target.value})}
+          />
+        </div>
+
+        <div>
+          <Label>Grupo de Edad *</Label>
+          <div className="grid grid-cols-4 gap-2 mt-2">
+            {EDAD_GRUPOS.map((edad) => (
+              <Button
+                key={edad}
+                variant={edadSeleccionada === edad ? "default" : "outline"}
+                onClick={() => setEdadSeleccionada(edad)}
+              >
+                {edad}
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <Label>Contexto Específico</Label>
+          <Textarea
+            value={formData.contextoEspecifico}
+            onChange={(e) => setFormData({...formData, contextoEspecifico: e.target.value})}
+            rows={4}
+            placeholder="Describe el contexto particular de tus estudiantes..."
+          />
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderStep2 = () => (
+    <div className="space-y-6">
+      {!guiaGenerada ? (
+        <div className="text-center py-12">
+          <FileText className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
+          <p className="text-muted-foreground">La guía se generará automáticamente al avanzar</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div>
+            <h3 className="font-semibold flex items-center gap-2 mb-2">
+              <Target className="h-5 w-5" />
+              Objetivos de Aprendizaje
+            </h3>
+            <ul className="space-y-2">
+              {guiaGenerada.objetivos?.map((obj: string, i: number) => (
+                <li key={i} className="flex items-start gap-2">
+                  <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5" />
+                  <span>{obj}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div>
+            <h3 className="font-semibold flex items-center gap-2 mb-2">
+              <Clock className="h-5 w-5" />
+              Estructura de la Clase
+            </h3>
+            <div className="space-y-2">
+              {guiaGenerada.estructura?.map((fase: any, i: number) => (
+                <div key={i} className="p-3 border rounded-lg">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="font-medium">{fase.actividad}</span>
+                    <Badge variant="outline">{fase.tiempo} min</Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground">{fase.descripcion}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h3 className="font-semibold mb-2">Preguntas Socráticas</h3>
+            <ul className="space-y-1">
+              {guiaGenerada.preguntas_socraticas?.map((preg: string, i: number) => (
+                <li key={i} className="text-sm">• {preg}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderStep3 = () => (
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">Evaluación diagnóstica generada automáticamente</p>
+      {preguntasPre.map((preg, i) => (
+        <Card key={i}>
+          <CardHeader>
+            <div className="flex justify-between items-start">
+              <CardTitle className="text-base">Pregunta {i + 1}</CardTitle>
+              <Badge>{preg.tipo}</Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <p>{preg.texto_pregunta}</p>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+
+  const renderStep4 = () => (
+    <div className="space-y-4">
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+        <p className="text-sm text-yellow-800">
+          <AlertCircle className="inline h-4 w-4 mr-1" />
+          Las preguntas post-clase son más complejas para medir el progreso real
+        </p>
+      </div>
+      {preguntasPost.map((preg, i) => (
+        <Card key={i}>
+          <CardHeader>
+            <div className="flex justify-between items-start">
+              <CardTitle className="text-base">Pregunta {i + 1}</CardTitle>
+              <Badge variant="secondary">{preg.tipo}</Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <p>{preg.texto_pregunta}</p>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+
+  const renderStep5 = () => (
+    <div className="space-y-6">
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 text-green-600">
+          <CheckCircle2 className="h-5 w-5" />
+          <span>Contexto definido</span>
+        </div>
+        <div className="flex items-center gap-2 text-green-600">
+          <CheckCircle2 className="h-5 w-5" />
+          <span>Guía de clase generada</span>
+        </div>
+        <div className="flex items-center gap-2 text-green-600">
+          <CheckCircle2 className="h-5 w-5" />
+          <span>Evaluación pre lista</span>
+        </div>
+        <div className="flex items-center gap-2 text-green-600">
+          <CheckCircle2 className="h-5 w-5" />
+          <span>Evaluación post lista</span>
+        </div>
+        <div className="flex items-center gap-2 text-green-600">
+          <CheckCircle2 className="h-5 w-5" />
+          <span>Notificaciones configuradas</span>
+        </div>
+      </div>
+
+      <Card className="bg-green-50 border-green-200">
+        <CardContent className="pt-6">
+          <p className="text-green-800">
+            ¡Todo listo! La clase está preparada y lista para ser ejecutada.
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
 
   return (
     <AppLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-            Generar Guía de Clase con IA
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <Brain className="h-8 w-8" />
+            Generar Clase con IA
           </h1>
           <p className="text-muted-foreground mt-2">
-            Crea guías pedagógicas personalizadas en segundos
+            Crea clases centradas en el desarrollo del pensamiento crítico con ayuda de IA
           </p>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-2">
+        <ProgressBar steps={STEPS} currentStep={currentStep} />
+
+        <div className="grid lg:grid-cols-2 gap-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-primary" />
-                Información de la Clase
-              </CardTitle>
-              <CardDescription>Completa los datos para generar tu guía</CardDescription>
+              <CardTitle>{STEPS[currentStep - 1].label}</CardTitle>
+              <CardDescription>
+                Completa la información para este paso
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Área Académica *</Label>
-              <Select value={formData.areaAcademica} onValueChange={(value) => setFormData({...formData, areaAcademica: value})}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona área" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="matematicas">Matemáticas</SelectItem>
-                  <SelectItem value="lenguaje">Lenguaje</SelectItem>
-                  <SelectItem value="ciencias">Ciencias</SelectItem>
-                  <SelectItem value="historia">Historia</SelectItem>
-                  <SelectItem value="arte">Arte</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <CardContent>
+              {currentStep === 1 && renderStep1()}
+              {currentStep === 2 && renderStep2()}
+              {currentStep === 3 && renderStep3()}
+              {currentStep === 4 && renderStep4()}
+              {currentStep === 5 && renderStep5()}
 
-            <div className="space-y-2">
-              <Label>Tema Curricular *</Label>
-              <Select value={formData.temaCurricular} onValueChange={(value) => setFormData({...formData, temaCurricular: value})}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona tema" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="fracciones">Fracciones</SelectItem>
-                  <SelectItem value="ecosistemas">Ecosistemas</SelectItem>
-                  <SelectItem value="literatura">Literatura</SelectItem>
-                  <SelectItem value="historia-chile">Historia de Chile</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Áreas Transversales (Opcional)</Label>
-            <Input 
-              placeholder="Ej: Medio ambiente, tecnología, ciudadanía"
-              value={formData.areasTransversales}
-              onChange={(e) => setFormData({...formData, areasTransversales: e.target.value})}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Metodologías de Pensamiento Crítico</Label>
-            <div className="flex flex-wrap gap-2">
-              {METODOLOGIAS.map((metodologia) => (
-                <Badge
-                  key={metodologia}
-                  variant={metodologiasSeleccionadas.includes(metodologia) ? "default" : "outline"}
-                  className="cursor-pointer hover:bg-primary/90"
-                  onClick={() => toggleMetodologia(metodologia)}
-                >
-                  {metodologia}
-                </Badge>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Duración de la Clase (minutos)</Label>
-              <Input 
-                type="number"
-                value={formData.duracionClase}
-                onChange={(e) => setFormData({...formData, duracionClase: e.target.value})}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Grupo de Edad</Label>
-              <div className="grid grid-cols-4 gap-2">
-                {EDAD_GRUPOS.map((edad) => (
+              <div className="flex gap-2 mt-6">
+                {currentStep > 1 && (
                   <Button
-                    key={edad}
-                    variant={edadSeleccionada === edad ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setEdadSeleccionada(edad)}
+                    variant="outline"
+                    onClick={() => setCurrentStep(currentStep - 1)}
+                    disabled={loading}
                   >
-                    {edad}
+                    Anterior
                   </Button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Contexto Específico</Label>
-            <Textarea 
-              placeholder="Describe el contexto de tus estudiantes, conocimientos previos, etc."
-              rows={4}
-              value={formData.contextoEspecifico}
-              onChange={(e) => setFormData({...formData, contextoEspecifico: e.target.value})}
-            />
-          </div>
-
-              <Button 
-                className="w-full bg-gradient-primary" 
-                size="lg"
-                onClick={handleGenerarGuia}
-                disabled={loading}
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Generando...
-                  </>
-                ) : (
-                  <>
-                    <Brain className="mr-2 h-4 w-4" />
-                    Generar Guía con IA
-                  </>
                 )}
-              </Button>
+                <Button
+                  onClick={handleNextStep}
+                  disabled={loading}
+                  className="flex-1"
+                >
+                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {currentStep === 5 ? 'Confirmar y Programar' : 'Continuar'}
+                </Button>
+              </div>
             </CardContent>
           </Card>
 
-          <div className="space-y-6">
-            {!guiaGenerada ? (
-              <Card className="border-dashed">
-                <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                  <Brain className="h-16 w-16 text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-medium mb-2">Listo para generar tu guía</h3>
-                  <p className="text-sm text-muted-foreground max-w-sm">
-                    Completa el formulario y presiona "Generar Guía con IA" para crear una planificación pedagógica personalizada
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <CheckCircle2 className="h-5 w-5 text-success" />
-                    Guía Generada
-                  </CardTitle>
-                  <CardDescription>
-                    <Badge variant="secondary" className="mr-2">{guiaGenerada.materia}</Badge>
-                    <Badge variant="outline">{guiaGenerada.grado}</Badge>
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <h3 className="font-medium mb-2 flex items-center gap-2">
-                      <Target className="h-4 w-4 text-primary" />
-                      {guiaGenerada.tema}
-                    </h3>
-                    <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {guiaGenerada.duracion} min
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="prose prose-sm max-w-none">
-                    <div 
-                      className="p-4 rounded-lg bg-muted/50 whitespace-pre-wrap text-sm"
-                      dangerouslySetInnerHTML={{ __html: guiaGenerada.contenido }}
-                    />
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button className="flex-1" variant="outline">
-                      Editar
-                    </Button>
-                    <Button className="flex-1">
-                      Guardar Guía
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            <Card className="bg-gradient-to-br from-primary/5 to-secondary/5 border-primary/20">
-              <CardHeader>
-                <CardTitle className="text-base">💡 Consejos para mejores resultados</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm text-muted-foreground">
-                <p>✓ Sé específico con los objetivos de aprendizaje</p>
-                <p>✓ Menciona el nivel previo de conocimientos de tus alumnos</p>
-                <p>✓ Indica si hay recursos específicos que quieras incluir</p>
-                <p>✓ Señala cualquier adaptación necesaria para NEE</p>
-              </CardContent>
-            </Card>
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Consejos para Mejores Resultados</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <p>• Sé específico en el contexto de tus estudiantes</p>
+              <p>• Selecciona las metodologías más apropiadas para tu grupo</p>
+              <p>• Revisa y ajusta el contenido generado según necesites</p>
+              <p>• Las evaluaciones pre y post están diseñadas para medir el progreso real</p>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </AppLayout>
