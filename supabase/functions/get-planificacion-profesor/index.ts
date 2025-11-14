@@ -83,9 +83,9 @@ serve(async (req) => {
     // For each materia, get temas organized by bimestre
     const materiasConTemas = await Promise.all(
       (asignaciones || []).map(async (asignacion: any) => {
-        // Skip if materias or plan_anual is null
-        if (!asignacion.materias || !asignacion.materias.plan_anual) {
-          console.warn('Materia sin plan_anual encontrada:', asignacion.id_materia);
+        // Validate data exists
+        if (!asignacion.materias) {
+          console.warn('Asignación sin materia encontrada:', asignacion.id);
           return null;
         }
 
@@ -161,8 +161,8 @@ serve(async (req) => {
 
         return {
           id: asignacion.materias.id,
-          nombre: asignacion.materias.nombre,
-          descripcion: asignacion.materias.descripcion,
+          nombre: asignacion.materias.nombre || 'Sin nombre',
+          descripcion: asignacion.materias.descripcion || '',
           grado: asignacion.materias.plan_anual?.grado || asignacion.grupos?.grado || '1',
           grupo: asignacion.grupos?.nombre || 'Sin grupo',
           seccion: asignacion.grupos?.seccion || 'A',
