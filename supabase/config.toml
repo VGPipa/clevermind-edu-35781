@@ -1,1 +1,22 @@
 project_id = "fvsymqbcqpsfcdpqubqi"
+
+[functions.crear-clase]
+verify_jwt = true
+
+[functions.dashboard-profesor]
+verify_jwt = true
+
+[functions.generar-clase]
+verify_jwt = true
+
+[functions.generar-evaluacion]
+verify_jwt = true
+
+[functions.generar-guia-clase]
+verify_jwt = true
+
+[functions.validar-clase]
+verify_jwt = true
+
+[functions.get-planificacion-profesor]
+verify_jwt = true
