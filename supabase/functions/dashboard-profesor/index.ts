@@ -111,18 +111,79 @@ Deno.serve(async (req) => {
         id,
         fecha_programada,
         estado,
-        temas!inner(nombre),
-        grupos!inner(nombre, cantidad_alumnos)
+        duracion_minutos,
+        metodologia,
+        temas!inner(id, nombre, id_materia),
+        grupos!inner(id, nombre, cantidad_alumnos, grado, seccion)
       `)
       .eq('id_profesor', profesor.id)
       .gte('fecha_programada', today.toISOString())
       .lte('fecha_programada', sevenDaysFromNow.toISOString())
-      .order('fecha_programada', { ascending: true })
-      .limit(5);
+      .order('fecha_programada', { ascending: true });
 
-    // Preparation alerts (classes in next 7 days that are still draft)
-    const alerts = upcomingClasses?.filter(c => c.estado === 'borrador') || [];
+    // Get materia names for each class
+    const classesWithMaterias = await Promise.all(
+      (upcomingClasses || []).map(async (clase: any) => {
+        const { data: materia } = await supabase
+          .from('materias')
+          .select('nombre')
+          .eq('id', clase.temas[0].id_materia)
+          .single();
+
+        return {
+          ...clase,
+          materia_nombre: materia?.nombre || 'Sin materia',
+          tema_info: clase.temas[0],
+          grupo_info: clase.grupos[0],
+        };
+      })
+    );
+
+    // Check for guides and evaluations for each class
+    const classesWithStatus = await Promise.all(
+      classesWithMaterias.map(async (clase: any) => {
+        const { data: guia } = await supabase
+          .from('guias_clase')
+          .select('id')
+          .eq('id_clase', clase.id)
+          .maybeSingle();
+        
+        const { data: evalPre } = await supabase
+          .from('quizzes')
+          .select('id, estado')
+          .eq('id_clase', clase.id)
+          .eq('tipo', 'diagnostica')
+          .maybeSingle();
+        
+        const { data: evalPost } = await supabase
+          .from('quizzes')
+          .select('id, estado')
+          .eq('id_clase', clase.id)
+          .eq('tipo', 'sumativa')
+          .maybeSingle();
+        
+        return {
+          id: clase.id,
+          fecha_programada: clase.fecha_programada,
+          materia: clase.materia_nombre,
+          tema: clase.tema_info.nombre,
+          grupo: `${clase.grupo_info.grado} ${clase.grupo_info.seccion}`,
+          estudiantes: clase.grupo_info.cantidad_alumnos || 0,
+          estado: clase.estado,
+          tiene_guia: !!guia,
+          tiene_eval_pre: !!evalPre,
+          tiene_eval_post: !!evalPost,
+          eval_pre_estado: evalPre?.estado || null,
+          eval_post_estado: evalPost?.estado || null,
+        };
+      })
+    );
+
+    // Separate into two sections
+    const clasesPendientes = classesWithStatus.filter(c => !c.tiene_guia || c.estado === 'borrador');
+    const clasesListas = classesWithStatus.filter(c => c.tiene_guia && c.estado !== 'borrador');
     
+    // Preparation alerts (classes in next 7 days that are still draft)
     // Latest recommendations
     const { data: recommendations } = await supabase
       .from('recomendaciones')
@@ -145,8 +206,8 @@ Deno.serve(async (req) => {
           total_students: totalStudents,
           general_average: Number(generalAverage.toFixed(1))
         },
-        upcoming_classes: upcomingClasses || [],
-        preparation_alerts: alerts,
+        clases_pendientes: clasesPendientes,
+        clases_listas: clasesListas,
         recommendations: recommendations || []
       }),
       {

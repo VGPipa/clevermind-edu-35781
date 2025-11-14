@@ -8,6 +8,7 @@ import AdminDashboard from "./pages/admin/Dashboard";
 import ProfesorDashboard from "./pages/profesor/Dashboard";
 import ProfesorPlanificacion from "./pages/profesor/Planificacion";
 import ProfesorGenerarClase from "./pages/profesor/GenerarClase";
+import ProfesorVerGuiaClase from "./pages/profesor/VerGuiaClase";
 import ProfesorMetricas from "./pages/profesor/Metricas";
 import ProfesorCapacitacion from "./pages/profesor/Capacitacion";
 import ProfesorEvaluacionInicial from "./pages/profesor/EvaluacionInicial";
@@ -36,6 +37,7 @@ const App = () => (
           <Route path="/profesor/dashboard" element={<ProfesorDashboard />} />
           <Route path="/profesor/planificacion" element={<ProfesorPlanificacion />} />
           <Route path="/profesor/generar-clase" element={<ProfesorGenerarClase />} />
+          <Route path="/profesor/ver-guia/:claseId" element={<ProfesorVerGuiaClase />} />
           <Route path="/profesor/metricas" element={<ProfesorMetricas />} />
           <Route path="/profesor/capacitacion" element={<ProfesorCapacitacion />} />
           <Route path="/profesor/capacitacion/evaluacion-inicial" element={<ProfesorEvaluacionInicial />} />
