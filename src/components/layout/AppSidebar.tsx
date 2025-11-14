@@ -15,6 +15,7 @@ interface AppSidebarProps {
 
 export function AppSidebar({ role, userName, userEmail }: AppSidebarProps) {
   const navigate = useNavigate();
+  const { open } = useSidebar();
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
@@ -74,13 +75,9 @@ export function AppSidebar({ role, userName, userEmail }: AppSidebarProps) {
         <div className="h-10 w-10 rounded-lg bg-gradient-primary flex items-center justify-center flex-shrink-0">
           <GraduationCap className="h-6 w-6 text-white" />
         </div>
-        <motion.span
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="font-bold text-lg text-sidebar-foreground whitespace-pre"
-        >
+        <span className="font-bold text-lg text-sidebar-foreground whitespace-nowrap">
           EduThink
-        </motion.span>
+        </span>
       </div>
     );
   };
@@ -100,7 +97,7 @@ export function AppSidebar({ role, userName, userEmail }: AppSidebarProps) {
       <SidebarBody className="justify-between gap-10">
         <div className="flex flex-col flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
           <div className="md:block hidden">
-            <Logo />
+            {open ? <Logo /> : <LogoIcon />}
           </div>
           <div className="md:hidden">
             <LogoIcon />
