@@ -1,196 +1,174 @@
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, BookOpen, Users, TrendingUp, FileText, Brain, CheckCircle2, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BookOpen, Users, GraduationCap, TrendingUp, Clock, AlertCircle, Sparkles, Brain } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { formatPeruTime } from "@/lib/timezone";
+import { useNavigate } from "react-router-dom";
+import { StatsCard } from "@/components/profesor/StatsCard";
 
 export default function ProfesorDashboard() {
-  const mockStats = {
-    clases: 8,
-    materias: 3,
-    alumnos: 85,
-    promedio: 7.2
-  };
+  const navigate = useNavigate();
 
-  const mockClases = [
-    { materia: "Matemáticas", grupo: "1° Básico A", hora: "08:00", tema: "Suma y Resta", estado: "hoy" },
-    { materia: "Lenguaje", grupo: "2° Básico B", hora: "10:30", tema: "Comprensión Lectora", estado: "hoy" },
-    { materia: "Matemáticas", grupo: "3° Básico A", hora: "14:00", tema: "Multiplicación", estado: "mañana" },
+  const stats = [
+    { title: "Clases esta semana", value: "12", icon: BookOpen, trend: { value: 15, isPositive: true } },
+    { title: "Materias asignadas", value: "4", icon: GraduationCap },
+    { title: "Total estudiantes", value: "156", icon: Users },
+    { title: "Promedio general", value: "8.7", icon: TrendingUp, trend: { value: 5, isPositive: true } },
   ];
 
-  const mockQuizzes = [
-    { titulo: "Quiz: Suma hasta 100", grupo: "1° Básico A", completados: 24, total: 28, promedio: 8.1 },
-    { titulo: "Evaluación: Comprensión", grupo: "2° Básico B", completados: 20, total: 25, promedio: 7.5 },
+  const upcomingClasses = [
+    {
+      subject: "Matemáticas - 5° Básico",
+      topic: "Fracciones y decimales",
+      time: "Hoy, 10:00 AM",
+      prepared: true,
+      students: 28,
+    },
+    {
+      subject: "Ciencias - 6° Básico",
+      topic: "El sistema solar",
+      time: "Hoy, 2:00 PM",
+      prepared: false,
+      students: 25,
+    },
+    {
+      subject: "Lenguaje - 5° Básico",
+      topic: "Análisis literario",
+      time: "Mañana, 9:00 AM",
+      prepared: true,
+      students: 30,
+    },
   ];
 
   return (
     <AppLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
+      <div className="space-y-6 animate-fade-in">
+        {/* Header */}
+        <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-              Panel del Profesor
-            </h1>
+            <h1 className="text-4xl font-bold">Panel del Profesor</h1>
             <p className="text-muted-foreground mt-2">
-              Gestiona tus clases y materiales educativos
+              Gestiona tus clases y desarrolla el pensamiento crítico de tus estudiantes
             </p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline">
-              <Brain className="mr-2 h-4 w-4" />
-              Generar Guía con IA
-            </Button>
-            <Button className="bg-gradient-primary">
-              <FileText className="mr-2 h-4 w-4" />
-              Nueva Clase
-            </Button>
-          </div>
+          <Button 
+            size="lg" 
+            onClick={() => navigate('/profesor/generar-clase')}
+            className="bg-gradient-primary hover:opacity-90 shadow-lg"
+          >
+            <Brain className="mr-2 h-5 w-5" />
+            Nueva Clase con IA
+          </Button>
         </div>
 
+        {/* Stats Grid */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="hover:shadow-elegant transition-all hover:-translate-y-1 border-primary/20">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Mis Clases</CardTitle>
-              <Calendar className="h-5 w-5 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-primary">{mockStats.clases}</div>
-              <p className="text-xs text-muted-foreground mt-1">Esta semana</p>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-elegant transition-all hover:-translate-y-1 border-secondary/20">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Materias</CardTitle>
-              <BookOpen className="h-5 w-5 text-secondary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-secondary">{mockStats.materias}</div>
-              <p className="text-xs text-muted-foreground mt-1">Asignadas</p>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-elegant transition-all hover:-translate-y-1 border-accent/20">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Alumnos</CardTitle>
-              <Users className="h-5 w-5 text-accent" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-accent">{mockStats.alumnos}</div>
-              <p className="text-xs text-muted-foreground mt-1">Total en mis cursos</p>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-elegant transition-all hover:-translate-y-1 border-success/20">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Promedio</CardTitle>
-              <TrendingUp className="h-5 w-5 text-success" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-success">{mockStats.promedio}</div>
-              <p className="text-xs text-muted-foreground mt-1">General cursos</p>
-            </CardContent>
-          </Card>
+          {stats.map((stat, index) => (
+            <StatsCard key={index} {...stat} />
+          ))}
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
-          <Card>
+        {/* Main Content Grid */}
+        <div className="grid gap-6 lg:grid-cols-3">
+          {/* Upcoming Classes */}
+          <Card className="lg:col-span-2">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Clock className="h-5 w-5 text-primary" />
                 Próximas Clases
               </CardTitle>
-              <CardDescription>Tu calendario de esta semana</CardDescription>
+              <CardDescription>
+                Clases programadas que requieren preparación
+              </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {mockClases.map((clase, idx) => (
-                  <div key={idx} className="flex items-start gap-3 p-3 rounded-lg border bg-card/50 hover:bg-accent/10 transition-colors">
-                    <div className={`mt-1 px-2 py-1 rounded text-xs font-medium ${
-                      clase.estado === 'hoy' 
-                        ? 'bg-primary/10 text-primary' 
-                        : 'bg-muted text-muted-foreground'
-                    }`}>
-                      {clase.hora}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <p className="font-medium">{clase.materia}</p>
-                        <Badge variant={clase.estado === 'hoy' ? 'default' : 'secondary'}>
-                          {clase.estado}
+            <CardContent className="space-y-4">
+              {upcomingClasses.map((clase, index) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-between p-4 border rounded-lg hover:shadow-md transition-all duration-200"
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-semibold">{clase.subject}</h3>
+                      {!clase.prepared && (
+                        <Badge variant="destructive" className="flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3" />
+                          Pendiente
                         </Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground">{clase.grupo}</p>
-                      <p className="text-xs text-muted-foreground mt-1">📚 {clase.tema}</p>
+                      )}
                     </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CheckCircle2 className="h-5 w-5 text-success" />
-                Quizzes Activos
-              </CardTitle>
-              <CardDescription>Progreso de evaluaciones</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {mockQuizzes.map((quiz, idx) => (
-                  <div key={idx} className="space-y-2 p-3 rounded-lg border bg-card/50">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <p className="font-medium text-sm">{quiz.titulo}</p>
-                        <p className="text-xs text-muted-foreground">{quiz.grupo}</p>
-                      </div>
-                      <Badge className="bg-success text-success-foreground">
-                        ⭐ {quiz.promedio}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Progress value={(quiz.completados / quiz.total) * 100} className="flex-1 h-2" />
-                      <span className="text-xs text-muted-foreground whitespace-nowrap">
-                        {quiz.completados}/{quiz.total}
+                    <p className="text-sm text-muted-foreground">{clase.topic}</p>
+                    <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {clase.time}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Users className="h-3 w-3" />
+                        {clase.students} estudiantes
                       </span>
                     </div>
                   </div>
-                ))}
+                  <Button
+                    variant={clase.prepared ? "outline" : "default"}
+                    size="sm"
+                    onClick={() => navigate('/profesor/generar-clase')}
+                  >
+                    {clase.prepared ? "Ver Guía" : "Preparar"}
+                  </Button>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          {/* AI Recommendations */}
+          <Card className="bg-gradient-to-br from-primary/5 to-secondary/5 border-primary/20">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-primary" />
+                Recomendaciones IA
+              </CardTitle>
+              <CardDescription>
+                Sugerencias basadas en tu contexto
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-3">
+                <div className="p-3 bg-background rounded-lg border">
+                  <p className="text-sm font-medium mb-1">
+                    💡 Método Socrático
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Ideal para tu próxima clase de Ciencias sobre el sistema solar
+                  </p>
+                </div>
+                <div className="p-3 bg-background rounded-lg border">
+                  <p className="text-sm font-medium mb-1">
+                    📊 Análisis Comparativo
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Refuerza conceptos de fracciones usando ejemplos del día a día
+                  </p>
+                </div>
+                <div className="p-3 bg-background rounded-lg border">
+                  <p className="text-sm font-medium mb-1">
+                    🎯 Evaluación Pre-Clase
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    3 clases necesitan evaluaciones diagnósticas
+                  </p>
+                </div>
               </div>
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={() => navigate('/profesor/generar-clase')}
+              >
+                Explorar más sugerencias
+              </Button>
             </CardContent>
           </Card>
         </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Herramientas del Profesor</CardTitle>
-            <CardDescription>Acceso rápido a funcionalidades principales</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-              <Button variant="outline" className="justify-start h-auto py-3">
-                <Brain className="mr-2 h-4 w-4 text-primary" />
-                Generar Guía IA
-              </Button>
-              <Button variant="outline" className="justify-start h-auto py-3">
-                <FileText className="mr-2 h-4 w-4 text-secondary" />
-                Crear Quiz
-              </Button>
-              <Button variant="outline" className="justify-start h-auto py-3">
-                <TrendingUp className="mr-2 h-4 w-4 text-accent" />
-                Ver Métricas
-              </Button>
-              <Button variant="outline" className="justify-start h-auto py-3">
-                <Users className="mr-2 h-4 w-4 text-success" />
-                Mis Alumnos
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </AppLayout>
   );

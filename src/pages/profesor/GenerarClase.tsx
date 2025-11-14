@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Brain, Loader2, FileText, Target, Clock, CheckCircle2 } from "lucide-react";
+import { Brain, Loader2, FileText, CheckCircle2, AlertCircle, Edit, Trash2, Plus, Target, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -10,37 +10,96 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { formatPeruDateTime, parsePeruDateTime } from "@/lib/timezone";
+import { ProgressBar } from "@/components/profesor/ProgressBar";
+
+const STEPS = [
+  { id: 1, label: "Contexto" },
+  { id: 2, label: "Generar Guía" },
+  { id: 3, label: "Evaluación Pre" },
+  { id: 4, label: "Evaluación Post" },
+  { id: 5, label: "Validar" },
+];
+
+const METODOLOGIAS = [
+  "Aprendizaje Basado en Casos",
+  "Método Socrático",
+  "Resolución de Problemas",
+  "Debate Estructurado",
+  "Análisis Comparativo",
+];
+
+const EDAD_GRUPOS = ["5-6", "7-8", "9-10", "11-12", "13-14", "15-16", "17+"];
 
 export default function GenerarClase() {
+  const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [guiaGenerada, setGuiaGenerada] = useState<any>(null);
+  const [metodologiasSeleccionadas, setMetodologiasSeleccionadas] = useState<string[]>([]);
+  const [edadSeleccionada, setEdadSeleccionada] = useState("");
   
   const [formData, setFormData] = useState({
-    materia: "",
-    grado: "",
-    tema: "",
-    duracion: "90",
-    objetivos: "",
-    contextoAlumnos: ""
+    areaAcademica: "",
+    temaCurricular: "",
+    areasTransversales: "",
+    duracionClase: "90",
+    contextoEspecifico: "",
   });
 
-  const handleGenerar = async () => {
-    if (!formData.materia || !formData.tema || !formData.objetivos) {
-      toast.error("Por favor completa todos los campos obligatorios");
+  const [guiaGenerada, setGuiaGenerada] = useState<any>(null);
+  const [preguntasPre, setPreguntasPre] = useState<any[]>([]);
+  const [preguntasPost, setPreguntasPost] = useState<any[]>([]);
+
+  const toggleMetodologia = (metodologia: string) => {
+    if (metodologiasSeleccionadas.includes(metodologia)) {
+      setMetodologiasSeleccionadas(metodologiasSeleccionadas.filter(m => m !== metodologia));
+    } else {
+      setMetodologiasSeleccionadas([...metodologiasSeleccionadas, metodologia]);
+    }
+  };
+
+  const handleGenerarGuia = async () => {
+    if (!formData.areaAcademica || !formData.temaCurricular) {
+      toast.error("Por favor completa los campos obligatorios");
       return;
     }
 
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('generar-clase', {
-        body: formData
+      // Simular generación con IA
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      setGuiaGenerada({
+        objetivos: [
+          "Desarrollar pensamiento crítico mediante análisis de casos",
+          "Aplicar metodología socrática en la resolución de problemas",
+          "Fomentar el debate estructurado entre estudiantes"
+        ],
+        estructura: [
+          { fase: "Introducción", tiempo: "15 min", actividad: "Presentación del tema y activación de conocimientos previos" },
+          { fase: "Desarrollo", tiempo: "50 min", actividad: "Trabajo en grupos con casos de estudio" },
+          { fase: "Cierre", tiempo: "25 min", actividad: "Debate plenario y conclusiones" }
+        ],
+        preguntasSocraticas: [
+          "¿Por qué crees que esto es importante?",
+          "¿Qué evidencia apoya tu conclusión?",
+          "¿Cómo se relaciona esto con lo que ya sabemos?"
+        ]
       });
 
-      if (error) throw error;
+      // Generar preguntas de evaluación
+      setPreguntasPre([
+        { id: 1, texto: "¿Qué conocimientos previos tienes sobre el tema?", puntos: 5, tipo: "Abierta" },
+        { id: 2, texto: "Identifica los conceptos clave del tema", puntos: 10, tipo: "Múltiple" },
+        { id: 3, texto: "¿Cómo aplicarías esto en tu vida diaria?", puntos: 15, tipo: "Desarrollo" },
+      ]);
 
-      setGuiaGenerada(data);
-      toast.success("Guía de clase generada exitosamente");
+      setPreguntasPost([
+        { id: 1, texto: "Analiza críticamente el caso presentado", puntos: 20, tipo: "Análisis" },
+        { id: 2, texto: "Compara y contrasta las diferentes perspectivas", puntos: 25, tipo: "Comparación" },
+        { id: 3, texto: "Propón una solución innovadora al problema", puntos: 30, tipo: "Síntesis" },
+      ]);
+
+      setCurrentStep(2);
+      toast.success("Guía generada exitosamente");
     } catch (error: any) {
       console.error('Error:', error);
       toast.error(error.message || "Error al generar la guía de clase");
@@ -72,90 +131,104 @@ export default function GenerarClase() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="materia">Materia *</Label>
-                  <Select value={formData.materia} onValueChange={(value) => setFormData({...formData, materia: value})}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecciona materia" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="matematicas">Matemáticas</SelectItem>
-                      <SelectItem value="lenguaje">Lenguaje</SelectItem>
-                      <SelectItem value="ciencias">Ciencias</SelectItem>
-                      <SelectItem value="historia">Historia</SelectItem>
-                      <SelectItem value="ingles">Inglés</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+            <div className="space-y-2">
+              <Label>Área Académica *</Label>
+              <Select value={formData.areaAcademica} onValueChange={(value) => setFormData({...formData, areaAcademica: value})}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona área" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="matematicas">Matemáticas</SelectItem>
+                  <SelectItem value="lenguaje">Lenguaje</SelectItem>
+                  <SelectItem value="ciencias">Ciencias</SelectItem>
+                  <SelectItem value="historia">Historia</SelectItem>
+                  <SelectItem value="arte">Arte</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="grado">Grado *</Label>
-                  <Select value={formData.grado} onValueChange={(value) => setFormData({...formData, grado: value})}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecciona grado" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1basico">1° Básico</SelectItem>
-                      <SelectItem value="2basico">2° Básico</SelectItem>
-                      <SelectItem value="3basico">3° Básico</SelectItem>
-                      <SelectItem value="4basico">4° Básico</SelectItem>
-                      <SelectItem value="5basico">5° Básico</SelectItem>
-                      <SelectItem value="6basico">6° Básico</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+            <div className="space-y-2">
+              <Label>Tema Curricular *</Label>
+              <Select value={formData.temaCurricular} onValueChange={(value) => setFormData({...formData, temaCurricular: value})}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona tema" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="fracciones">Fracciones</SelectItem>
+                  <SelectItem value="ecosistemas">Ecosistemas</SelectItem>
+                  <SelectItem value="literatura">Literatura</SelectItem>
+                  <SelectItem value="historia-chile">Historia de Chile</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="tema">Tema de la Clase *</Label>
-                <Input
-                  id="tema"
-                  placeholder="Ej: Suma y resta hasta 100"
-                  value={formData.tema}
-                  onChange={(e) => setFormData({...formData, tema: e.target.value})}
-                />
-              </div>
+          <div className="space-y-2">
+            <Label>Áreas Transversales (Opcional)</Label>
+            <Input 
+              placeholder="Ej: Medio ambiente, tecnología, ciudadanía"
+              value={formData.areasTransversales}
+              onChange={(e) => setFormData({...formData, areasTransversales: e.target.value})}
+            />
+          </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="duracion">Duración (minutos)</Label>
-                <Select value={formData.duracion} onValueChange={(value) => setFormData({...formData, duracion: value})}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="45">45 minutos</SelectItem>
-                    <SelectItem value="60">60 minutos</SelectItem>
-                    <SelectItem value="90">90 minutos</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+          <div className="space-y-2">
+            <Label>Metodologías de Pensamiento Crítico</Label>
+            <div className="flex flex-wrap gap-2">
+              {METODOLOGIAS.map((metodologia) => (
+                <Badge
+                  key={metodologia}
+                  variant={metodologiasSeleccionadas.includes(metodologia) ? "default" : "outline"}
+                  className="cursor-pointer hover:bg-primary/90"
+                  onClick={() => toggleMetodologia(metodologia)}
+                >
+                  {metodologia}
+                </Badge>
+              ))}
+            </div>
+          </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="objetivos">Objetivos de Aprendizaje *</Label>
-                <Textarea
-                  id="objetivos"
-                  placeholder="Ej: Que los alumnos aprendan a sumar y restar números hasta 100..."
-                  rows={3}
-                  value={formData.objetivos}
-                  onChange={(e) => setFormData({...formData, objetivos: e.target.value})}
-                />
-              </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Duración de la Clase (minutos)</Label>
+              <Input 
+                type="number"
+                value={formData.duracionClase}
+                onChange={(e) => setFormData({...formData, duracionClase: e.target.value})}
+              />
+            </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="contexto">Contexto de los Alumnos (opcional)</Label>
-                <Textarea
-                  id="contexto"
-                  placeholder="Nivel de conocimiento previo, dificultades específicas, intereses..."
-                  rows={2}
-                  value={formData.contextoAlumnos}
-                  onChange={(e) => setFormData({...formData, contextoAlumnos: e.target.value})}
-                />
+            <div className="space-y-2">
+              <Label>Grupo de Edad</Label>
+              <div className="grid grid-cols-4 gap-2">
+                {EDAD_GRUPOS.map((edad) => (
+                  <Button
+                    key={edad}
+                    variant={edadSeleccionada === edad ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setEdadSeleccionada(edad)}
+                  >
+                    {edad}
+                  </Button>
+                ))}
               </div>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Contexto Específico</Label>
+            <Textarea 
+              placeholder="Describe el contexto de tus estudiantes, conocimientos previos, etc."
+              rows={4}
+              value={formData.contextoEspecifico}
+              onChange={(e) => setFormData({...formData, contextoEspecifico: e.target.value})}
+            />
+          </div>
 
               <Button 
                 className="w-full bg-gradient-primary" 
                 size="lg"
-                onClick={handleGenerar}
+                onClick={handleGenerarGuia}
                 disabled={loading}
               >
                 {loading ? (
