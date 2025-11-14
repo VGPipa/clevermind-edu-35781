@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Brain, Loader2, FileText, CheckCircle2, AlertCircle, Target, Clock } from "lucide-react";
@@ -11,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { ProgressBar } from "@/components/profesor/ProgressBar";
+import { useQuery } from "@tanstack/react-query";
 
 const STEPS = [
   { id: 1, label: "Contexto" },
@@ -31,6 +33,10 @@ const METODOLOGIAS = [
 const EDAD_GRUPOS = ["5-6", "7-8", "9-10", "11-12", "13-14", "15-16", "17+"];
 
 export default function GenerarClase() {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const temaId = searchParams.get('tema');
+  
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [metodologiasSeleccionadas, setMetodologiasSeleccionadas] = useState<string[]>([]);
@@ -38,12 +44,94 @@ export default function GenerarClase() {
   const [claseId, setClaseId] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
-    id_tema: "",
+    id_tema: temaId || "",
     id_grupo: "",
     fecha_programada: new Date().toISOString().split('T')[0],
     duracionClase: "90",
     contextoEspecifico: "",
   });
+
+  // Fetch tema data if temaId is provided
+  const { data: temaData, isLoading: loadingTema } = useQuery({
+    queryKey: ['tema', temaId],
+    queryFn: async () => {
+      if (!temaId) return null;
+      
+      const response = await (supabase as any)
+        .from('temas')
+        .select(`
+          *,
+          materias!inner (
+            nombre,
+            plan_anual!inner (
+              grado,
+              id_institucion
+            )
+          )
+        `)
+        .eq('id', temaId)
+        .single();
+      
+      if (response.error) throw response.error;
+      return response.data;
+    },
+    enabled: !!temaId,
+  });
+
+  // Fetch grupos for the profesor
+  const { data: gruposData } = useQuery({
+    queryKey: ['grupos-profesor'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No user');
+
+      const profesorResponse = await (supabase as any)
+        .from('profesores')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (profesorResponse.error) throw profesorResponse.error;
+
+      const asignacionesResponse = await (supabase as any)
+        .from('asignaciones_profesor')
+        .select(`
+          id_grupo,
+          grupos (
+            id,
+            nombre,
+            grado,
+            seccion
+          )
+        `)
+        .eq('id_profesor', profesorResponse.data.id);
+
+      if (asignacionesResponse.error) throw asignacionesResponse.error;
+      return asignacionesResponse.data?.map((a: any) => a.grupos).filter(Boolean) || [];
+    },
+  });
+
+  // Pre-fill form when tema data is loaded
+  useEffect(() => {
+    if (temaData) {
+      setFormData(prev => ({
+        ...prev,
+        id_tema: temaData.id,
+        duracionClase: temaData.duracion_estimada ? String(temaData.duracion_estimada * 60) : "90",
+        contextoEspecifico: temaData.descripcion || "",
+      }));
+
+      // Set default age group based on grade
+      const grado = temaData.materias?.plan_anual?.grado;
+      if (grado) {
+        const gradeNum = parseInt(grado);
+        if (gradeNum >= 1 && gradeNum <= 2) setEdadSeleccionada("5-6");
+        else if (gradeNum >= 3 && gradeNum <= 4) setEdadSeleccionada("7-8");
+        else if (gradeNum >= 5 && gradeNum <= 6) setEdadSeleccionada("9-10");
+        else setEdadSeleccionada("11-12");
+      }
+    }
+  }, [temaData]);
 
   const [guiaGenerada, setGuiaGenerada] = useState<any>(null);
   const [preguntasPre, setPreguntasPre] = useState<any[]>([]);
@@ -84,6 +172,11 @@ export default function GenerarClase() {
         setClaseId(data.class.id);
         setCurrentStep(2);
         toast.success("Contexto guardado exitosamente");
+        
+        // Navigate to dashboard after a delay to show the new class
+        setTimeout(() => {
+          navigate('/profesor/dashboard');
+        }, 1500);
       } catch (error: any) {
         console.error('Error creating class:', error);
         toast.error(error.message || "Error al crear la clase");
