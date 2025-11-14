@@ -68,7 +68,7 @@ export default function Planificacion() {
   });
 
   const handleProgramarClase = (temaId: string) => {
-    navigate(`/profesor/generar-clase?temaId=${temaId}`);
+    navigate(`/profesor/generar-clase?tema=${temaId}`);
   };
 
   const handleVerDetalle = (temaId: string) => {
@@ -182,30 +182,47 @@ export default function Planificacion() {
         {/* Stats Overview */}
         <div className="grid gap-4 md:grid-cols-4">
           <StatsCard
-            title="Materias Asignadas"
-            value={data.materias.length}
+            title="Total de Temas"
+            value={totalTemas}
             icon={BookOpen}
             iconColor="text-primary"
           />
           <StatsCard
-            title="Progreso General"
-            value={`${progresoGeneral}%`}
-            icon={TrendingUp}
-            iconColor="text-success"
-          />
-          <StatsCard
             title="Temas Completados"
-            value={`${temasCompletados}/${totalTemas}`}
+            value={temasCompletados}
             icon={CheckCircle2}
             iconColor="text-success"
           />
           <StatsCard
-            title="Clases Ejecutadas"
-            value={clasesEjecutadas}
+            title="Progreso General"
+            value={`${Math.round(progresoGeneral)}%`}
+            icon={TrendingUp}
+            iconColor="text-accent"
+          />
+          <StatsCard
+            title="Materias Asignadas"
+            value={data.materias.length}
             icon={Calendar}
-            iconColor="text-primary"
+            iconColor="text-secondary"
           />
         </div>
+
+        {/* Alertas de materias sin temas */}
+        {data.materias.some((m: Materia) => m.bimestres.every(b => b.temas.length === 0)) && (
+          <Card className="border-warning">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-2 text-warning">
+                <AlertCircle className="h-5 w-5" />
+                <div>
+                  <p className="font-medium">Algunas materias no tienen temas configurados</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Revisa las materias que no tienen contenido planificado
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Subject Selector */}
         <Card>
@@ -280,17 +297,33 @@ export default function Planificacion() {
                             </div>
                           </AccordionTrigger>
                           <AccordionContent>
-                            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 pt-4">
-                              {bimestre.temas.map((tema) => (
-                                <TemaCard
-                                  key={tema.id}
-                                  tema={tema}
-                                  onProgramarClase={handleProgramarClase}
-                                  onVerDetalle={handleVerDetalle}
-                                />
-                              ))}
-                            </div>
-                            {bimestre.temas.length === 0 && (
+                            {/* Verificar si la materia está vacía */}
+                            {materia.bimestres.every(b => b.temas.length === 0) ? (
+                              <div className="p-6 text-center">
+                                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-warning/10 mb-4">
+                                  <AlertCircle className="h-8 w-8 text-warning" />
+                                </div>
+                                <h3 className="text-lg font-semibold mb-2">Sin Temas Configurados</h3>
+                                <p className="text-muted-foreground mb-4">
+                                  Esta materia no tiene temas planificados para ningún bimestre.
+                                </p>
+                                <Badge variant="outline" className="text-warning border-warning">
+                                  Pendiente de Configuración
+                                </Badge>
+                              </div>
+                            ) : (
+                              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 pt-4">
+                                {bimestre.temas.map((tema) => (
+                                  <TemaCard
+                                    key={tema.id}
+                                    tema={tema}
+                                    onProgramarClase={handleProgramarClase}
+                                    onVerDetalle={handleVerDetalle}
+                                  />
+                                ))}
+                              </div>
+                            )}
+                            {bimestre.temas.length === 0 && materia.bimestres.some(b => b.temas.length > 0) && (
                               <p className="text-center text-muted-foreground py-8">
                                 No hay temas registrados para este bimestre
                               </p>
