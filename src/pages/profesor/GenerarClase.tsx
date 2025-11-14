@@ -35,18 +35,21 @@ export default function GenerarClase() {
   const [loading, setLoading] = useState(false);
   const [metodologiasSeleccionadas, setMetodologiasSeleccionadas] = useState<string[]>([]);
   const [edadSeleccionada, setEdadSeleccionada] = useState("");
+  const [claseId, setClaseId] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
-    areaAcademica: "",
-    temaCurricular: "",
-    areasTransversales: "",
+    id_tema: "",
+    id_grupo: "",
+    fecha_programada: new Date().toISOString().split('T')[0],
     duracionClase: "90",
     contextoEspecifico: "",
+    areasTransversales: "",
   });
 
   const [guiaGenerada, setGuiaGenerada] = useState<any>(null);
   const [preguntasPre, setPreguntasPre] = useState<any[]>([]);
   const [preguntasPost, setPreguntasPost] = useState<any[]>([]);
+  const [previousClass, setPreviousClass] = useState<any>(null);
 
   const toggleMetodologia = (metodologia: string) => {
     if (metodologiasSeleccionadas.includes(metodologia)) {
@@ -56,45 +59,76 @@ export default function GenerarClase() {
     }
   };
 
-  const handleGenerarGuia = async () => {
-    if (!formData.areaAcademica || !formData.temaCurricular) {
+  const handleCrearClase = async () => {
+    if (!formData.id_tema || !formData.id_grupo || !edadSeleccionada || metodologiasSeleccionadas.length === 0) {
       toast.error("Por favor completa los campos obligatorios");
       return;
     }
 
     setLoading(true);
     try {
-      // Simular generación con IA
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      setGuiaGenerada({
-        objetivos: [
-          "Desarrollar pensamiento crítico mediante análisis de casos",
-          "Aplicar metodología socrática en la resolución de problemas",
-          "Fomentar el debate estructurado entre estudiantes"
-        ],
-        estructura: [
-          { fase: "Introducción", tiempo: "15 min", actividad: "Presentación del tema y activación de conocimientos previos" },
-          { fase: "Desarrollo", tiempo: "50 min", actividad: "Trabajo en grupos con casos de estudio" },
-          { fase: "Cierre", tiempo: "25 min", actividad: "Debate plenario y conclusiones" }
-        ],
-        preguntasSocraticas: [
-          "¿Por qué crees que esto es importante?",
-          "¿Qué evidencia apoya tu conclusión?",
-          "¿Cómo se relaciona esto con lo que ya sabemos?"
-        ]
+      const { data, error } = await supabase.functions.invoke('crear-clase', {
+        body: {
+          id_tema: formData.id_tema,
+          id_grupo: formData.id_grupo,
+          fecha_programada: formData.fecha_programada,
+          duracion_minutos: parseInt(formData.duracionClase),
+          grupo_edad: edadSeleccionada,
+          metodologia: metodologiasSeleccionadas.join(', '),
+          contexto: formData.contextoEspecifico,
+          areas_transversales: formData.areasTransversales ? [formData.areasTransversales] : null
+        }
       });
 
-      // Generar preguntas de evaluación
-      setPreguntasPre([
-        { id: 1, texto: "¿Qué conocimientos previos tienes sobre el tema?", puntos: 5, tipo: "Abierta" },
-        { id: 2, texto: "Identifica los conceptos clave del tema", puntos: 10, tipo: "Múltiple" },
-        { id: 3, texto: "¿Cómo aplicarías esto en tu vida diaria?", puntos: 15, tipo: "Desarrollo" },
-      ]);
+      if (error) throw error;
 
-      setPreguntasPost([
-        { id: 1, texto: "Analiza críticamente el caso presentado", puntos: 20, tipo: "Análisis" },
-        { id: 2, texto: "Compara y contrasta las diferentes perspectivas", puntos: 25, tipo: "Comparación" },
+      setClaseId(data.class.id);
+      if (data.previousClass) {
+        setPreviousClass(data.previousClass);
+      }
+      setCurrentStep(2);
+      toast.success("Contexto guardado exitosamente");
+    } catch (error: any) {
+      console.error('Error creating class:', error);
+      toast.error(error.message || "Error al crear la clase");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGenerarGuia = async () => {
+    if (!claseId) {
+      toast.error("Primero debes crear el contexto de la clase");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generar-guia-clase', {
+        body: { id_clase: claseId }
+      });
+
+      if (error) {
+        if (error.message?.includes('429')) {
+          toast.error("Límite de solicitudes excedido. Intenta en unos momentos.");
+        } else if (error.message?.includes('402')) {
+          toast.error("Fondos insuficientes. Contacta al administrador.");
+        } else {
+          throw error;
+        }
+        return;
+      }
+
+      setGuiaGenerada(data.guide);
+      setCurrentStep(3);
+      toast.success("Guía generada exitosamente");
+    } catch (error: any) {
+      console.error('Error generating guide:', error);
+      toast.error(error.message || "Error al generar la guía");
+    } finally {
+      setLoading(false);
+    }
+  };
         { id: 3, texto: "Propón una solución innovadora al problema", puntos: 30, tipo: "Síntesis" },
       ]);
 
