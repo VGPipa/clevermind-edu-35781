@@ -83,6 +83,12 @@ serve(async (req) => {
     // For each materia, get temas organized by bimestre
     const materiasConTemas = await Promise.all(
       (asignaciones || []).map(async (asignacion: any) => {
+        // Skip if materias or plan_anual is null
+        if (!asignacion.materias || !asignacion.materias.plan_anual) {
+          console.warn('Materia sin plan_anual encontrada:', asignacion.id_materia);
+          return null;
+        }
+
         const { data: temas, error: temasError } = await supabase
           .from('temas')
           .select('*')
@@ -157,10 +163,10 @@ serve(async (req) => {
           id: asignacion.materias.id,
           nombre: asignacion.materias.nombre,
           descripcion: asignacion.materias.descripcion,
-          grado: asignacion.materias.plan_anual.grado,
-          grupo: asignacion.grupos.nombre,
-          seccion: asignacion.grupos.seccion,
-          horas_semanales: asignacion.materias.horas_semanales,
+          grado: asignacion.materias.plan_anual?.grado || asignacion.grupos?.grado || '1',
+          grupo: asignacion.grupos?.nombre || 'Sin grupo',
+          seccion: asignacion.grupos?.seccion || 'A',
+          horas_semanales: asignacion.materias.horas_semanales || 0,
           progreso_general: progresoGeneral,
           bimestres,
         };
