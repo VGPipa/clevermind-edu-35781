@@ -29,13 +29,14 @@ export function AppSidebar({ role, userName, userEmail }: AppSidebarProps) {
   const adminItems = [
     { title: "Dashboard", icon: <Home className="h-5 w-5 flex-shrink-0" />, url: "/admin/dashboard" },
     { title: "Plan Anual", icon: <BookOpen className="h-5 w-5 flex-shrink-0" />, url: "/admin/plan-anual" },
-    { title: "Usuarios", icon: <Users className="h-5 w-5 flex-shrink-0" />, url: "/admin/usuarios" },
+    { title: "Asignaciones", icon: <Users className="h-5 w-5 flex-shrink-0" />, url: "/admin/asignaciones" },
     { title: "Reportes", icon: <BarChart3 className="h-5 w-5 flex-shrink-0" />, url: "/admin/reportes" },
     { title: "Configuración", icon: <Settings className="h-5 w-5 flex-shrink-0" />, url: "/admin/configuracion" },
   ];
 
   const profesorItems = [
     { title: "Dashboard", icon: <Home className="h-5 w-5 flex-shrink-0" />, url: "/profesor/dashboard" },
+    { title: "Mi Perfil", icon: <Users className="h-5 w-5 flex-shrink-0" />, url: "/profesor/perfil" },
     { title: "Planificación", icon: <Calendar className="h-5 w-5 flex-shrink-0" />, url: "/profesor/planificacion" },
     { title: "Generar Clase", icon: <FileText className="h-5 w-5 flex-shrink-0" />, url: "/profesor/generar-clase" },
     { title: "Métricas", icon: <BarChart3 className="h-5 w-5 flex-shrink-0" />, url: "/profesor/metricas" },
