@@ -137,7 +137,7 @@ export default function ProfesorDashboard() {
       }
       acc[dayLabel].push(clase);
       return acc;
-    }, {});
+    }, {} as Record<string, any[]>);
   }, [upcomingClasses]);
 
   const renderEmptyState = (icon: ReactNode, message: string) => (
@@ -376,7 +376,7 @@ export default function ProfesorDashboard() {
               </CardHeader>
               <CardContent className="space-y-4">
                 {upcomingClasses.length > 0 ? (
-                  Object.entries(groupedUpcoming).map(([day, clases]) => (
+                  Object.entries(groupedUpcoming).map(([day, clases]: [string, any[]]) => (
                     <div key={day}>
                       <p className="text-xs uppercase text-muted-foreground mb-2 font-medium">
                         {day}
@@ -395,18 +395,12 @@ export default function ProfesorDashboard() {
                                 </p>
                                 <Badge variant={stage.variant}>{stage.label}</Badge>
                               </div>
-                              <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                                <span className="flex items-center gap-1">
-                                  <Clock className="h-3 w-3" />
-                                  {format(new Date(clase.fecha_programada), "HH:mm", {
-                                    locale: es,
-                                  })}
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <Users className="h-3 w-3" />
-                                  {clase.estudiantes} estudiantes
-                                </span>
-                                <span>{clase.tema}</span>
+                              <p className="text-sm text-muted-foreground">{clase.tema}</p>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Clock className="h-3 w-3" />
+                                {format(new Date(clase.fecha_programada), "HH:mm", {
+                                  locale: es,
+                                })}
                               </div>
                             </div>
                           );
