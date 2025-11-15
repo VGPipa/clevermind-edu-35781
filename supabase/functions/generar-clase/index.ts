@@ -1,24 +1,19 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { callAI } from '../_shared/ai.ts';
+import {
+  handleCors,
+  createErrorResponse,
+  createSuccessResponse,
+} from '../_shared/auth.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
-serve(async (req) => {
+Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return handleCors();
   }
 
   try {
     const { materia, grado, tema, duracion, objetivos, contextoAlumnos } = await req.json();
     
-    console.log('Generando clase con los siguientes parámetros:', { materia, grado, tema, duracion, objetivos });
-
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY no está configurada');
-    }
+    console.log('Generando clase con parámetros:', { materia, grado, tema, duracion, objetivos });
 
     const systemPrompt = `Eres un experto pedagogo chileno especializado en crear guías de clase detalladas y efectivas. 
 Tu tarea es generar una planificación completa de clase que incluya:
@@ -50,78 +45,28 @@ Por favor estructura la guía con:
 
 Usa formato HTML simple con <strong>, <p>, <ul>, <li> para organizar la información.`;
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-      }),
+    // Use AI helper for consistent error handling
+    const aiResponse = await callAI({
+      systemPrompt,
+      userPrompt,
+      model: 'google/gemini-2.5-flash',
+      temperature: 0.7,
+      maxTokens: 3000,
     });
-
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: 'Límite de solicitudes excedido. Por favor intenta más tarde.' }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: 'Créditos agotados. Por favor agrega fondos a tu cuenta de Lovable AI.' }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      
-      const errorText = await response.text();
-      console.error('Error del gateway de IA:', response.status, errorText);
-      throw new Error('Error al comunicarse con el servicio de IA');
-    }
-
-    const data = await response.json();
-    const contenido = data.choices?.[0]?.message?.content;
-
-    if (!contenido) {
-      throw new Error('No se recibió contenido del servicio de IA');
-    }
 
     console.log('Guía generada exitosamente');
 
-    return new Response(
-      JSON.stringify({
-        materia,
-        grado,
-        tema,
-        duracion,
-        contenido
-      }),
-      { 
-        headers: { 
-          ...corsHeaders, 
-          'Content-Type': 'application/json' 
-        } 
-      }
-    );
+    return createSuccessResponse({
+      materia,
+      grado,
+      tema,
+      duracion,
+      contenido: aiResponse.content,
+    });
 
   } catch (error) {
     console.error('Error en generar-clase:', error);
-    return new Response(
-      JSON.stringify({ 
-        error: error instanceof Error ? error.message : 'Error desconocido al generar la clase' 
-      }),
-      { 
-        status: 500, 
-        headers: { 
-          ...corsHeaders, 
-          'Content-Type': 'application/json' 
-        } 
-      }
-    );
+    const errorMessage = error instanceof Error ? error.message : 'Error desconocido al generar la clase';
+    return createErrorResponse(errorMessage, 500);
   }
 });
