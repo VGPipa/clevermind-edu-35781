@@ -94,27 +94,19 @@ export default function ProfesorDashboard() {
 
   // Separar clases en 2 bloques principales
   const clasesEnPreparacion = useMemo(() => {
-    if (!dashboardData?.clases_proximas) return [];
-    return dashboardData.clases_proximas
-      .filter((clase: any) => 
-        ['borrador', 'generando_clase', 'editando_guia', 'guia_aprobada',
-         'quiz_pre_generando', 'quiz_pre_enviado', 'analizando_quiz_pre',
-         'modificando_guia', 'guia_final'].includes(clase.estado)
-      )
-      .map((clase: any) => ({
-        ...clase,
-        estado_label: getClaseStage(clase.estado).label,
-        estado_variant: getClaseStage(clase.estado).variant,
-      }));
+    if (!dashboardData?.clases_pendientes) return [];
+
+    return dashboardData.clases_pendientes.map((clase: any) => ({
+      ...clase,
+      estado_label: getClaseStage(clase.estado).label,
+      estado_variant: getClaseStage(clase.estado).variant,
+    }));
   }, [dashboardData]);
 
   const clasesCalendario = useMemo(() => {
-    if (!dashboardData?.clases_proximas) return [];
-    return dashboardData.clases_proximas
-      .filter((clase: any) =>
-        ['clase_programada', 'en_clase', 'quiz_post_generando',
-         'quiz_post_enviado', 'analizando_resultados', 'completada'].includes(clase.estado)
-      )
+    if (!dashboardData?.clases_listas) return [];
+
+    return dashboardData.clases_listas
       .map((clase: any) => ({
         ...clase,
         estado_label: getClaseStage(clase.estado).label,
@@ -123,7 +115,10 @@ export default function ProfesorDashboard() {
       .sort((a: any, b: any) => {
         if (!a.fecha_programada) return 1;
         if (!b.fecha_programada) return -1;
-        return new Date(a.fecha_programada).getTime() - new Date(b.fecha_programada).getTime();
+        return (
+          new Date(a.fecha_programada).getTime() -
+          new Date(b.fecha_programada).getTime()
+        );
       });
   }, [dashboardData]);
 
