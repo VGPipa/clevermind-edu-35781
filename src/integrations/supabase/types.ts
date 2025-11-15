@@ -1045,7 +1045,25 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "profesor" | "alumno" | "apoderado"
-      estado_clase: "programada" | "ejecutada" | "cancelada"
+      estado_clase:
+        | "borrador"
+        | "generando_clase"
+        | "editando_guia"
+        | "guia_aprobada"
+        | "quiz_pre_generando"
+        | "quiz_pre_enviado"
+        | "analizando_quiz_pre"
+        | "modificando_guia"
+        | "guia_final"
+        | "clase_programada"
+        | "en_clase"
+        | "quiz_post_generando"
+        | "quiz_post_enviado"
+        | "analizando_resultados"
+        | "completada"
+        | "programada"
+        | "ejecutada"
+        | "cancelada"
       estado_propuesta: "pendiente" | "aprobada" | "rechazada"
       estado_quiz: "borrador" | "publicado" | "cerrado"
       estado_respuesta: "en_progreso" | "completado"
@@ -1180,7 +1198,26 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "profesor", "alumno", "apoderado"],
-      estado_clase: ["programada", "ejecutada", "cancelada"],
+      estado_clase: [
+        "borrador",
+        "generando_clase",
+        "editando_guia",
+        "guia_aprobada",
+        "quiz_pre_generando",
+        "quiz_pre_enviado",
+        "analizando_quiz_pre",
+        "modificando_guia",
+        "guia_final",
+        "clase_programada",
+        "en_clase",
+        "quiz_post_generando",
+        "quiz_post_enviado",
+        "analizando_resultados",
+        "completada",
+        "programada",
+        "ejecutada",
+        "cancelada",
+      ],
       estado_propuesta: ["pendiente", "aprobada", "rechazada"],
       estado_quiz: ["borrador", "publicado", "cerrado"],
       estado_respuesta: ["en_progreso", "completado"],
