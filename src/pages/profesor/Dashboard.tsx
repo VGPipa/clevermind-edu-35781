@@ -9,11 +9,9 @@ import {
   TrendingUp,
   Clock,
   Sparkles,
-  Brain,
-  CalendarDays,
-  BarChart3,
   Calendar,
   CheckCircle2,
+  Brain,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
@@ -93,32 +91,6 @@ export default function ProfesorDashboard() {
     return estadoMap[estado] || { label: estado, variant: "outline" };
   };
 
-  const quickActions = [
-    {
-      label: "Generar Clase",
-      icon: Sparkles,
-      onClick: () => navigate("/profesor/generar-clase"),
-      variant: "default" as const,
-    },
-    {
-      label: "Planificación",
-      icon: CalendarDays,
-      onClick: () => navigate("/profesor/planificacion"),
-      variant: "outline" as const,
-    },
-    {
-      label: "Métricas",
-      icon: BarChart3,
-      onClick: () => navigate("/profesor/metricas"),
-      variant: "outline" as const,
-    },
-    {
-      label: "Capacitación IA",
-      icon: Brain,
-      onClick: () => navigate("/profesor/capacitacion"),
-      variant: "outline" as const,
-    },
-  ];
 
   // Separar clases en 2 bloques principales
   const clasesEnPreparacion = useMemo(() => {
@@ -243,23 +215,6 @@ export default function ProfesorDashboard() {
           </div>
         </div>
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {quickActions.map((action) => {
-            const Icon = action.icon;
-            return (
-              <Button
-                key={action.label}
-                variant={action.variant}
-                onClick={action.onClick}
-                className="h-auto py-4 flex flex-col items-center gap-2"
-              >
-                <Icon className="h-5 w-5" />
-                <span className="text-sm">{action.label}</span>
-              </Button>
-            );
-          })}
-        </div>
 
         {/* Stats Grid */}
         <div className="grid gap-4 md:grid-cols-4">
