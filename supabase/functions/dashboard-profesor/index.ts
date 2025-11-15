@@ -11,8 +11,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Usar autenticación normal para respetar RLS
-    const { supabase, profesor } = await authenticateProfesor(req, false);
+    const { supabase, profesor } = await authenticateProfesor(req, true);
 
     const today = new Date();
     const weekStart = new Date(today);
