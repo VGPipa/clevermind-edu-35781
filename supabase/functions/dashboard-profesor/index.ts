@@ -130,74 +130,47 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const fechaFinRango = new Date(fechaReferencia);
     fechaFinRango.setDate(fechaReferencia.getDate() + configAlertas.rango_dias_clases_pendientes);
 
-    // Get upcoming classes within configured range
+    // Get upcoming classes with optimized JOIN - FIXED N+1 problem
     const { data: upcomingClasses } = await supabase
       .from('clases')
       .select(`
-        id,
-        fecha_programada,
-        estado,
-        duracion_minutos,
-        metodologia,
-        numero_sesion,
-        temas!inner(id, nombre, id_materia),
-        grupos!inner(id, nombre, cantidad_alumnos, grado, seccion)
+        *,
+        temas(
+          nombre,
+          materias(nombre)
+        ),
+        grupos(
+          nombre,
+          grado,
+          seccion,
+          cantidad_alumnos
+        ),
+        guias_clase_versiones!clases_id_guia_version_actual_fkey(
+          id,
+          estado
+        )
       `)
       .eq('id_profesor', profesor.id)
       .gte('fecha_programada', fechaReferencia.toISOString())
       .lte('fecha_programada', fechaFinRango.toISOString())
       .order('fecha_programada', { ascending: true });
 
-    // Get materia names for each class
-    const classesWithMaterias = await Promise.all(
-      (upcomingClasses || []).map(async (clase: any) => {
-        const { data: materia } = await supabase
-          .from('materias')
-          .select('nombre')
-          .eq('id', clase.temas[0].id_materia)
-          .single();
-
-        return {
-          ...clase,
-          materia_nombre: materia?.nombre || 'Sin materia',
-          tema_info: clase.temas[0],
-          grupo_info: clase.grupos[0],
-        };
-      })
-    );
-
-    // Check for guides and evaluations for each class
+    // Check for evaluations for each class
     const classesWithStatus = await Promise.all(
-      classesWithMaterias.map(async (clase: any) => {
-        // Check for guide version (using new versioning system)
-        const { data: guiaVersion } = await supabase
-          .from('guias_clase_versiones')
-          .select('id, estado')
-          .eq('id_clase', clase.id)
-          .maybeSingle();
-        
-        // Also check old guias_clase for backward compatibility
-        const { data: guiaOld } = await supabase
-          .from('guias_clase')
-          .select('id')
-          .eq('id_clase', clase.id)
-          .maybeSingle();
-        
-        const tieneGuia = !!guiaVersion || !!guiaOld;
-        
-        const { data: evalPre } = await supabase
+      (upcomingClasses || []).map(async (clase: any) => {
+        const { data: quizzes } = await supabase
           .from('quizzes')
-          .select('id, estado')
-          .eq('id_clase', clase.id)
-          .eq('tipo_evaluacion', 'pre')
-          .maybeSingle();
+          .select('tipo, estado')
+          .eq('id_clase', clase.id);
+
+        const quizPre = quizzes?.find(q => q.tipo === 'previo');
+        const quizPost = quizzes?.find(q => q.tipo === 'post');
         
-        const { data: evalPost } = await supabase
-          .from('quizzes')
-          .select('id, estado')
-          .eq('id_clase', clase.id)
-          .eq('tipo_evaluacion', 'post')
-          .maybeSingle();
+        // Use pre-fetched data from JOIN
+        const tema = clase.temas;
+        const materia = tema?.materias;
+        const grupo = clase.grupos;
+        const guiaVersion = clase.guias_clase_versiones;
         
         // Calculate days remaining (based on today, not fecha_referencia)
         const fechaClase = new Date(clase.fecha_programada);
@@ -217,19 +190,18 @@ Deno.serve(async (req: Request): Promise<Response> => {
         }
         
         return {
-          id: clase.id,
-          fecha_programada: clase.fecha_programada,
-          materia: clase.materia_nombre,
-          tema: clase.tema_info.nombre,
-          grupo: `${clase.grupo_info.grado} ${clase.grupo_info.seccion}`,
-          estudiantes: clase.grupo_info.cantidad_alumnos || 0,
-          estado: clase.estado,
-          numero_sesion: clase.numero_sesion,
-          tiene_guia: tieneGuia,
-          tiene_eval_pre: !!evalPre,
-          tiene_eval_post: !!evalPost,
-          eval_pre_estado: evalPre?.estado || null,
-          eval_post_estado: evalPost?.estado || null,
+          ...clase,
+          tema: tema ? { nombre: tema.nombre } : null,
+          materia: materia ? { nombre: materia.nombre } : null,
+          grupo: grupo ? { nombre: grupo.nombre, grado: grupo.grado, seccion: grupo.seccion } : null,
+          quiz_pre: quizPre,
+          quiz_post: quizPost,
+          guia_estado: guiaVersion?.estado || null,
+          tiene_guia: !!guiaVersion,
+          tiene_eval_pre: !!quizPre,
+          tiene_eval_post: !!quizPost,
+          eval_pre_estado: quizPre?.estado || null,
+          eval_post_estado: quizPost?.estado || null,
           dias_restantes: diasRestantes,
           nivel_alerta: nivelAlerta,
         };

@@ -36,12 +36,14 @@ export default function GenerarClase() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const temaId = searchParams.get('tema');
+  const claseIdParam = searchParams.get('clase');
   
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [isLoadingClase, setIsLoadingClase] = useState(false);
   const [metodologiasSeleccionadas, setMetodologiasSeleccionadas] = useState<string[]>([]);
   const [edadSeleccionada, setEdadSeleccionada] = useState("");
-  const [claseId, setClaseId] = useState<string | null>(null);
+  const [claseId, setClaseId] = useState<string | null>(claseIdParam);
   
   const [formData, setFormData] = useState({
     id_tema: temaId || "",

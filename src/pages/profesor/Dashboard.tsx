@@ -14,6 +14,8 @@ import {
   CalendarDays,
   BarChart3,
   FileText,
+  Play,
+  CheckCircle2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
@@ -80,12 +82,14 @@ export default function ProfesorDashboard() {
       'generando_clase': { label: "Generando clase", variant: "secondary" },
       'editando_guia': { label: "Editando guía", variant: "secondary" },
       'guia_aprobada': { label: "Guía aprobada", variant: "default" },
+      'quiz_pre_generando': { label: "Generando quiz PRE", variant: "secondary" },
       'quiz_pre_enviado': { label: "Quiz PRE enviado", variant: "default" },
       'analizando_quiz_pre': { label: "Analizando quiz PRE", variant: "secondary" },
       'modificando_guia': { label: "Modificando guía", variant: "secondary" },
       'guia_final': { label: "Guía final lista", variant: "default" },
       'clase_programada': { label: "Clase programada", variant: "default" },
       'en_clase': { label: "En clase", variant: "default" },
+      'quiz_post_generando': { label: "Generando quiz POST", variant: "secondary" },
       'quiz_post_enviado': { label: "Quiz POST enviado", variant: "default" },
       'analizando_resultados': { label: "Analizando resultados", variant: "secondary" },
       'completada': { label: "Completada", variant: "default" },
@@ -107,39 +111,76 @@ export default function ProfesorDashboard() {
   const getClaseAction = (clase: any) => {
     const estado = clase.estado;
     
-    if (estado === 'editando_guia' || estado === 'generando_clase') {
-      return {
-        label: "Editar Guía",
-        action: () => navigate(`/profesor/editar-guia/${clase.id}`),
-      };
+    switch (estado) {
+      case 'borrador':
+        return {
+          label: 'Continuar clase',
+          onClick: () => navigate(`/profesor/generar-clase?clase=${clase.id}`),
+          icon: FileText,
+        };
+      case 'editando_guia':
+        return {
+          label: 'Editar guía',
+          onClick: () => navigate(`/profesor/editar-guia/${clase.id}`),
+          icon: FileText,
+        };
+      case 'guia_aprobada':
+      case 'quiz_pre_generando':
+        return {
+          label: 'Generar quiz PRE',
+          onClick: () => navigate(`/profesor/gestionar-quizzes/${clase.id}`),
+          icon: Brain,
+        };
+      case 'quiz_pre_enviado':
+      case 'analizando_quiz_pre':
+        return {
+          label: 'Ver resultados PRE',
+          onClick: () => navigate(`/profesor/gestionar-quizzes/${clase.id}`),
+          icon: BarChart3,
+        };
+      case 'modificando_guia':
+        return {
+          label: 'Modificar guía',
+          onClick: () => navigate(`/profesor/editar-guia/${clase.id}`),
+          icon: FileText,
+        };
+      case 'guia_final':
+      case 'clase_programada':
+        return {
+          label: 'Ver guía final',
+          onClick: () => navigate(`/profesor/ver-guia-clase/${clase.id}`),
+          icon: FileText,
+        };
+      case 'en_clase':
+        return {
+          label: 'En clase ahora',
+          onClick: () => navigate(`/profesor/ver-guia-clase/${clase.id}`),
+          icon: Play,
+        };
+      case 'quiz_post_generando':
+        return {
+          label: 'Generar quiz POST',
+          onClick: () => navigate(`/profesor/gestionar-quizzes/${clase.id}`),
+          icon: Brain,
+        };
+      case 'quiz_post_enviado':
+      case 'analizando_resultados':
+        return {
+          label: 'Ver resultados POST',
+          onClick: () => navigate(`/profesor/gestionar-quizzes/${clase.id}`),
+          icon: BarChart3,
+        };
+      case 'completada':
+        return {
+          label: 'Ver resumen',
+          onClick: () => navigate(`/profesor/ver-guia-clase/${clase.id}`),
+          icon: CheckCircle2,
+        };
+      default:
+        return null;
     }
-    if (estado === 'guia_aprobada') {
-      return {
-        label: "Gestionar Quizzes",
-        action: () => navigate(`/profesor/gestionar-quizzes/${clase.id}`),
-      };
-    }
-    if (estado === 'analizando_quiz_pre') {
-      return {
-        label: "Ver Recomendaciones",
-        action: () => navigate(`/profesor/recomendaciones-quiz-pre/${clase.id}`),
-      };
-    }
-    if (estado === 'quiz_post_enviado' || estado === 'analizando_resultados') {
-      return {
-        label: "Ver Retroalimentaciones",
-        action: () => navigate(`/profesor/retroalimentaciones/${clase.id}`),
-      };
-    }
-    if (estado === 'guia_final') {
-      return {
-        label: "Gestionar Quizzes",
-        action: () => navigate(`/profesor/gestionar-quizzes/${clase.id}`),
-      };
-    }
-    
-    return null;
   };
+
 
   const quickActions = [
     {
@@ -370,7 +411,7 @@ export default function ProfesorDashboard() {
                         {action ? (
                           <Button
                             className="w-full md:w-auto"
-                            onClick={action.action}
+                            onClick={action.onClick}
                             aria-label={action.label}
                           >
                             {action.label}
@@ -458,7 +499,7 @@ export default function ProfesorDashboard() {
                         {action ? (
                           <Button
                             className="w-full md:w-auto"
-                            onClick={action.action}
+                            onClick={action.onClick}
                             aria-label={action.label}
                           >
                             {action.label}
