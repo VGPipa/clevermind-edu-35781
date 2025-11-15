@@ -214,9 +214,11 @@ export type Database = {
           grupo_edad: string | null
           id: string
           id_grupo: string
+          id_guia_version_actual: string | null
           id_profesor: string
           id_tema: string
           metodologia: string | null
+          numero_sesion: number | null
           observaciones: string | null
         }
         Insert: {
@@ -230,9 +232,11 @@ export type Database = {
           grupo_edad?: string | null
           id?: string
           id_grupo: string
+          id_guia_version_actual?: string | null
           id_profesor: string
           id_tema: string
           metodologia?: string | null
+          numero_sesion?: number | null
           observaciones?: string | null
         }
         Update: {
@@ -246,9 +250,11 @@ export type Database = {
           grupo_edad?: string | null
           id?: string
           id_grupo?: string
+          id_guia_version_actual?: string | null
           id_profesor?: string
           id_tema?: string
           metodologia?: string | null
+          numero_sesion?: number | null
           observaciones?: string | null
         }
         Relationships: [
@@ -257,6 +263,13 @@ export type Database = {
             columns: ["id_grupo"]
             isOneToOne: false
             referencedRelation: "grupos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clases_id_guia_version_actual_fkey"
+            columns: ["id_guia_version_actual"]
+            isOneToOne: false
+            referencedRelation: "guias_clase_versiones"
             referencedColumns: ["id"]
           },
           {
@@ -356,6 +369,72 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "guias_clase_id_clase_fkey"
+            columns: ["id_clase"]
+            isOneToOne: false
+            referencedRelation: "clases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      guias_clase_versiones: {
+        Row: {
+          aprobada_por: string | null
+          contenido: Json
+          created_at: string
+          es_version_final: boolean | null
+          estado: string | null
+          estructura: Json | null
+          fecha_aprobacion: string | null
+          generada_ia: boolean | null
+          id: string
+          id_clase: string
+          objetivos: string | null
+          preguntas_socraticas: Json | null
+          updated_at: string
+          version_numero: number
+        }
+        Insert: {
+          aprobada_por?: string | null
+          contenido?: Json
+          created_at?: string
+          es_version_final?: boolean | null
+          estado?: string | null
+          estructura?: Json | null
+          fecha_aprobacion?: string | null
+          generada_ia?: boolean | null
+          id?: string
+          id_clase: string
+          objetivos?: string | null
+          preguntas_socraticas?: Json | null
+          updated_at?: string
+          version_numero?: number
+        }
+        Update: {
+          aprobada_por?: string | null
+          contenido?: Json
+          created_at?: string
+          es_version_final?: boolean | null
+          estado?: string | null
+          estructura?: Json | null
+          fecha_aprobacion?: string | null
+          generada_ia?: boolean | null
+          id?: string
+          id_clase?: string
+          objetivos?: string | null
+          preguntas_socraticas?: Json | null
+          updated_at?: string
+          version_numero?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guias_clase_versiones_aprobada_por_fkey"
+            columns: ["aprobada_por"]
+            isOneToOne: false
+            referencedRelation: "profesores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guias_clase_versiones_id_clase_fkey"
             columns: ["id_clase"]
             isOneToOne: false
             referencedRelation: "clases"
