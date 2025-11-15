@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -9,23 +9,44 @@ import { Loader2, AlertTriangle } from "lucide-react";
 import { validateAsignacion, getCurrentAnioEscolar } from "@/lib/asignacionValidations";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
-interface AsignacionDialogProps {
+interface Asignacion {
+  id: string;
+  anio_escolar: string;
+  profesor: {
+    id: string;
+    nombre: string;
+    apellido: string;
+  };
+  materia: {
+    id: string;
+    nombre: string;
+  };
+  grupo: {
+    id: string;
+    nombre: string;
+    grado: string;
+  };
+}
+
+interface EditAsignacionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  asignacion: Asignacion | null;
   profesores: any[];
   materias: any[];
   grupos: any[];
   onSuccess: () => void;
 }
 
-export const AsignacionDialog = ({
+export const EditAsignacionDialog = ({
   open,
   onOpenChange,
+  asignacion,
   profesores,
   materias,
   grupos,
   onSuccess,
-}: AsignacionDialogProps) => {
+}: EditAsignacionDialogProps) => {
   const [profesorId, setProfesorId] = useState<string>("");
   const [materiaId, setMateriaId] = useState<string>("");
   const [grupoId, setGrupoId] = useState<string>("");
@@ -34,22 +55,37 @@ export const AsignacionDialog = ({
   const [warnings, setWarnings] = useState<string[]>([]);
   const { toast } = useToast();
 
+  // Poblar campos cuando se abre el diálogo
+  useEffect(() => {
+    if (asignacion && open) {
+      setProfesorId(asignacion.profesor.id);
+      setMateriaId(asignacion.materia.id);
+      setGrupoId(asignacion.grupo.id);
+      setAnioEscolar(asignacion.anio_escolar);
+      setWarnings([]);
+    }
+  }, [asignacion, open]);
+
+  // Filtrar materias por grado seleccionado
   const grupoSeleccionado = grupos.find(g => g.id === grupoId);
   const materiasFiltradas = materias.filter(m => {
     if (!grupoSeleccionado) return true;
-    const planAnual = m.plan_anual as any;
+    const planAnual = m.plan_anual as { grado: string } | null;
     return planAnual?.grado === grupoSeleccionado.grado;
   });
 
+  // Filtrar grupos por grado de materia seleccionada
   const materiaSeleccionada = materias.find(m => m.id === materiaId);
   const gruposFiltrados = grupos.filter(g => {
     if (!materiaSeleccionada) return true;
-    const planAnual = materiaSeleccionada.plan_anual as any;
+    const planAnual = materiaSeleccionada.plan_anual as { grado: string } | null;
     return planAnual?.grado === g.grado;
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!asignacion) return;
     
     if (!profesorId.trim() || !materiaId.trim() || !grupoId.trim() || !anioEscolar.trim()) {
       toast({
@@ -64,12 +100,13 @@ export const AsignacionDialog = ({
     setWarnings([]);
 
     try {
+      // Validar la asignación
       const validation = await validateAsignacion({
         id_profesor: profesorId,
         id_materia: materiaId,
         id_grupo: grupoId,
         anio_escolar: anioEscolar,
-      });
+      }, asignacion.id);
 
       if (!validation.isValid) {
         toast({
@@ -85,19 +122,21 @@ export const AsignacionDialog = ({
         setWarnings(validation.warnings);
       }
 
-      const { error: insertError } = await supabase
+      // Actualizar la asignación
+      const { error: updateError } = await supabase
         .from("asignaciones_profesor")
-        .insert({
+        .update({
           id_profesor: profesorId,
           id_materia: materiaId,
           id_grupo: grupoId,
           anio_escolar: anioEscolar,
-        });
+        })
+        .eq("id", asignacion.id);
 
-      if (insertError) {
-        console.error("Error al crear asignación:", insertError);
+      if (updateError) {
+        console.error("Error al actualizar asignación:", updateError);
         
-        if (insertError.code === '23505') {
+        if (updateError.code === '23505') {
           toast({
             title: "Error",
             description: "Ya existe una asignación idéntica",
@@ -106,7 +145,7 @@ export const AsignacionDialog = ({
         } else {
           toast({
             title: "Error",
-            description: "No se pudo crear la asignación",
+            description: "No se pudo actualizar la asignación. Por favor, intenta de nuevo.",
             variant: "destructive",
           });
         }
@@ -117,7 +156,7 @@ export const AsignacionDialog = ({
 
       toast({
         title: "Éxito",
-        description: "Asignación creada correctamente",
+        description: "Asignación actualizada correctamente",
       });
 
       setProfesorId("");
@@ -139,6 +178,7 @@ export const AsignacionDialog = ({
     }
   };
 
+  // Generar opciones de años escolares (5 años hacia atrás y 2 hacia adelante)
   const currentYear = new Date().getFullYear();
   const aniosEscolares = Array.from({ length: 8 }, (_, i) => (currentYear - 5 + i).toString());
 
@@ -146,7 +186,7 @@ export const AsignacionDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Nueva Asignación</DialogTitle>
+          <DialogTitle>Editar Asignación</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -202,7 +242,7 @@ export const AsignacionDialog = ({
               </SelectTrigger>
               <SelectContent>
                 {materiasFiltradas.map((materia) => {
-                  const planAnual = materia.plan_anual as any;
+                  const planAnual = materia.plan_anual as { grado: string } | null;
                   return (
                     <SelectItem key={materia.id} value={materia.id}>
                       {materia.nombre} - {planAnual?.grado || 'Sin grado'}
@@ -241,7 +281,7 @@ export const AsignacionDialog = ({
             </Button>
             <Button type="submit" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Crear Asignación
+              Guardar Cambios
             </Button>
           </div>
         </form>
