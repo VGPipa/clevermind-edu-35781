@@ -86,6 +86,44 @@ export type Database = {
           },
         ]
       }
+      anios_escolares: {
+        Row: {
+          activo: boolean | null
+          anio_escolar: string
+          created_at: string | null
+          fecha_fin: string
+          fecha_inicio: string
+          id: string
+          id_institucion: string
+        }
+        Insert: {
+          activo?: boolean | null
+          anio_escolar: string
+          created_at?: string | null
+          fecha_fin: string
+          fecha_inicio: string
+          id?: string
+          id_institucion: string
+        }
+        Update: {
+          activo?: boolean | null
+          anio_escolar?: string
+          created_at?: string | null
+          fecha_fin?: string
+          fecha_inicio?: string
+          id?: string
+          id_institucion?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "anios_escolares_id_institucion_fkey"
+            columns: ["id_institucion"]
+            isOneToOne: false
+            referencedRelation: "instituciones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       apoderados: {
         Row: {
           created_at: string | null
@@ -284,6 +322,47 @@ export type Database = {
             columns: ["id_tema"]
             isOneToOne: false
             referencedRelation: "temas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      configuracion_alertas: {
+        Row: {
+          created_at: string | null
+          dias_lejana: number | null
+          dias_programada: number | null
+          dias_proxima: number | null
+          dias_urgente: number | null
+          id: string
+          id_institucion: string
+          rango_dias_clases_pendientes: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          dias_lejana?: number | null
+          dias_programada?: number | null
+          dias_proxima?: number | null
+          dias_urgente?: number | null
+          id?: string
+          id_institucion: string
+          rango_dias_clases_pendientes?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          dias_lejana?: number | null
+          dias_programada?: number | null
+          dias_proxima?: number | null
+          dias_urgente?: number | null
+          id?: string
+          id_institucion?: string
+          rango_dias_clases_pendientes?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "configuracion_alertas_id_institucion_fkey"
+            columns: ["id_institucion"]
+            isOneToOne: true
+            referencedRelation: "instituciones"
             referencedColumns: ["id"]
           },
         ]
@@ -535,6 +614,47 @@ export type Database = {
             columns: ["id_clase"]
             isOneToOne: false
             referencedRelation: "clases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      periodos_academicos: {
+        Row: {
+          activo: boolean | null
+          created_at: string | null
+          fecha_fin: string
+          fecha_inicio: string
+          id: string
+          id_anio_escolar: string
+          nombre: string
+          numero: number
+        }
+        Insert: {
+          activo?: boolean | null
+          created_at?: string | null
+          fecha_fin: string
+          fecha_inicio: string
+          id?: string
+          id_anio_escolar: string
+          nombre: string
+          numero: number
+        }
+        Update: {
+          activo?: boolean | null
+          created_at?: string | null
+          fecha_fin?: string
+          fecha_inicio?: string
+          id?: string
+          id_anio_escolar?: string
+          nombre?: string
+          numero?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "periodos_academicos_id_anio_escolar_fkey"
+            columns: ["id_anio_escolar"]
+            isOneToOne: false
+            referencedRelation: "anios_escolares"
             referencedColumns: ["id"]
           },
         ]
