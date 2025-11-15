@@ -5,7 +5,7 @@ import {
   createSuccessResponse,
 } from '../_shared/auth.ts';
 
-Deno.serve(async (req) => {
+Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
     return handleCors();
   }
@@ -57,7 +57,7 @@ Deno.serve(async (req) => {
     // Get all clases for this profesor
     const { data: clases, error: clasesError } = await supabase
       .from('clases')
-      .select('id, id_grupo, id_tema, temas!inner(id_materia)')
+      .select('id, id_grupo, id_tema, temas!inner(id, id_materia)')
       .eq('id_profesor', profesor.id);
 
     if (clasesError) {
@@ -132,10 +132,10 @@ Deno.serve(async (req) => {
         if (!asignacion.materias || !asignacion.grupos) return null;
 
         // Get clases for this asignacion
-        const clasesAsignacion = clases?.filter(c => 
-          c.id_grupo === asignacion.id_grupo &&
-          c.temas?.id_materia === asignacion.id_materia
-        ) || [];
+        const clasesAsignacion = clases?.filter(c => {
+          const tema = Array.isArray(c.temas) ? c.temas[0] : c.temas;
+          return c.id_grupo === asignacion.id_grupo && tema?.id_materia === asignacion.id_materia;
+        }) || [];
 
         const clasesIds = clasesAsignacion.map(c => c.id);
 
@@ -248,7 +248,7 @@ Deno.serve(async (req) => {
 
     const temasDesafiantes = temasConPromedios
       .filter(t => t !== null && t.promedio > 0)
-      .sort((a, b) => a.promedio - b.promedio)
+      .sort((a: any, b: any) => (a?.promedio || 0) - (b?.promedio || 0))
       .slice(0, 5);
 
     // Get outstanding students (top performers)
@@ -279,14 +279,17 @@ Deno.serve(async (req) => {
       if (!clase) continue;
 
       const asignacion = asignaciones?.find(a => a.id_grupo === clase.id_grupo);
+      const materia = Array.isArray(asignacion?.materias) ? asignacion.materias[0] : asignacion?.materias;
+      const grupo = Array.isArray(asignacion?.grupos) ? asignacion.grupos[0] : asignacion?.grupos;
       const cursoNombre = asignacion
-        ? `${asignacion.materias?.nombre || ''} ${asignacion.grupos?.grado || ''}${asignacion.grupos?.seccion || ''}`
+        ? `${materia?.nombre || ''} ${grupo?.grado || ''}${grupo?.seccion || ''}`
         : 'Sin curso';
 
       const key = respuesta.id_alumno;
+      const profile = Array.isArray(alumno.profiles) ? alumno.profiles[0] : alumno.profiles;
       if (!alumnosConPromedios.has(key)) {
         alumnosConPromedios.set(key, {
-          nombre: `${alumno.profiles?.nombre || ''} ${alumno.profiles?.apellido || ''}`.trim(),
+          nombre: `${profile?.nombre || ''} ${profile?.apellido || ''}`.trim(),
           curso: cursoNombre,
           notas: [],
           racha: 0,

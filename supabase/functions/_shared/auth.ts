@@ -8,7 +8,7 @@ export const corsHeaders = {
 export interface AuthResult {
   supabase: SupabaseClient;
   user: { id: string; email?: string };
-  profesor: { id: string };
+  profesor: any;
 }
 
 /**
@@ -41,7 +41,7 @@ export function createSupabaseClient(
 /**
  * Handles OPTIONS request for CORS
  */
-export function handleCors(): Response | null {
+export function handleCors(): Response {
   return new Response(null, { headers: corsHeaders });
 }
 
@@ -70,7 +70,7 @@ export async function getAuthenticatedUser(supabase: SupabaseClient) {
 export async function getProfesorFromUserId(
   supabase: SupabaseClient,
   userId: string,
-  selectFields: string = 'id'
+  selectFields: string = '*'
 ) {
   const { data: profesor, error: profesorError } = await supabase
     .from('profesores')
@@ -103,7 +103,7 @@ export async function authenticateProfesor(
 
   const supabase = createSupabaseClient(authHeader, useServiceRole);
   const user = await getAuthenticatedUser(supabase);
-  const profesor = await getProfesorFromUserId(supabase, user.id);
+  const profesor = await getProfesorFromUserId(supabase, user.id, '*');
 
   return {
     supabase,
