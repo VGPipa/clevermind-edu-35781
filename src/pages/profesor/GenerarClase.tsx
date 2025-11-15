@@ -121,6 +121,10 @@ export default function GenerarClase() {
         contextoEspecifico: temaData.descripcion || "",
       }));
 
+      // Set recommended sessions based on duracion_estimada (in weeks)
+      const sesiones = temaData.duracion_estimada || 1;
+      setSesionesRecomendadas(sesiones);
+
       // Set default age group based on grade
       const grado = temaData.materias?.plan_anual?.grado;
       if (grado) {
@@ -136,6 +140,8 @@ export default function GenerarClase() {
   const [guiaGenerada, setGuiaGenerada] = useState<any>(null);
   const [preguntasPre, setPreguntasPre] = useState<any[]>([]);
   const [preguntasPost, setPreguntasPost] = useState<any[]>([]);
+  const [sesionesRecomendadas, setSesionesRecomendadas] = useState<number>(1);
+  const [numeroSesion, setNumeroSesion] = useState<number | null>(null);
 
   const toggleMetodologia = (metodologia: string) => {
     if (metodologiasSeleccionadas.includes(metodologia)) {
@@ -170,13 +176,19 @@ export default function GenerarClase() {
         if (error) throw error;
 
         setClaseId(data.class.id);
-        setCurrentStep(2);
-        toast.success("Contexto guardado exitosamente");
+        setNumeroSesion(data.class.numero_sesion);
         
-        // Navigate to dashboard after a delay to show the new class
-        setTimeout(() => {
-          navigate('/profesor/dashboard');
-        }, 1500);
+        // Show session recommendation if available
+        if (data.sesiones_recomendadas) {
+          toast.success(
+            `Clase creada (Sesión ${data.sesion_actual}/${data.sesiones_recomendadas}). ${data.sesiones_recomendadas > 1 ? `Se recomiendan ${data.sesiones_recomendadas} sesiones para este tema.` : ''}`,
+            { duration: 4000 }
+          );
+        } else {
+          toast.success("Contexto guardado exitosamente");
+        }
+        
+        setCurrentStep(2);
       } catch (error: any) {
         console.error('Error creating class:', error);
         toast.error(error.message || "Error al crear la clase");
@@ -189,14 +201,18 @@ export default function GenerarClase() {
       setLoading(true);
       try {
         const { data, error } = await supabase.functions.invoke('generar-guia-clase', {
-          body: { id_clase: claseId }
+          body: {
+            id_clase: claseId,
+            opciones_metodologia: metodologiasSeleccionadas,
+            contexto_especifico: formData.contextoEspecifico
+          }
         });
 
         if (error) throw error;
 
         setGuiaGenerada(data.guide);
         setCurrentStep(3);
-        toast.success("Guía generada exitosamente");
+        toast.success(`Guía generada exitosamente (Versión ${data.version_numero})`);
       } catch (error: any) {
         toast.error(error.message || "Error al generar la guía");
       } finally {
@@ -266,6 +282,27 @@ export default function GenerarClase() {
 
   const renderStep1 = () => (
     <div className="space-y-6">
+      {/* Session Recommendation */}
+      {temaData && sesionesRecomendadas > 1 && (
+        <Card className="bg-blue-50 border-blue-200">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
+              <div>
+                <h3 className="font-semibold text-blue-900 mb-1">Recomendación de Sesiones</h3>
+                <p className="text-sm text-blue-800">
+                  Este tema tiene una duración estimada de <strong>{sesionesRecomendadas} semanas</strong>.
+                  Se recomienda crear <strong>{sesionesRecomendadas} sesiones/clases</strong> para cubrir todo el contenido.
+                </p>
+                <p className="text-xs text-blue-700 mt-2">
+                  Puedes crear las sesiones restantes desde el dashboard después de crear esta primera.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid gap-4">
         <div>
           <Label>Tema *</Label>
@@ -274,10 +311,21 @@ export default function GenerarClase() {
               <SelectValue placeholder="Selecciona un tema" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="tema-1">Álgebra Básica</SelectItem>
-              <SelectItem value="tema-2">Comprensión Lectora</SelectItem>
+              {temaData ? (
+                <SelectItem value={temaData.id}>{temaData.nombre}</SelectItem>
+              ) : (
+                <>
+                  <SelectItem value="tema-1">Álgebra Básica</SelectItem>
+                  <SelectItem value="tema-2">Comprensión Lectora</SelectItem>
+                </>
+              )}
             </SelectContent>
           </Select>
+          {temaData && (
+            <p className="text-xs text-muted-foreground mt-1">
+              {temaData.descripcion || 'Sin descripción'}
+            </p>
+          )}
         </div>
 
         <div>
@@ -295,18 +343,24 @@ export default function GenerarClase() {
 
         <div>
           <Label>Metodologías de Pensamiento Crítico *</Label>
+          <p className="text-xs text-muted-foreground mb-2">
+            Selecciona una o más metodologías que utilizarás en esta clase
+          </p>
           <div className="flex flex-wrap gap-2 mt-2">
             {METODOLOGIAS.map((met) => (
               <Badge
                 key={met}
                 variant={metodologiasSeleccionadas.includes(met) ? "default" : "outline"}
-                className="cursor-pointer"
+                className="cursor-pointer hover:bg-primary/10 transition-colors"
                 onClick={() => toggleMetodologia(met)}
               >
                 {met}
               </Badge>
             ))}
           </div>
+          {metodologiasSeleccionadas.length === 0 && (
+            <p className="text-xs text-destructive mt-1">Selecciona al menos una metodología</p>
+          )}
         </div>
 
         <div>
@@ -334,14 +388,32 @@ export default function GenerarClase() {
         </div>
 
         <div>
-          <Label>Contexto Específico</Label>
+          <Label>Contexto Específico *</Label>
+          <p className="text-xs text-muted-foreground mb-2">
+            Describe el contexto particular de tus estudiantes, sus necesidades, conocimientos previos, o cualquier información relevante para personalizar la guía de clase.
+          </p>
           <Textarea
             value={formData.contextoEspecifico}
             onChange={(e) => setFormData({...formData, contextoEspecifico: e.target.value})}
-            rows={4}
-            placeholder="Describe el contexto particular de tus estudiantes..."
+            rows={5}
+            placeholder="Ejemplo: Los estudiantes tienen conocimientos básicos de álgebra pero necesitan reforzar la resolución de ecuaciones. Algunos estudiantes tienen dificultades con fracciones..."
+            className="resize-none"
           />
+          {formData.contextoEspecifico.length > 0 && (
+            <p className="text-xs text-muted-foreground mt-1">
+              {formData.contextoEspecifico.length} caracteres
+            </p>
+          )}
         </div>
+
+        {numeroSesion && (
+          <div className="bg-muted p-3 rounded-lg">
+            <p className="text-sm font-medium">Sesión {numeroSesion}</p>
+            <p className="text-xs text-muted-foreground">
+              Esta será la sesión número {numeroSesion} de este tema
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

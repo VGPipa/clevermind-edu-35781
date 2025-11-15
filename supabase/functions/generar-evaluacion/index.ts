@@ -1,176 +1,183 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.76.1';
+import { callAI, parseAIJSON } from '../_shared/ai.ts';
+import {
+  authenticateProfesor,
+  handleCors,
+  createErrorResponse,
+  createSuccessResponse,
+} from '../_shared/auth.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
-Deno.serve(async (req) => {
+Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return handleCors();
   }
 
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'No authorization header' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const { supabase, profesor } = await authenticateProfesor(req, true);
 
     const { id_clase, tipo } = await req.json();
 
     if (!['pre', 'post'].includes(tipo)) {
-      return new Response(JSON.stringify({ error: 'Invalid tipo' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return createErrorResponse('Tipo inválido. Debe ser "pre" o "post"', 400);
     }
 
     console.log(`Generating ${tipo} evaluation for class:`, id_clase);
 
-    // Get class guide
-    const { data: guide, error: guideError } = await supabase
-      .from('guias_clase')
-      .select('objetivos, estructura')
-      .eq('id_clase', id_clase)
+    // Verify profesor owns this class
+    const { data: clase, error: claseError } = await supabase
+      .from('clases')
+      .select(`
+        id,
+        id_profesor,
+        grupo_edad,
+        metodologia,
+        estado,
+        id_guia_version_actual,
+        temas!inner(nombre, descripcion, objetivos)
+      `)
+      .eq('id', id_clase)
+      .eq('id_profesor', profesor.id)
       .single();
 
-    if (guideError || !guide) {
-      return new Response(JSON.stringify({ error: 'Guide not found' }), {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    if (claseError || !clase) {
+      return createErrorResponse('Clase no encontrada o no autorizada', 404);
     }
 
-    // Get class data for context
-    const { data: clase } = await supabase
-      .from('clases')
-      .select('grupo_edad, metodologia, temas(nombre)')
-      .eq('id', id_clase)
+    // Get current guide version
+    if (!clase.id_guia_version_actual) {
+      return createErrorResponse('No hay guía generada para esta clase', 404);
+    }
+
+    const { data: guideVersion, error: guideError } = await supabase
+      .from('guias_clase_versiones')
+      .select('objetivos, estructura, estado, es_version_final')
+      .eq('id', clase.id_guia_version_actual)
       .single();
 
-    const temaNombre = (clase?.temas as any)?.nombre || 'General';
+    if (guideError || !guideVersion) {
+      return createErrorResponse('Versión de guía no encontrada', 404);
+    }
+
+    // Validate prerequisites
+    if (tipo === 'pre') {
+      // Quiz pre requires approved guide
+      if (guideVersion.estado !== 'aprobada') {
+        return createErrorResponse('La guía debe estar aprobada antes de generar el quiz previo', 400);
+      }
+    } else {
+      // Quiz post requires final version
+      if (!guideVersion.es_version_final) {
+        return createErrorResponse('Se requiere la versión final de la guía para generar el quiz post', 400);
+      }
+    }
+
+    const temaNombre = (clase.temas as any)?.nombre || 'General';
+
+    // Configure quiz parameters based on type
+    const maxPreguntas = tipo === 'pre' ? 3 : 10;
+    const minPreguntas = tipo === 'pre' ? 3 : 5;
+    const tiempoLimite = tipo === 'pre' ? 5 : 15;
+    const enfoque = tipo === 'pre' ? 'teórico' : 'aplicación y análisis';
 
     // Build AI prompt
     const systemPrompt = `Eres un experto en evaluación educativa y pensamiento crítico.
-Genera preguntas de evaluación que midan habilidades de pensamiento crítico.`;
+Genera preguntas de evaluación que midan habilidades de pensamiento crítico.
+Para quiz PRE: enfócate en conocimientos teóricos básicos (máximo 3 preguntas, 5 minutos).
+Para quiz POST: incluye análisis, aplicación y razonamiento (5-10 preguntas, 15 minutos).`;
 
     const complexity = tipo === 'pre' ? 'básico' : 'avanzado';
-    const userPrompt = `Genera 5 preguntas de evaluación ${tipo === 'pre' ? 'diagnóstica' : 'sumativa'} para:
+    const userPrompt = `Genera ${minPreguntas === maxPreguntas ? maxPreguntas : `${minPreguntas}-${maxPreguntas}`} preguntas de evaluación ${tipo === 'pre' ? 'diagnóstica PRE' : 'sumativa POST'} para:
 
 Tema: ${temaNombre}
+Descripción del tema: ${(clase.temas as any)?.descripcion || 'No especificada'}
 Nivel de complejidad: ${complexity}
-Grupo de edad: ${clase?.grupo_edad || 'General'}
+Grupo de edad: ${clase.grupo_edad || 'General'}
+Enfoque: ${enfoque}
 Objetivos de aprendizaje:
-${guide.objetivos}
+${guideVersion.objetivos}
 
 Las preguntas deben:
 - Evaluar pensamiento crítico (análisis, razonamiento, aplicación)
 - Ser apropiadas para el nivel ${complexity}
-${tipo === 'post' ? '- Ser más desafiantes que una evaluación pre' : '- Establecer línea base de conocimientos'}
-- Incluir retroalimentación automática específica
+${tipo === 'pre' 
+  ? '- Enfocarse en conocimientos teóricos básicos del tema\n- Ser breves y directas (máximo 3 preguntas)' 
+  : '- Ser más desafiantes que una evaluación pre\n- Incluir análisis profundo y aplicación práctica'}
+- Incluir retroalimentación automática específica para cada respuesta
+${tipo === 'pre' ? '- Tiempo estimado: 5 minutos total' : '- Tiempo estimado: 15 minutos total'}
 
 Responde en formato JSON:
 {
   "preguntas": [
     {
       "texto_pregunta": "...",
-      "tipo": "analisis|razonamiento|aplicacion",
-      "puntos": 2-4,
-      "retroalimentacion": "mensaje específico"
+      "tipo": "analisis|razonamiento|aplicacion|conocimiento",
+      "puntos": ${tipo === 'pre' ? '1-2' : '2-4'},
+      "retroalimentacion": "mensaje específico y constructivo"
     },
     ...
   ]
 }`;
 
-    // Call Lovable AI
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      return new Response(JSON.stringify({ error: 'LOVABLE_API_KEY not configured' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        response_format: { type: 'json_object' }
-      }),
+    // Call AI using helper
+    const aiResponse = await callAI({
+      systemPrompt,
+      userPrompt,
+      responseFormat: 'json_object',
+      temperature: 0.7,
+      maxTokens: 2000,
     });
 
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error('AI API error:', aiResponse.status, errorText);
-      
-      if (aiResponse.status === 429) {
-        return new Response(JSON.stringify({ error: 'Límite de solicitudes excedido. Intenta nuevamente en un momento.' }), {
-          status: 429,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      
-      if (aiResponse.status === 402) {
-        return new Response(JSON.stringify({ error: 'Fondos insuficientes. Contacta al administrador.' }), {
-          status: 402,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
+    const questionsData = parseAIJSON<{
+      preguntas: Array<{
+        texto_pregunta: string;
+        tipo: string;
+        puntos: number;
+        retroalimentacion: string;
+      }>;
+    }>(aiResponse.content);
 
-      return new Response(JSON.stringify({ error: 'Error generating evaluation' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    // Validate number of questions
+    const numPreguntas = questionsData.preguntas.length;
+    if (tipo === 'pre' && numPreguntas > 3) {
+      // Limit to 3 for pre
+      questionsData.preguntas = questionsData.preguntas.slice(0, 3);
+    } else if (tipo === 'post' && (numPreguntas < 5 || numPreguntas > 10)) {
+      // Adjust to valid range for post
+      if (numPreguntas < 5) {
+        return createErrorResponse('El quiz post debe tener al menos 5 preguntas', 400);
+      }
+      questionsData.preguntas = questionsData.preguntas.slice(0, 10);
     }
 
-    const aiData = await aiResponse.json();
-    const questions = JSON.parse(aiData.choices[0].message.content);
-
-    // Create quiz
+    // Create quiz with specific parameters
     const { data: quiz, error: quizError } = await supabase
       .from('quizzes')
       .insert({
         id_clase,
-        titulo: `Evaluación ${tipo === 'pre' ? 'Diagnóstica' : 'Sumativa'}`,
+        titulo: `Evaluación ${tipo === 'pre' ? 'Diagnóstica PRE' : 'Sumativa POST'}`,
         tipo: 'diagnostica',
         tipo_evaluacion: tipo,
         estado: 'borrador',
-        instrucciones: `Evaluación ${tipo === 'pre' ? 'inicial' : 'final'} de pensamiento crítico`
+        tiempo_limite_minutos: tiempoLimite,
+        max_preguntas: maxPreguntas,
+        instrucciones: `Evaluación ${tipo === 'pre' ? 'inicial (PRE)' : 'final (POST)'} de pensamiento crítico. ${tipo === 'pre' ? 'Tiempo: 5 minutos. Máximo 3 preguntas.' : 'Tiempo: 15 minutos. 5-10 preguntas.'}`
       })
       .select()
       .single();
 
     if (quizError) {
       console.error('Error creating quiz:', quizError);
-      return new Response(JSON.stringify({ error: quizError.message }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return createErrorResponse(quizError.message, 500);
     }
 
     // Create questions
-    const preguntasToInsert = questions.preguntas.map((q: any, index: number) => ({
+    const preguntasToInsert = questionsData.preguntas.map((q, index: number) => ({
       id_quiz: quiz.id,
       texto_pregunta: q.texto_pregunta,
-      tipo: q.tipo,
+      tipo: q.tipo as any,
       orden: index + 1,
       justificacion: q.retroalimentacion,
-      respuesta_correcta: '',
+      respuesta_correcta: '', // Will be set by professor or AI
       opciones: []
     }));
 
@@ -180,30 +187,19 @@ Responde en formato JSON:
 
     if (preguntasError) {
       console.error('Error creating questions:', preguntasError);
-      return new Response(JSON.stringify({ error: preguntasError.message }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return createErrorResponse(preguntasError.message, 500);
     }
 
-    return new Response(
-      JSON.stringify({ 
-        quiz_id: quiz.id,
-        preguntas: questions.preguntas 
-      }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
+    return createSuccessResponse({ 
+      quiz_id: quiz.id,
+      preguntas: questionsData.preguntas,
+      tiempo_limite: tiempoLimite,
+      max_preguntas: maxPreguntas,
+      tipo: tipo
+    });
   } catch (error) {
     console.error('Error in generar-evaluacion:', error);
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return createErrorResponse(errorMessage, 500);
   }
 });

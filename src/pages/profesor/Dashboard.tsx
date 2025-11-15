@@ -65,20 +65,73 @@ export default function ProfesorDashboard() {
   };
 
   const getClaseStage = (clase: any) => {
-    if (clase.estado === 'completada') {
-      return { label: "Completada", variant: "default" as const };
+    const estado = clase.estado;
+    
+    // Map all possible states
+    const estadoMap: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+      'borrador': { label: "Borrador", variant: "outline" },
+      'generando_clase': { label: "Generando clase", variant: "secondary" },
+      'editando_guia': { label: "Editando guía", variant: "secondary" },
+      'guia_aprobada': { label: "Guía aprobada", variant: "default" },
+      'quiz_pre_enviado': { label: "Quiz PRE enviado", variant: "default" },
+      'analizando_quiz_pre': { label: "Analizando quiz PRE", variant: "secondary" },
+      'modificando_guia': { label: "Modificando guía", variant: "secondary" },
+      'guia_final': { label: "Guía final lista", variant: "default" },
+      'clase_programada': { label: "Clase programada", variant: "default" },
+      'en_clase': { label: "En clase", variant: "default" },
+      'quiz_post_enviado': { label: "Quiz POST enviado", variant: "default" },
+      'analizando_resultados': { label: "Analizando resultados", variant: "secondary" },
+      'completada': { label: "Completada", variant: "default" },
+      'preparada': { label: "Preparada", variant: "default" },
+      'en_progreso': { label: "En progreso", variant: "default" },
+      'programada': { label: "Programada", variant: "default" },
+      'ejecutada': { label: "Ejecutada", variant: "default" },
+      'cancelada': { label: "Cancelada", variant: "destructive" },
+    };
+
+    if (estadoMap[estado]) {
+      return estadoMap[estado];
     }
-    if (clase.estado === 'en_progreso') {
-      return { label: "En clase", variant: "default" as const };
+
+    // Fallback for unknown states
+    return { label: estado || "Desconocido", variant: "outline" as const };
+  };
+
+  const getClaseAction = (clase: any) => {
+    const estado = clase.estado;
+    
+    if (estado === 'editando_guia' || estado === 'generando_clase') {
+      return {
+        label: "Editar Guía",
+        action: () => navigate(`/profesor/editar-guia/${clase.id}`),
+      };
     }
-    const isPast = new Date(clase.fecha_programada) < new Date();
-    if (!clase.tiene_eval_post && isPast) {
-      return { label: "Pendiente eval. post", variant: "secondary" as const };
+    if (estado === 'guia_aprobada') {
+      return {
+        label: "Gestionar Quizzes",
+        action: () => navigate(`/profesor/gestionar-quizzes/${clase.id}`),
+      };
     }
-    if (!clase.tiene_eval_pre) {
-      return { label: "Sin evaluación previa", variant: "secondary" as const };
+    if (estado === 'analizando_quiz_pre') {
+      return {
+        label: "Ver Recomendaciones",
+        action: () => navigate(`/profesor/recomendaciones-quiz-pre/${clase.id}`),
+      };
     }
-    return { label: "Lista para dar", variant: "default" as const };
+    if (estado === 'quiz_post_enviado' || estado === 'analizando_resultados') {
+      return {
+        label: "Ver Retroalimentaciones",
+        action: () => navigate(`/profesor/retroalimentaciones/${clase.id}`),
+      };
+    }
+    if (estado === 'guia_final') {
+      return {
+        label: "Gestionar Quizzes",
+        action: () => navigate(`/profesor/gestionar-quizzes/${clase.id}`),
+      };
+    }
+    
+    return null;
   };
 
   const quickActions = [
@@ -257,41 +310,63 @@ export default function ProfesorDashboard() {
               <CardContent className="space-y-4">
                 {dashboardData?.clases_pendientes &&
                 dashboardData.clases_pendientes.length > 0 ? (
-                  dashboardData.clases_pendientes.map((clase: any) => (
-                    <div
-                      key={clase.id}
-                      className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between p-4 border rounded-lg hover:shadow-md transition-all duration-200"
-                    >
-                      <div className="flex-1">
-                        <div className="flex flex-wrap items-center gap-2 mb-1">
-                          <h3 className="font-semibold">
-                            {clase.materia} - {clase.grupo}
-                          </h3>
-                          <Badge variant="destructive">Sin preparar</Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground">{clase.tema}</p>
-                        <div className="flex flex-wrap items-center gap-4 mt-2 text-xs text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {formatDate(clase.fecha_programada)}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Users className="h-3 w-3" />
-                            {clase.estudiantes} estudiantes
-                          </span>
-                        </div>
-                      </div>
-                      <Button
-                        className="w-full md:w-auto"
-                        onClick={() =>
-                          navigate(`/profesor/generar-clase?claseId=${clase.id}`)
-                        }
-                        aria-label={`Preparar clase ${clase.tema}`}
+                  dashboardData.clases_pendientes.map((clase: any) => {
+                    const stage = getClaseStage(clase);
+                    const action = getClaseAction(clase);
+                    
+                    return (
+                      <div
+                        key={clase.id}
+                        className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between p-4 border rounded-lg hover:shadow-md transition-all duration-200"
                       >
-                        Preparar Clase
-                      </Button>
-                    </div>
-                  ))
+                        <div className="flex-1">
+                          <div className="flex flex-wrap items-center gap-2 mb-1">
+                            <h3 className="font-semibold">
+                              {clase.materia || clase.tema} - {clase.grupo}
+                            </h3>
+                            <Badge variant={stage.variant}>{stage.label}</Badge>
+                            {clase.numero_sesion && (
+                              <Badge variant="outline">Sesión {clase.numero_sesion}</Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground">{clase.tema || clase.nombre}</p>
+                          <div className="flex flex-wrap items-center gap-4 mt-2 text-xs text-muted-foreground">
+                            {clase.fecha_programada && (
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {formatDate(clase.fecha_programada)}
+                              </span>
+                            )}
+                            {clase.estudiantes && (
+                              <span className="flex items-center gap-1">
+                                <Users className="h-3 w-3" />
+                                {clase.estudiantes} estudiantes
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        {action ? (
+                          <Button
+                            className="w-full md:w-auto"
+                            onClick={action.action}
+                            aria-label={action.label}
+                          >
+                            {action.label}
+                          </Button>
+                        ) : (
+                          <Button
+                            className="w-full md:w-auto"
+                            onClick={() =>
+                              navigate(`/profesor/generar-clase?tema=${clase.id_tema || clase.id}`)
+                            }
+                            aria-label={`Preparar clase ${clase.tema}`}
+                          >
+                            Preparar Clase
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })
                 ) : (
                   renderEmptyState(
                     <AlertCircle className="h-8 w-8 text-muted-foreground" />,
@@ -317,6 +392,8 @@ export default function ProfesorDashboard() {
                 dashboardData.clases_listas.length > 0 ? (
                   dashboardData.clases_listas.map((clase: any) => {
                     const stage = getClaseStage(clase);
+                    const action = getClaseAction(clase);
+                    
                     return (
                       <div
                         key={clase.id}
@@ -325,30 +402,47 @@ export default function ProfesorDashboard() {
                         <div className="flex-1">
                           <div className="flex flex-wrap items-center gap-2 mb-1">
                             <h3 className="font-semibold">
-                              {clase.materia} - {clase.grupo}
+                              {clase.materia || clase.tema} - {clase.grupo}
                             </h3>
                             <Badge variant={stage.variant}>{stage.label}</Badge>
+                            {clase.numero_sesion && (
+                              <Badge variant="outline">Sesión {clase.numero_sesion}</Badge>
+                            )}
                           </div>
-                          <p className="text-sm text-muted-foreground">{clase.tema}</p>
+                          <p className="text-sm text-muted-foreground">{clase.tema || clase.nombre}</p>
                           <div className="flex flex-wrap items-center gap-4 mt-2 text-xs text-muted-foreground">
-                            <span className="flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              {formatDate(clase.fecha_programada)}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Users className="h-3 w-3" />
-                              {clase.estudiantes} estudiantes
-                            </span>
+                            {clase.fecha_programada && (
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {formatDate(clase.fecha_programada)}
+                              </span>
+                            )}
+                            {clase.estudiantes && (
+                              <span className="flex items-center gap-1">
+                                <Users className="h-3 w-3" />
+                                {clase.estudiantes} estudiantes
+                              </span>
+                            )}
                           </div>
                         </div>
-                        <Button
-                          variant="outline"
-                          className="w-full md:w-auto"
-                          onClick={() => navigate(`/profesor/ver-guia/${clase.id}`)}
-                          aria-label={`Ver guía de la clase ${clase.tema}`}
-                        >
-                          Ver Guía
-                        </Button>
+                        {action ? (
+                          <Button
+                            className="w-full md:w-auto"
+                            onClick={action.action}
+                            aria-label={action.label}
+                          >
+                            {action.label}
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            className="w-full md:w-auto"
+                            onClick={() => navigate(`/profesor/editar-guia/${clase.id}`)}
+                            aria-label={`Ver guía de la clase ${clase.tema}`}
+                          >
+                            Ver Guía
+                          </Button>
+                        )}
                       </div>
                     );
                   })
