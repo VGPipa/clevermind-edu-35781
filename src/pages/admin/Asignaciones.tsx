@@ -98,6 +98,9 @@ const AdminAsignaciones = () => {
           <AsignacionesTable 
             asignaciones={filteredAsignaciones} 
             onRefresh={() => refetch()}
+            profesores={data?.profesores || []}
+            materias={data?.materias || []}
+            grupos={data?.grupos || []}
           />
         </div>
 
