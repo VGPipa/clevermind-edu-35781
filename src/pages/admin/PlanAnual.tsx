@@ -78,6 +78,73 @@ export default function PlanAnual() {
     },
   });
 
+  // Mover useMemo ANTES de los early returns para cumplir con las reglas de hooks
+  const materiasFiltradas = useMemo(() => {
+    if (!data?.materias) return [];
+    
+    let filtered = [...data.materias];
+
+    // Search filter
+    if (searchMateria) {
+      const searchLower = searchMateria.toLowerCase();
+      filtered = filtered.filter((m: any) =>
+        m.nombre.toLowerCase().includes(searchLower) ||
+        (m.descripcion && m.descripcion.toLowerCase().includes(searchLower))
+      );
+    }
+
+    // Estado filter
+    if (filterEstado !== 'all') {
+      filtered = filtered.filter((m: any) => m.estado === filterEstado);
+    }
+
+    // Horas semanales filter
+    if (filterHorasMin !== 'all') {
+      const minHoras = parseInt(filterHorasMin);
+      filtered = filtered.filter((m: any) => m.horas_semanales >= minHoras);
+    }
+
+    // Sorting
+    filtered.sort((a: any, b: any) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (sortBy) {
+        case 'nombre':
+          aValue = a.nombre.toLowerCase();
+          bValue = b.nombre.toLowerCase();
+          break;
+        case 'horas_semanales':
+          aValue = a.horas_semanales || 0;
+          bValue = b.horas_semanales || 0;
+          break;
+        case 'total_temas':
+          aValue = a.total_temas || 0;
+          bValue = b.total_temas || 0;
+          break;
+        case 'estado':
+          aValue = a.estado;
+          bValue = b.estado;
+          break;
+        default: // orden
+          aValue = a.orden || 0;
+          bValue = b.orden || 0;
+      }
+
+      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return filtered;
+  }, [data?.materias, searchMateria, filterEstado, filterHorasMin, sortBy, sortOrder]);
+
+  const materiasPorEstado = useMemo(() => ({
+    todas: materiasFiltradas,
+    completas: materiasFiltradas.filter((m: any) => m.estado === 'completo'),
+    pendientes: materiasFiltradas.filter((m: any) => m.estado === 'pendiente'),
+  }), [materiasFiltradas]);
+
   const handleCreatePlanAnual = () => {
     setEditingPlanAnual(null);
     setPlanAnualDialogOpen(true);
@@ -574,73 +641,6 @@ export default function PlanAnual() {
       </AppLayout>
     );
   }
-
-  // Filter and sort materias
-  const materiasFiltradas = useMemo(() => {
-    if (!data?.materias) return [];
-    
-    let filtered = [...data.materias];
-
-    // Search filter
-    if (searchMateria) {
-      const searchLower = searchMateria.toLowerCase();
-      filtered = filtered.filter((m: any) =>
-        m.nombre.toLowerCase().includes(searchLower) ||
-        (m.descripcion && m.descripcion.toLowerCase().includes(searchLower))
-      );
-    }
-
-    // Estado filter
-    if (filterEstado !== 'all') {
-      filtered = filtered.filter((m: any) => m.estado === filterEstado);
-    }
-
-    // Horas semanales filter
-    if (filterHorasMin !== 'all') {
-      const minHoras = parseInt(filterHorasMin);
-      filtered = filtered.filter((m: any) => m.horas_semanales >= minHoras);
-    }
-
-    // Sorting
-    filtered.sort((a: any, b: any) => {
-      let aValue: any;
-      let bValue: any;
-
-      switch (sortBy) {
-        case 'nombre':
-          aValue = a.nombre.toLowerCase();
-          bValue = b.nombre.toLowerCase();
-          break;
-        case 'horas_semanales':
-          aValue = a.horas_semanales || 0;
-          bValue = b.horas_semanales || 0;
-          break;
-        case 'total_temas':
-          aValue = a.total_temas || 0;
-          bValue = b.total_temas || 0;
-          break;
-        case 'estado':
-          aValue = a.estado;
-          bValue = b.estado;
-          break;
-        default: // orden
-          aValue = a.orden || 0;
-          bValue = b.orden || 0;
-      }
-
-      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
-      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
-      return 0;
-    });
-
-    return filtered;
-  }, [data?.materias, searchMateria, filterEstado, filterHorasMin, sortBy, sortOrder]);
-
-  const materiasPorEstado = {
-    todas: materiasFiltradas,
-    completas: materiasFiltradas.filter((m: any) => m.estado === 'completo'),
-    pendientes: materiasFiltradas.filter((m: any) => m.estado === 'pendiente'),
-  };
 
   const clearFilters = () => {
     setSearchMateria("");
