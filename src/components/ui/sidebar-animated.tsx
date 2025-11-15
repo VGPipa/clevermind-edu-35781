@@ -187,8 +187,8 @@ export const SidebarLink = ({
       )}
     >
       <div className={cn(
-        "transition-all duration-150",
-        isActive && "drop-shadow-[0_2px_8px_rgba(251,146,60,0.4)]"
+        "transition-all duration-300",
+        isActive && "drop-shadow-[0_4px_12px_rgba(249,115,22,0.6)]"
       )}>
         {link.icon}
       </div>
