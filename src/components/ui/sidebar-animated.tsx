@@ -186,7 +186,12 @@ export const SidebarLink = ({
         className
       )}
     >
-      {link.icon}
+      <div className={cn(
+        "transition-all duration-150",
+        isActive && "drop-shadow-[0_2px_8px_rgba(251,146,60,0.4)]"
+      )}>
+        {link.icon}
+      </div>
       <motion.span
         animate={{
           display: animate ? (open ? "inline-block" : "none") : "inline-block",
