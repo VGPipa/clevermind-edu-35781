@@ -80,7 +80,7 @@ const AdminAsignaciones = () => {
           </Button>
         </div>
 
-        <AsignacionesStats estadisticas={data.estadisticas} />
+        <AsignacionesStats estadisticas={data?.estadisticas} />
 
         <div className="space-y-4">
           <div className="flex items-center gap-4">
