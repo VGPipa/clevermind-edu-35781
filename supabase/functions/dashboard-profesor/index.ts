@@ -5,7 +5,7 @@ import {
   createSuccessResponse,
 } from '../_shared/auth.ts';
 
-Deno.serve(async (req) => {
+Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
     return handleCors();
   }

@@ -5,13 +5,13 @@ import {
   createSuccessResponse,
 } from '../_shared/auth.ts';
 
-Deno.serve(async (req) => {
+Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
     return handleCors();
   }
 
   try {
-    const { supabase, user, profesor } = await authenticateProfesor(req, false);
+    const { supabase, user, profesor } = await authenticateProfesor(req, true);
 
     // Obtener perfil del usuario
     const { data: profile, error: profileError } = await supabase

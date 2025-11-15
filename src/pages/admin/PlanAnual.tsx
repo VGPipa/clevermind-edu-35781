@@ -577,7 +577,9 @@ export default function PlanAnual() {
 
   // Filter and sort materias
   const materiasFiltradas = useMemo(() => {
-    let filtered = [...(data.materias || [])];
+    if (!data?.materias) return [];
+    
+    let filtered = [...data.materias];
 
     // Search filter
     if (searchMateria) {
@@ -632,7 +634,7 @@ export default function PlanAnual() {
     });
 
     return filtered;
-  }, [data.materias, searchMateria, filterEstado, filterHorasMin, sortBy, sortOrder]);
+  }, [data?.materias, searchMateria, filterEstado, filterHorasMin, sortBy, sortOrder]);
 
   const materiasPorEstado = {
     todas: materiasFiltradas,
@@ -923,9 +925,11 @@ export default function PlanAnual() {
                 setExpandedMateria={setExpandedMateria}
                 onEditMateria={handleEditMateria}
                 onDeleteMateria={handleDeleteMateria}
+                onDuplicateMateria={handleDuplicateMateria}
                 onCreateTema={handleCreateTema}
                 onEditTema={handleEditTema}
                 onDeleteTema={handleDeleteTema}
+                onDuplicateTema={handleDuplicateTema}
                 selectedMaterias={selectedMaterias}
                 onToggleSelection={toggleMateriaSelection}
               />
