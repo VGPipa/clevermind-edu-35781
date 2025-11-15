@@ -8,25 +8,23 @@ import {
   GraduationCap,
   TrendingUp,
   Clock,
-  AlertCircle,
   Sparkles,
   Brain,
   CalendarDays,
   BarChart3,
-  FileText,
-  Play,
+  Calendar,
   CheckCircle2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { StatsCard } from "@/components/profesor/StatsCard";
 import { FechaSelector } from "@/components/profesor/FechaSelector";
-import { AlertaBadge } from "@/components/profesor/AlertaBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ClaseActionsMenu } from "@/components/profesor/ClaseActionsMenu";
 
 export default function ProfesorDashboard() {
   const navigate = useNavigate();
@@ -70,13 +68,10 @@ export default function ProfesorDashboard() {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return format(date, "d 'de' MMMM, HH:mm", { locale: es });
+    return format(date, "d 'de' MMMM", { locale: es });
   };
 
-  const getClaseStage = (clase: any) => {
-    const estado = clase.estado;
-    
-    // Map all possible states
+  const getClaseStage = (estado: string) => {
     const estadoMap: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
       'borrador': { label: "Borrador", variant: "outline" },
       'generando_clase': { label: "Generando clase", variant: "secondary" },
@@ -93,194 +88,132 @@ export default function ProfesorDashboard() {
       'quiz_post_enviado': { label: "Quiz POST enviado", variant: "default" },
       'analizando_resultados': { label: "Analizando resultados", variant: "secondary" },
       'completada': { label: "Completada", variant: "default" },
-      'preparada': { label: "Preparada", variant: "default" },
-      'en_progreso': { label: "En progreso", variant: "default" },
-      'programada': { label: "Programada", variant: "default" },
-      'ejecutada': { label: "Ejecutada", variant: "default" },
-      'cancelada': { label: "Cancelada", variant: "destructive" },
     };
 
-    if (estadoMap[estado]) {
-      return estadoMap[estado];
-    }
-
-    // Fallback for unknown states
-    return { label: estado || "Desconocido", variant: "outline" as const };
+    return estadoMap[estado] || { label: estado, variant: "outline" };
   };
-
-  const getClaseAction = (clase: any) => {
-    const estado = clase.estado;
-    
-    switch (estado) {
-      case 'borrador':
-        return {
-          label: 'Continuar clase',
-          onClick: () => navigate(`/profesor/generar-clase?clase=${clase.id}`),
-          icon: FileText,
-        };
-      case 'editando_guia':
-        return {
-          label: 'Editar guía',
-          onClick: () => navigate(`/profesor/editar-guia/${clase.id}`),
-          icon: FileText,
-        };
-      case 'guia_aprobada':
-      case 'quiz_pre_generando':
-        return {
-          label: 'Generar quiz PRE',
-          onClick: () => navigate(`/profesor/gestionar-quizzes/${clase.id}`),
-          icon: Brain,
-        };
-      case 'quiz_pre_enviado':
-      case 'analizando_quiz_pre':
-        return {
-          label: 'Ver resultados PRE',
-          onClick: () => navigate(`/profesor/gestionar-quizzes/${clase.id}`),
-          icon: BarChart3,
-        };
-      case 'modificando_guia':
-        return {
-          label: 'Modificar guía',
-          onClick: () => navigate(`/profesor/editar-guia/${clase.id}`),
-          icon: FileText,
-        };
-      case 'guia_final':
-      case 'clase_programada':
-        return {
-          label: 'Ver guía final',
-          onClick: () => navigate(`/profesor/ver-guia-clase/${clase.id}`),
-          icon: FileText,
-        };
-      case 'en_clase':
-        return {
-          label: 'En clase ahora',
-          onClick: () => navigate(`/profesor/ver-guia-clase/${clase.id}`),
-          icon: Play,
-        };
-      case 'quiz_post_generando':
-        return {
-          label: 'Generar quiz POST',
-          onClick: () => navigate(`/profesor/gestionar-quizzes/${clase.id}`),
-          icon: Brain,
-        };
-      case 'quiz_post_enviado':
-      case 'analizando_resultados':
-        return {
-          label: 'Ver resultados POST',
-          onClick: () => navigate(`/profesor/gestionar-quizzes/${clase.id}`),
-          icon: BarChart3,
-        };
-      case 'completada':
-        return {
-          label: 'Ver resumen',
-          onClick: () => navigate(`/profesor/ver-guia-clase/${clase.id}`),
-          icon: CheckCircle2,
-        };
-      default:
-        return null;
-    }
-  };
-
 
   const quickActions = [
     {
       label: "Generar Clase",
-      description: "Crea una nueva clase con IA",
-      icon: Brain,
-      action: () => navigate("/profesor/generar-clase"),
+      icon: Sparkles,
+      onClick: () => navigate("/profesor/generar-clase"),
+      variant: "default" as const,
     },
     {
       label: "Planificación",
-      description: "Revisa tus unidades y temas",
-      icon: BookOpen,
-      action: () => navigate("/profesor/planificacion"),
+      icon: CalendarDays,
+      onClick: () => navigate("/profesor/planificacion"),
+      variant: "outline" as const,
     },
     {
       label: "Métricas",
-      description: "Analiza el avance de tus cursos",
       icon: BarChart3,
-      action: () => navigate("/profesor/metricas"),
+      onClick: () => navigate("/profesor/metricas"),
+      variant: "outline" as const,
     },
     {
       label: "Capacitación IA",
-      description: "Mejora tus prompts y guías",
-      icon: Sparkles,
-      action: () => navigate("/profesor/capacitacion"),
+      icon: Brain,
+      onClick: () => navigate("/profesor/capacitacion"),
+      variant: "outline" as const,
     },
   ];
 
-  const upcomingClasses = useMemo(() => {
-    if (!dashboardData) return [];
-    const combined = [
-      ...(dashboardData.clases_pendientes || []),
-      ...(dashboardData.clases_listas || []),
-    ];
-
-    return combined
-      .filter((item: any) => item?.fecha_programada)
-      .sort(
-        (a: any, b: any) =>
-          new Date(a.fecha_programada).getTime() -
-          new Date(b.fecha_programada).getTime()
+  // Separar clases en 2 bloques principales
+  const clasesEnPreparacion = useMemo(() => {
+    if (!dashboardData?.clases_proximas) return [];
+    return dashboardData.clases_proximas
+      .filter((clase: any) => 
+        ['borrador', 'generando_clase', 'editando_guia', 'guia_aprobada',
+         'quiz_pre_generando', 'quiz_pre_enviado', 'analizando_quiz_pre',
+         'modificando_guia', 'guia_final'].includes(clase.estado)
       )
-      .slice(0, 10);
+      .map((clase: any) => ({
+        ...clase,
+        estado_label: getClaseStage(clase.estado).label,
+        estado_variant: getClaseStage(clase.estado).variant,
+      }));
   }, [dashboardData]);
 
-  const groupedUpcoming = useMemo(() => {
-    return upcomingClasses.reduce((acc: Record<string, any[]>, clase: any) => {
-      const dayLabel = format(
-        new Date(clase.fecha_programada),
-        "EEEE d 'de' MMMM",
-        { locale: es }
-      );
-      if (!acc[dayLabel]) {
-        acc[dayLabel] = [];
-      }
-      acc[dayLabel].push(clase);
-      return acc;
-    }, {} as Record<string, any[]>);
-  }, [upcomingClasses]);
+  const clasesCalendario = useMemo(() => {
+    if (!dashboardData?.clases_proximas) return [];
+    return dashboardData.clases_proximas
+      .filter((clase: any) =>
+        ['clase_programada', 'en_clase', 'quiz_post_generando',
+         'quiz_post_enviado', 'analizando_resultados', 'completada'].includes(clase.estado)
+      )
+      .map((clase: any) => ({
+        ...clase,
+        estado_label: getClaseStage(clase.estado).label,
+        estado_variant: getClaseStage(clase.estado).variant,
+      }))
+      .sort((a: any, b: any) => {
+        if (!a.fecha_programada) return 1;
+        if (!b.fecha_programada) return -1;
+        return new Date(a.fecha_programada).getTime() - new Date(b.fecha_programada).getTime();
+      });
+  }, [dashboardData]);
 
-  const renderEmptyState = (icon: ReactNode, message: string) => (
-    <div className="text-center py-8 text-muted-foreground flex flex-col items-center gap-3">
-      {icon}
-      <p className="max-w-sm text-sm">{message}</p>
+  // Agrupar clases del calendario por categorías temporales
+  const groupedCalendario = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const thisWeekEnd = new Date(today);
+    thisWeekEnd.setDate(thisWeekEnd.getDate() + 7);
+
+    const groups = {
+      hoy: [] as typeof clasesCalendario,
+      manana: [] as typeof clasesCalendario,
+      estaSemana: [] as typeof clasesCalendario,
+      proximamente: [] as typeof clasesCalendario,
+    };
+
+    clasesCalendario.forEach((clase: any) => {
+      if (!clase.fecha_programada) {
+        groups.proximamente.push(clase);
+        return;
+      }
+      const claseDate = new Date(clase.fecha_programada);
+      claseDate.setHours(0, 0, 0, 0);
+
+      if (claseDate.getTime() === today.getTime()) {
+        groups.hoy.push(clase);
+      } else if (claseDate.getTime() === tomorrow.getTime()) {
+        groups.manana.push(clase);
+      } else if (claseDate < thisWeekEnd) {
+        groups.estaSemana.push(clase);
+      } else {
+        groups.proximamente.push(clase);
+      }
+    });
+
+    return groups;
+  }, [clasesCalendario]);
+
+  const renderEmptyState = (Icon: any, title: string, description: string) => (
+    <div className="text-center py-8">
+      <Icon className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+      <h3 className="font-medium mb-1">{title}</h3>
+      <p className="text-sm text-muted-foreground">{description}</p>
     </div>
   );
 
   if (isLoading) {
     return (
       <AppLayout>
-        <div className="space-y-6">
-          <div className="space-y-2">
-            <Skeleton className="h-10 w-64" />
-            <Skeleton className="h-5 w-96" />
-          </div>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <Card key={index}>
-                <CardContent className="p-6 space-y-3">
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-8 w-16" />
-                  <Skeleton className="h-4 w-16" />
-                </CardContent>
-              </Card>
+        <div className="container mx-auto p-6 space-y-6">
+          <div className="grid gap-4 md:grid-cols-4">
+            {[...Array(4)].map((_, i) => (
+              <Skeleton key={i} className="h-24" />
             ))}
           </div>
-          <div className="grid gap-6 lg:grid-cols-3">
-            <Card className="lg:col-span-2">
-              <CardContent className="p-6 space-y-4">
-                <Skeleton className="h-6 w-48" />
-                <Skeleton className="h-24 w-full" />
-                <Skeleton className="h-24 w-full" />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-6 space-y-4">
-                <Skeleton className="h-6 w-40" />
-                <Skeleton className="h-40 w-full" />
-              </CardContent>
-            </Card>
+          <div className="grid gap-6 lg:grid-cols-2">
+            {[...Array(2)].map((_, i) => (
+              <Skeleton key={i} className="h-96" />
+            ))}
           </div>
         </div>
       </AppLayout>
@@ -289,343 +222,270 @@ export default function ProfesorDashboard() {
 
   return (
     <AppLayout>
-      <div className="space-y-6 animate-fade-in">
+      <div className="container mx-auto p-6 space-y-6">
         {/* Header */}
-        <div className="flex flex-col gap-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-4xl font-bold">Panel del Profesor</h1>
-              <p className="text-muted-foreground mt-2">
-                Gestiona tus clases y desarrolla el pensamiento crítico de tus estudiantes
-              </p>
-            </div>
-            <Button 
-              size="lg" 
-              onClick={() => navigate('/profesor/generar-clase')}
-              className="bg-gradient-primary hover:opacity-90 shadow-lg"
-              aria-label="Crear nueva clase con IA"
-            >
-              <Brain className="mr-2 h-5 w-5" />
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Dashboard Profesor</h1>
+            <p className="text-muted-foreground">
+              Vista general de tu actividad docente
+            </p>
+          </div>
+          <div className="flex items-center gap-4">
+            <Button onClick={() => navigate("/profesor/generar-clase")} size="lg">
+              <Sparkles className="mr-2 h-5 w-5" />
               Nueva Clase con IA
             </Button>
+            <FechaSelector
+              fechaReferencia={fechaReferencia}
+              onFechaChange={setFechaReferencia}
+            />
           </div>
-          <FechaSelector
-            fechaReferencia={fechaReferencia}
-            onFechaChange={setFechaReferencia}
-            anioEscolar={dashboardData?.anio_escolar}
-          />
         </div>
 
         {/* Quick Actions */}
-        <Card>
-          <CardContent className="p-4">
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {quickActions.map((action) => (
-                <Button
-                  key={action.label}
-                  variant="outline"
-                  className="justify-start h-auto py-4 flex flex-col items-start gap-1"
-                  onClick={action.action}
-                  aria-label={action.label}
-                >
-                  <span className="flex items-center gap-2 text-sm font-semibold">
-                    <action.icon className="h-4 w-4" />
-                    {action.label}
-                  </span>
-                  <span className="text-xs text-muted-foreground text-left">
-                    {action.description}
-                  </span>
-                </Button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {quickActions.map((action) => {
+            const Icon = action.icon;
+            return (
+              <Button
+                key={action.label}
+                variant={action.variant}
+                onClick={action.onClick}
+                className="h-auto py-4 flex flex-col items-center gap-2"
+              >
+                <Icon className="h-5 w-5" />
+                <span className="text-sm">{action.label}</span>
+              </Button>
+            );
+          })}
+        </div>
 
         {/* Stats Grid */}
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-4">
           {stats.map((stat, index) => (
             <StatsCard key={index} {...stat} />
           ))}
         </div>
 
-        {/* Main Content Grid */}
-        <div className="grid gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-2 space-y-6">
-            {/* SECCIÓN 1: Clases Pendientes de Preparación */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <AlertCircle className="h-5 w-5 text-destructive" />
-                  Clases Pendientes de Preparación
-                </CardTitle>
-                <CardDescription>
-                  Clases programadas dentro del rango configurado que necesitan guía
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {dashboardData?.clases_pendientes &&
-                dashboardData.clases_pendientes.length > 0 ? (
-                  dashboardData.clases_pendientes.map((clase: any) => {
-                    const stage = getClaseStage(clase);
-                    const action = getClaseAction(clase);
-                    
-                    return (
-                      <div
-                        key={clase.id}
-                        className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between p-4 border rounded-lg hover:shadow-md transition-all duration-200"
-                      >
-                        <div className="flex-1">
-                          <div className="flex flex-wrap items-center gap-2 mb-1">
-                            <h3 className="font-semibold">
-                              {clase.materia || clase.tema} - {clase.grupo}
-                            </h3>
-                            <Badge variant={stage.variant}>{stage.label}</Badge>
-                            {clase.numero_sesion && (
-                              <Badge variant="outline">Sesión {clase.numero_sesion}</Badge>
-                            )}
-                            {clase.nivel_alerta && (
-                              <AlertaBadge nivel={clase.nivel_alerta} diasRestantes={clase.dias_restantes || 0} />
-                            )}
-                          </div>
-                          <p className="text-sm text-muted-foreground">{clase.tema || clase.nombre}</p>
-                          <div className="flex flex-wrap items-center gap-4 mt-2 text-xs text-muted-foreground">
-                            {clase.fecha_programada && (
-                              <span className="flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
-                                {formatDate(clase.fecha_programada)}
-                              </span>
-                            )}
-                            {clase.estudiantes && (
-                              <span className="flex items-center gap-1">
-                                <Users className="h-3 w-3" />
-                                {clase.estudiantes} estudiantes
-                              </span>
-                            )}
-                            {clase.dias_restantes !== undefined && (
-                              <span className="flex items-center gap-1">
-                                {clase.dias_restantes === 0 ? 'Hoy' : clase.dias_restantes === 1 ? 'Mañana' : `En ${clase.dias_restantes} días`}
-                              </span>
-                            )}
-                          </div>
+        {/* Main Content - 2 Blocks */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Bloque 1: Clases en Preparación */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="h-5 w-5 text-orange-500" />
+                Clases en Preparación
+              </CardTitle>
+              <CardDescription>
+                Clases que necesitan tu atención antes de ser dictadas
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {clasesEnPreparacion.length > 0 ? (
+                <div className="space-y-3">
+                  {clasesEnPreparacion.map((clase: any) => (
+                    <div key={clase.id} className="p-4 border rounded-lg space-y-2 hover:bg-accent/50 transition-colors">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm truncate">{clase.tema_nombre}</p>
+                          <p className="text-xs text-muted-foreground">{clase.materia_nombre} • {clase.grupo_nombre}</p>
                         </div>
-                        {action ? (
-                          <Button
-                            className="w-full md:w-auto"
-                            onClick={action.onClick}
-                            aria-label={action.label}
-                          >
-                            {action.label}
-                          </Button>
-                        ) : (
-                          <Button
-                            className="w-full md:w-auto"
-                            onClick={() =>
-                              navigate(`/profesor/generar-clase?tema=${clase.id_tema || clase.id}`)
-                            }
-                            aria-label={`Preparar clase ${clase.tema}`}
-                          >
-                            Preparar Clase
-                          </Button>
-                        )}
+                        <Badge variant={clase.estado_variant as any}>{clase.estado_label}</Badge>
                       </div>
-                    );
-                  })
-                ) : (
-                  renderEmptyState(
-                    <AlertCircle className="h-8 w-8 text-muted-foreground" />,
-                    "No tienes clases pendientes de preparación. Genera una nueva clase o revisa tus guías existentes."
-                  )
-                )}
-              </CardContent>
-            </Card>
+                      {clase.fecha_programada && (
+                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          Programada: {formatDate(clase.fecha_programada)}
+                        </p>
+                      )}
+                      <ClaseActionsMenu clase={clase} />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                renderEmptyState(
+                  CheckCircle2,
+                  "¡Todo al día!",
+                  "No tienes clases pendientes de preparación"
+                )
+              )}
+            </CardContent>
+          </Card>
 
-            {/* SECCIÓN 2: Clases Programadas Listas */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Clock className="h-5 w-5 text-primary" />
-                  Clases Programadas Listas
-                </CardTitle>
-                <CardDescription>
-                  Clases con guía generada en diferentes etapas
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {dashboardData?.clases_listas &&
-                dashboardData.clases_listas.length > 0 ? (
-                  dashboardData.clases_listas.map((clase: any) => {
-                    const stage = getClaseStage(clase);
-                    const action = getClaseAction(clase);
-                    
-                    return (
-                      <div
-                        key={clase.id}
-                        className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between p-4 border rounded-lg hover:shadow-md transition-all duration-200"
-                      >
-                        <div className="flex-1">
-                          <div className="flex flex-wrap items-center gap-2 mb-1">
-                            <h3 className="font-semibold">
-                              {clase.materia || clase.tema} - {clase.grupo}
-                            </h3>
-                            <Badge variant={stage.variant}>{stage.label}</Badge>
-                            {clase.numero_sesion && (
-                              <Badge variant="outline">Sesión {clase.numero_sesion}</Badge>
-                            )}
-                            {clase.nivel_alerta && (
-                              <AlertaBadge nivel={clase.nivel_alerta} diasRestantes={clase.dias_restantes || 0} />
-                            )}
-                          </div>
-                          <p className="text-sm text-muted-foreground">{clase.tema || clase.nombre}</p>
-                          <div className="flex flex-wrap items-center gap-4 mt-2 text-xs text-muted-foreground">
-                            {clase.fecha_programada && (
-                              <span className="flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
-                                {formatDate(clase.fecha_programada)}
-                              </span>
-                            )}
-                            {clase.estudiantes && (
-                              <span className="flex items-center gap-1">
-                                <Users className="h-3 w-3" />
-                                {clase.estudiantes} estudiantes
-                              </span>
-                            )}
-                            {clase.dias_restantes !== undefined && (
-                              <span className="flex items-center gap-1">
-                                {clase.dias_restantes === 0 ? 'Hoy' : clase.dias_restantes === 1 ? 'Mañana' : `En ${clase.dias_restantes} días`}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        {action ? (
-                          <Button
-                            className="w-full md:w-auto"
-                            onClick={action.onClick}
-                            aria-label={action.label}
-                          >
-                            {action.label}
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="outline"
-                            className="w-full md:w-auto"
-                            onClick={() => navigate(`/profesor/editar-guia/${clase.id}`)}
-                            aria-label={`Ver guía de la clase ${clase.tema}`}
-                          >
-                            Ver Guía
-                          </Button>
-                        )}
+          {/* Bloque 2: Calendario de Clases */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-blue-500" />
+                Calendario de Clases
+              </CardTitle>
+              <CardDescription>
+                Clases programadas, en curso y completadas
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {clasesCalendario.length > 0 ? (
+                <div className="space-y-4">
+                  {/* HOY */}
+                  {groupedCalendario.hoy.length > 0 && (
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Badge variant="destructive" className="text-xs">HOY</Badge>
+                        <span className="text-xs text-muted-foreground">{formatDate(new Date().toISOString().split('T')[0])}</span>
                       </div>
-                    );
-                  })
-                ) : (
-                  renderEmptyState(
-                    <FileText className="h-8 w-8 text-muted-foreground" />,
-                    "Aún no tienes guías listas para revisar. Cuando generes una guía aparecerá en esta sección."
-                  )
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="space-y-6">
-            {/* Calendario Próximas Clases */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CalendarDays className="h-5 w-5 text-primary" />
-                  Calendario Próximas Clases
-                </CardTitle>
-                <CardDescription>
-                  Vista rápida de tus próximas sesiones
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {upcomingClasses.length > 0 ? (
-                  Object.entries(groupedUpcoming).map(([day, clases]: [string, any[]]) => (
-                    <div key={day}>
-                      <p className="text-xs uppercase text-muted-foreground mb-2 font-medium">
-                        {day}
-                      </p>
-                      <div className="space-y-3">
-                        {clases.map((clase) => {
-                          const stage = getClaseStage(clase);
-                          return (
-                            <div
-                              key={`${clase.id}-${stage.label}`}
-                              className="flex flex-col gap-2 p-3 rounded-lg border bg-background"
-                            >
-                              <div className="flex items-center justify-between gap-2">
-                                <p className="font-medium">
-                                  {clase.materia} - {clase.grupo}
-                                </p>
-                                <Badge variant={stage.variant}>{stage.label}</Badge>
+                      <div className="space-y-2">
+                        {groupedCalendario.hoy.map((clase: any) => (
+                          <div key={clase.id} className="p-3 border rounded-lg bg-destructive/5 space-y-2">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-sm truncate">{clase.tema_nombre}</p>
+                                <p className="text-xs text-muted-foreground">{clase.materia_nombre} • {clase.grupo_nombre}</p>
                               </div>
-                              <p className="text-sm text-muted-foreground">{clase.tema}</p>
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                <Clock className="h-3 w-3" />
-                                {format(new Date(clase.fecha_programada), "HH:mm", {
-                                  locale: es,
-                                })}
-                              </div>
+                              <Badge variant={clase.estado_variant as any} className={clase.estado === 'en_clase' ? 'animate-pulse' : ''}>
+                                {clase.estado_label}
+                              </Badge>
                             </div>
-                          );
-                        })}
+                            <ClaseActionsMenu clase={clase} />
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  ))
-                ) : (
-                  renderEmptyState(
-                    <CalendarDays className="h-8 w-8 text-muted-foreground" />,
-                    "Cuando tengas clases programadas, aparecerán aquí para ayudarte a organizar tu semana."
-                  )
-                )}
-              </CardContent>
-            </Card>
+                  )}
 
-            {/* AI Recommendations */}
-            <Card className="bg-gradient-to-br from-primary/5 to-secondary/5 border-primary/20">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-primary" />
-                  Recomendaciones IA
-                </CardTitle>
-                <CardDescription>
-                  Sugerencias basadas en tu contexto
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {dashboardData?.recommendations &&
-                dashboardData.recommendations.length > 0 ? (
-                  <div className="space-y-3">
-                    {dashboardData.recommendations.map((rec: any) => (
-                      <div key={rec.id} className="p-3 bg-background rounded-lg border">
-                        <p className="text-sm">{rec.contenido}</p>
-                        {rec.clases?.temas?.nombre && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {rec.clases.temas.nombre}
-                          </p>
-                        )}
+                  {/* MAÑANA */}
+                  {groupedCalendario.manana.length > 0 && (
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Badge variant="secondary" className="text-xs">MAÑANA</Badge>
+                        <span className="text-xs text-muted-foreground">{formatDate(new Date(Date.now() + 86400000).toISOString().split('T')[0])}</span>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  renderEmptyState(
-                    <Sparkles className="h-8 w-8 text-primary" />,
-                    "Aún no hay recomendaciones personalizadas. Genera una clase para recibir sugerencias adaptadas a tus estudiantes."
-                  )
-                )}
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => navigate("/profesor/generar-clase")}
-                  aria-label="Explorar más sugerencias de IA"
-                >
-                  Explorar más sugerencias
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
+                      <div className="space-y-2">
+                        {groupedCalendario.manana.map((clase: any) => (
+                          <div key={clase.id} className="p-3 border rounded-lg space-y-2">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-sm truncate">{clase.tema_nombre}</p>
+                                <p className="text-xs text-muted-foreground">{clase.materia_nombre} • {clase.grupo_nombre}</p>
+                              </div>
+                              <Badge variant={clase.estado_variant as any}>{clase.estado_label}</Badge>
+                            </div>
+                            <ClaseActionsMenu clase={clase} />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ESTA SEMANA */}
+                  {groupedCalendario.estaSemana.length > 0 && (
+                    <div>
+                      <Badge variant="outline" className="text-xs mb-2">ESTA SEMANA</Badge>
+                      <div className="space-y-2">
+                        {groupedCalendario.estaSemana.map((clase: any) => (
+                          <div key={clase.id} className="p-3 border rounded-lg space-y-2">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-sm truncate">{clase.tema_nombre}</p>
+                                <p className="text-xs text-muted-foreground">{clase.materia_nombre} • {clase.grupo_nombre}</p>
+                                {clase.fecha_programada && (
+                                  <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                                    <Calendar className="h-3 w-3" />
+                                    {formatDate(clase.fecha_programada)}
+                                  </p>
+                                )}
+                              </div>
+                              <Badge variant={clase.estado_variant as any}>{clase.estado_label}</Badge>
+                            </div>
+                            <ClaseActionsMenu clase={clase} />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* PRÓXIMAMENTE */}
+                  {groupedCalendario.proximamente.length > 0 && (
+                    <div>
+                      <Badge variant="outline" className="text-xs mb-2">PRÓXIMAMENTE</Badge>
+                      <div className="space-y-2">
+                        {groupedCalendario.proximamente.slice(0, 5).map((clase: any) => (
+                          <div key={clase.id} className="p-3 border rounded-lg space-y-2">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-sm truncate">{clase.tema_nombre}</p>
+                                <p className="text-xs text-muted-foreground">{clase.materia_nombre} • {clase.grupo_nombre}</p>
+                                {clase.fecha_programada && (
+                                  <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                                    <Calendar className="h-3 w-3" />
+                                    {formatDate(clase.fecha_programada)}
+                                  </p>
+                                )}
+                              </div>
+                              <Badge variant={clase.estado_variant as any}>{clase.estado_label}</Badge>
+                            </div>
+                            <ClaseActionsMenu clase={clase} />
+                          </div>
+                        ))}
+                      </div>
+                      {groupedCalendario.proximamente.length > 5 && (
+                        <p className="text-xs text-muted-foreground text-center mt-2">
+                          +{groupedCalendario.proximamente.length - 5} clases más
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                renderEmptyState(
+                  Calendar,
+                  "No hay clases en calendario",
+                  "Las clases programadas aparecerán aquí"
+                )
+              )}
+            </CardContent>
+          </Card>
         </div>
+
+        {/* AI Recommendations */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Brain className="h-5 w-5 text-purple-500" />
+              Recomendaciones IA
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {dashboardData?.recomendaciones && dashboardData.recomendaciones.length > 0 ? (
+              <div className="space-y-3">
+                {dashboardData.recomendaciones.map((rec: any) => (
+                  <div
+                    key={rec.id}
+                    className="p-4 border rounded-lg bg-purple-500/5 border-purple-500/20"
+                  >
+                    <p className="text-sm">{rec.contenido}</p>
+                    {rec.id_clase_anterior && (
+                      <Button
+                        variant="link"
+                        size="sm"
+                        className="mt-2 p-0 h-auto text-purple-600"
+                        onClick={() => navigate(`/profesor/recomendaciones-quiz-pre/${rec.id_clase_anterior}`)}
+                      >
+                        Ver detalles →
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              renderEmptyState(
+                Brain,
+                "No hay recomendaciones",
+                "Las recomendaciones de IA aparecerán aquí"
+              )
+            )}
+          </CardContent>
+        </Card>
       </div>
     </AppLayout>
   );
