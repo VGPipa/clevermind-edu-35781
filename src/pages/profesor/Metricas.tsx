@@ -85,7 +85,7 @@ export default function Metricas() {
               <TrendingUp className="h-5 w-5 text-success" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-success">{mockEstadisticas.promedioGeneral}</div>
+              <div className="text-3xl font-bold text-success">{estadisticas.promedioGeneral}</div>
               <p className="text-xs text-muted-foreground mt-1">
                 <span className="text-success">↑ 0.3</span> vs mes anterior
               </p>
@@ -98,7 +98,7 @@ export default function Metricas() {
               <Users className="h-5 w-5 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-primary">{mockEstadisticas.alumnosTotal}</div>
+              <div className="text-3xl font-bold text-primary">{estadisticas.alumnosTotal}</div>
               <p className="text-xs text-muted-foreground mt-1">En todos tus cursos</p>
             </CardContent>
           </Card>
@@ -109,7 +109,7 @@ export default function Metricas() {
               <Target className="h-5 w-5 text-secondary" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-secondary">{mockEstadisticas.quizzesCompletados}</div>
+              <div className="text-3xl font-bold text-secondary">{estadisticas.quizzesCompletados}</div>
               <p className="text-xs text-muted-foreground mt-1">Completados este mes</p>
             </CardContent>
           </Card>
@@ -120,7 +120,7 @@ export default function Metricas() {
               <Award className="h-5 w-5 text-accent" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-accent">{mockEstadisticas.tasaAprobacion}%</div>
+              <div className="text-3xl font-bold text-accent">{estadisticas.tasaAprobacion}%</div>
               <p className="text-xs text-muted-foreground mt-1">Sobre nota 6.0</p>
             </CardContent>
           </Card>
