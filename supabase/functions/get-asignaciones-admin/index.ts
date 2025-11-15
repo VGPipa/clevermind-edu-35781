@@ -150,19 +150,21 @@ Deno.serve(async (req) => {
     const materiasUnicas = new Set(asignacionesFiltradas.map(a => a.materia.id));
 
     // Obtener lista de profesores
-    const { data: profesores } = await supabase
+    const { data: profesoresData } = await supabase
       .from('profesores')
-      .select(`
-        id,
-        especialidad,
-        activo,
-        profiles:user_id (
-          nombre,
-          apellido,
-          email
-        )
-      `)
+      .select('id, user_id, especialidad, activo')
       .eq('activo', true);
+
+    // Obtener perfiles de profesores activos
+    const profesoresUserIds = [...new Set((profesoresData || []).map(p => p.user_id).filter(Boolean))];
+    const { data: profesoresProfiles } = await supabase
+      .from('profiles')
+      .select('user_id, nombre, apellido, email')
+      .in('user_id', profesoresUserIds.length > 0 ? profesoresUserIds : ['']);
+
+    const profesoresProfilesMap = new Map(
+      (profesoresProfiles || []).map(p => [p.user_id, p])
+    );
 
     // Obtener lista de materias
     const { data: materias } = await supabase
@@ -187,12 +189,15 @@ Deno.serve(async (req) => {
           grupos_sin_materias: 0
         }
       },
-      profesores: (profesores || []).map((p: any) => ({
-        id: p.id,
-        nombre: p.profiles?.nombre || '',
-        apellido: p.profiles?.apellido || '',
-        especialidad: p.especialidad
-      })),
+      profesores: (profesoresData || []).map((p: any) => {
+        const profile = profesoresProfilesMap.get(p.user_id);
+        return {
+          id: p.id,
+          nombre: profile?.nombre || '',
+          apellido: profile?.apellido || '',
+          especialidad: p.especialidad
+        };
+      }),
       materias: (materias || []).map((m: any) => ({
         id: m.id,
         nombre: m.nombre,
