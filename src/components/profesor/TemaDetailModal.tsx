@@ -44,9 +44,27 @@ export function TemaDetailModal({ isOpen, onClose, tema }: TemaDetailModalProps)
     }
   };
 
-  const objetivosArray = tema.objetivos ? 
-    (typeof tema.objetivos === 'string' ? JSON.parse(tema.objetivos) : tema.objetivos) 
-    : [];
+  // Safely parse objetivos - handle both JSON arrays and plain text
+  const objetivosArray = (() => {
+    if (!tema.objetivos) return [];
+    
+    // If it's already an array, return it
+    if (Array.isArray(tema.objetivos)) return tema.objetivos;
+    
+    // If it's a string, try to parse as JSON
+    if (typeof tema.objetivos === 'string') {
+      try {
+        const parsed = JSON.parse(tema.objetivos);
+        return Array.isArray(parsed) ? parsed : [tema.objetivos];
+      } catch {
+        // If parsing fails, treat as plain text and split by newlines or return as single item
+        const lines = tema.objetivos.split('\n').filter(line => line.trim());
+        return lines.length > 0 ? lines : [tema.objetivos];
+      }
+    }
+    
+    return [];
+  })();
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
