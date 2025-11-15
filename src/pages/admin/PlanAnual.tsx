@@ -109,6 +109,73 @@ export default function PlanAnual() {
   const isLoading = viewMode === 'overview' ? isLoadingOverview : isLoadingGrado;
   const error = viewMode === 'overview' ? overviewError : gradoError;
 
+  // IMPORTANT: All hooks must be at the top level, before any early returns
+  // Filter and sort materias (only for grado view)
+  const materiasFiltradas = useMemo(() => {
+    if (viewMode !== 'grado' || !gradoData?.materias) return [];
+    let filtered = [...(gradoData.materias || [])];
+
+    // Search filter
+    if (searchMateria) {
+      const searchLower = searchMateria.toLowerCase();
+      filtered = filtered.filter((m: any) =>
+        m.nombre.toLowerCase().includes(searchLower) ||
+        (m.descripcion && m.descripcion.toLowerCase().includes(searchLower))
+      );
+    }
+
+    // Estado filter
+    if (filterEstado !== 'all') {
+      filtered = filtered.filter((m: any) => m.estado === filterEstado);
+    }
+
+    // Horas semanales filter
+    if (filterHorasMin !== 'all') {
+      const minHoras = parseInt(filterHorasMin);
+      filtered = filtered.filter((m: any) => m.horas_semanales >= minHoras);
+    }
+
+    // Sorting
+    filtered.sort((a: any, b: any) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (sortBy) {
+        case 'nombre':
+          aValue = a.nombre.toLowerCase();
+          bValue = b.nombre.toLowerCase();
+          break;
+        case 'horas_semanales':
+          aValue = a.horas_semanales || 0;
+          bValue = b.horas_semanales || 0;
+          break;
+        case 'total_temas':
+          aValue = a.total_temas || 0;
+          bValue = b.total_temas || 0;
+          break;
+        case 'estado':
+          aValue = a.estado;
+          bValue = b.estado;
+          break;
+        default: // orden
+          aValue = a.orden || 0;
+          bValue = b.orden || 0;
+      }
+
+      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return filtered;
+  }, [viewMode, gradoData?.materias, searchMateria, filterEstado, filterHorasMin, sortBy, sortOrder]);
+
+  const materiasPorEstado = useMemo(() => ({
+    todas: materiasFiltradas,
+    completas: materiasFiltradas.filter((m: any) => m.estado === 'completo'),
+    pendientes: materiasFiltradas.filter((m: any) => m.estado === 'pendiente'),
+  }), [materiasFiltradas]);
+
   const handleCreatePlanAnual = (grado?: string) => {
     setEditingPlanAnual(null);
     if (grado) {
@@ -723,80 +790,14 @@ export default function PlanAnual() {
 
   // Grado View - Show plan details
   if (viewMode === 'grado' && gradoData?.plan_anual) {
-    // Filter and sort materias (only for grado view)
-  const materiasFiltradas = useMemo(() => {
-    if (viewMode !== 'grado' || !gradoData?.materias) return [];
-    let filtered = [...(gradoData.materias || [])];
-
-    // Search filter
-    if (searchMateria) {
-      const searchLower = searchMateria.toLowerCase();
-      filtered = filtered.filter((m: any) =>
-        m.nombre.toLowerCase().includes(searchLower) ||
-        (m.descripcion && m.descripcion.toLowerCase().includes(searchLower))
-      );
-    }
-
-    // Estado filter
-    if (filterEstado !== 'all') {
-      filtered = filtered.filter((m: any) => m.estado === filterEstado);
-    }
-
-    // Horas semanales filter
-    if (filterHorasMin !== 'all') {
-      const minHoras = parseInt(filterHorasMin);
-      filtered = filtered.filter((m: any) => m.horas_semanales >= minHoras);
-    }
-
-    // Sorting
-    filtered.sort((a: any, b: any) => {
-      let aValue: any;
-      let bValue: any;
-
-      switch (sortBy) {
-        case 'nombre':
-          aValue = a.nombre.toLowerCase();
-          bValue = b.nombre.toLowerCase();
-          break;
-        case 'horas_semanales':
-          aValue = a.horas_semanales || 0;
-          bValue = b.horas_semanales || 0;
-          break;
-        case 'total_temas':
-          aValue = a.total_temas || 0;
-          bValue = b.total_temas || 0;
-          break;
-        case 'estado':
-          aValue = a.estado;
-          bValue = b.estado;
-          break;
-        default: // orden
-          aValue = a.orden || 0;
-          bValue = b.orden || 0;
-      }
-
-      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
-      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
-      return 0;
-    });
-
-    return filtered;
-  }, [viewMode, gradoData?.materias, searchMateria, filterEstado, filterHorasMin, sortBy, sortOrder]);
-
-  const materiasPorEstado = {
-    todas: materiasFiltradas,
-    completas: materiasFiltradas.filter((m: any) => m.estado === 'completo'),
-    pendientes: materiasFiltradas.filter((m: any) => m.estado === 'pendiente'),
-  };
-
-  const clearFilters = () => {
-    setSearchMateria("");
-    setFilterEstado("all");
-    setFilterHorasMin("all");
-    setSortBy("orden");
-    setSortOrder("asc");
-    setSelectedMaterias(new Set());
-  };
+    const clearFilters = () => {
+      setSearchMateria("");
+      setFilterEstado("all");
+      setFilterHorasMin("all");
+      setSortBy("orden");
+      setSortOrder("asc");
+      setSelectedMaterias(new Set());
+    };
 
   const toggleMateriaSelection = (materiaId: string) => {
     const newSelected = new Set(selectedMaterias);
