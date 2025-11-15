@@ -1,7 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { BookOpen, Clock, Users, CheckCircle2, AlertCircle, ChevronDown } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { BookOpen, Clock, Users, CheckCircle2, AlertCircle, ChevronDown, Edit, Trash2, Copy } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 
 interface MateriaCardProps {
@@ -25,9 +26,14 @@ interface MateriaCardProps {
   };
   onExpandir?: () => void;
   expanded?: boolean;
+  onEdit?: () => void;
+  onDelete?: () => void;
+  onDuplicate?: () => void;
+  selected?: boolean;
+  onSelect?: (selected: boolean) => void;
 }
 
-export function MateriaCard({ materia, onExpandir, expanded }: MateriaCardProps) {
+export function MateriaCard({ materia, onExpandir, expanded, onEdit, onDelete, onDuplicate, selected, onSelect }: MateriaCardProps) {
   const getBimestreCount = (bimestre: number) => {
     return materia.temas_por_bimestre[bimestre as 1 | 2 | 3 | 4]?.length || 0;
   };
@@ -44,6 +50,13 @@ export function MateriaCard({ materia, onExpandir, expanded }: MateriaCardProps)
         <div className="flex items-start justify-between">
           <div className="flex-1">
             <div className="flex items-center gap-2">
+              {onSelect && (
+                <Checkbox
+                  checked={selected}
+                  onCheckedChange={onSelect}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              )}
               <BookOpen className={`h-5 w-5 ${
                 materia.estado === 'completo' ? 'text-success' : 'text-warning'
               }`} />
@@ -60,16 +73,51 @@ export function MateriaCard({ materia, onExpandir, expanded }: MateriaCardProps)
               <p className="text-sm text-muted-foreground mt-2">{materia.descripcion}</p>
             )}
           </div>
-          {onExpandir && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onExpandir}
-              className="ml-2"
-            >
-              <ChevronDown className={`h-5 w-5 transition-transform ${expanded ? 'rotate-180' : ''}`} />
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {onEdit && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onEdit}
+                className="h-8 w-8"
+                title="Editar"
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+            )}
+            {onDuplicate && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onDuplicate}
+                className="h-8 w-8"
+                title="Duplicar"
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
+            )}
+            {onDelete && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onDelete}
+                className="h-8 w-8 text-destructive hover:text-destructive"
+                title="Eliminar"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+            {onExpandir && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onExpandir}
+                className="h-8 w-8"
+              >
+                <ChevronDown className={`h-5 w-5 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+              </Button>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent>

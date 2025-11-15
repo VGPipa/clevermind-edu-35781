@@ -7,7 +7,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Clock, Target, FileText } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Clock, Target, FileText, Edit, Trash2, Copy } from "lucide-react";
 
 interface Tema {
   id: string;
@@ -22,9 +23,12 @@ interface Tema {
 interface TemasTableProps {
   temas: Tema[];
   bimestre?: number;
+  onEdit?: (tema: Tema) => void;
+  onDelete?: (tema: Tema) => void;
+  onDuplicate?: (tema: Tema) => void;
 }
 
-export function TemasTable({ temas, bimestre }: TemasTableProps) {
+export function TemasTable({ temas, bimestre, onEdit, onDelete, onDuplicate }: TemasTableProps) {
   const temasFiltrados = bimestre 
     ? temas.filter(t => t.bimestre === bimestre)
     : temas;
@@ -48,6 +52,7 @@ export function TemasTable({ temas, bimestre }: TemasTableProps) {
             <TableHead>Bimestre</TableHead>
             <TableHead>Duración</TableHead>
             <TableHead>Objetivos</TableHead>
+            {(onEdit || onDuplicate || onDelete) && <TableHead className="text-right">Acciones</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -81,14 +86,41 @@ export function TemasTable({ temas, bimestre }: TemasTableProps) {
                 {tema.objetivos ? (
                   <div className="flex items-start gap-1 text-sm">
                     <Target className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                    <span className="line-clamp-2">{tema.objetivos}</span>
-                  </div>
-                ) : (
-                  <span className="text-muted-foreground text-sm">-</span>
-                )}
+                  <span className="line-clamp-2">{tema.objetivos}</span>
+                </div>
+              ) : (
+                <span className="text-muted-foreground text-sm">-</span>
+              )}
+            </TableCell>
+            {(onEdit || onDuplicate || onDelete) && (
+              <TableCell className="text-right">
+                <div className="flex justify-end gap-2">
+                  {onEdit && (
+                    <Button variant="ghost" size="icon" onClick={() => onEdit(tema)} title="Editar">
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                  )}
+                  {onDuplicate && (
+                    <Button variant="ghost" size="icon" onClick={() => onDuplicate(tema)} title="Duplicar">
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  )}
+                  {onDelete && (
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      onClick={() => onDelete(tema)}
+                      className="text-destructive hover:text-destructive"
+                      title="Eliminar"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
               </TableCell>
-            </TableRow>
-          ))}
+            )}
+          </TableRow>
+        ))}
         </TableBody>
       </Table>
     </div>
