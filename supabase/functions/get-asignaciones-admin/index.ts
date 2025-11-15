@@ -65,12 +65,7 @@ Deno.serve(async (req) => {
           id,
           user_id,
           especialidad,
-          activo,
-          profiles:user_id (
-            nombre,
-            apellido,
-            email
-          )
+          activo
         ),
         materias (
           id,
@@ -104,32 +99,46 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Obtener perfiles de profesores
+    const profesoresIds = [...new Set((asignaciones || []).map((a: any) => a.profesores?.user_id).filter(Boolean))];
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('user_id, nombre, apellido, email')
+      .in('user_id', profesoresIds.length > 0 ? profesoresIds : ['']);
+
+    const profilesMap = new Map(
+      (profiles || []).map(p => [p.user_id, p])
+    );
+
     // Formatear asignaciones
-    const asignacionesFormateadas = (asignaciones || []).map((a: any) => ({
-      id: a.id,
-      profesor: {
-        id: a.profesores.id,
-        nombre: a.profesores.profiles?.nombre || '',
-        apellido: a.profesores.profiles?.apellido || '',
-        email: a.profesores.profiles?.email || '',
-        especialidad: a.profesores.especialidad || 'General'
-      },
-      materia: {
-        id: a.materias.id,
-        nombre: a.materias.nombre,
-        horas_semanales: a.materias.horas_semanales || 0,
-        grado: a.materias.plan_anual?.grado || ''
-      },
-      grupo: {
-        id: a.grupos.id,
-        nombre: a.grupos.nombre,
-        grado: a.grupos.grado,
-        seccion: a.grupos.seccion,
-        cantidad_alumnos: a.grupos.cantidad_alumnos || 0
-      },
-      anio_escolar: a.anio_escolar,
-      created_at: a.created_at
-    }));
+    const asignacionesFormateadas = (asignaciones || []).map((a: any) => {
+      const profile = profilesMap.get(a.profesores?.user_id);
+      return {
+        id: a.id,
+        profesor: {
+          id: a.profesores?.id,
+          nombre: profile?.nombre || '',
+          apellido: profile?.apellido || '',
+          email: profile?.email || '',
+          especialidad: a.profesores?.especialidad || 'General'
+        },
+        materia: {
+          id: a.materias?.id,
+          nombre: a.materias?.nombre,
+          horas_semanales: a.materias?.horas_semanales || 0,
+          grado: a.materias?.plan_anual?.grado || ''
+        },
+        grupo: {
+          id: a.grupos?.id,
+          nombre: a.grupos?.nombre,
+          grado: a.grupos?.grado,
+          seccion: a.grupos?.seccion,
+          cantidad_alumnos: a.grupos?.cantidad_alumnos || 0
+        },
+        anio_escolar: a.anio_escolar,
+        created_at: a.created_at
+      };
+    });
 
     // Filtrar por grado si se especifica
     const asignacionesFiltradas = grado 
