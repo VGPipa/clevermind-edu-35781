@@ -1,46 +1,24 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.76.1';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import {
+  createSupabaseClient,
+  getAuthenticatedUser,
+  handleCors,
+  createErrorResponse,
+  createSuccessResponse,
+} from '../_shared/auth.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return handleCors();
   }
 
   try {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'No authorization header' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return createErrorResponse('No authorization header', 401);
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-      global: {
-        headers: {
-          Authorization: authHeader,
-        },
-      },
-    });
-
-    // Get authenticated user and verify admin role
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+    const supabase = createSupabaseClient(authHeader, true);
+    const user = await getAuthenticatedUser(supabase);
 
     // Verify admin role
     const { data: userRole } = await supabase
@@ -50,16 +28,31 @@ Deno.serve(async (req) => {
       .single();
 
     if (!userRole || userRole.role !== 'admin') {
-      return new Response(JSON.stringify({ error: 'Forbidden - Admin access required' }), {
-        status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return createErrorResponse('Forbidden - Admin access required', 403);
     }
 
-    // Get query parameters
+    // Get parameters from query string or body
     const url = new URL(req.url);
-    const grado = url.searchParams.get('grado');
-    const anioEscolar = url.searchParams.get('anio_escolar') || '2025';
+    let grado = url.searchParams.get('grado');
+    let anioEscolar = url.searchParams.get('anio_escolar') || '2025';
+    let viewMode = url.searchParams.get('view_mode') || 'grado'; // 'overview' | 'grado'
+    
+    // If POST request, try to get from body first (Supabase functions.invoke sends body in POST)
+    // Note: req.json() can only be called once, so we need to handle this carefully
+    if (req.method === 'POST') {
+      try {
+        // Check if request has body by cloning (but Deno doesn't support clone, so we try-catch)
+        const body = await req.json();
+        if (body && typeof body === 'object') {
+          grado = body.grado || grado;
+          anioEscolar = body.anio_escolar || anioEscolar;
+          viewMode = body.view_mode || viewMode;
+        }
+      } catch (e) {
+        // Body parsing failed or empty, use query params only
+        // This is expected for GET requests or empty bodies
+      }
+    }
 
     // Get user institution
     const { data: profile } = await supabase
@@ -69,9 +62,102 @@ Deno.serve(async (req) => {
       .single();
 
     if (!profile?.id_institucion) {
-      return new Response(JSON.stringify({ error: 'Institution not found' }), {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      return createErrorResponse('Institution not found', 404);
+    }
+
+    // If overview mode, return data grouped by grado
+    if (viewMode === 'overview') {
+      const gradosPosibles = [
+        '1° Primaria',
+        '2° Primaria',
+        '3° Primaria',
+        '4° Primaria',
+        '5° Primaria',
+        '6° Primaria',
+      ];
+
+      const planesPorGrado = await Promise.all(
+        gradosPosibles.map(async (gradoNombre) => {
+          // Get plan for this grado
+          const { data: plan } = await supabase
+            .from('plan_anual')
+            .select('*')
+            .eq('id_institucion', profile.id_institucion)
+            .eq('anio_escolar', anioEscolar)
+            .eq('grado', gradoNombre)
+            .maybeSingle();
+
+          // Get grupos for this grado
+          const { data: grupos, count: gruposCount } = await supabase
+            .from('grupos')
+            .select('id, nombre, seccion, cantidad_alumnos', { count: 'exact' })
+            .eq('id_institucion', profile.id_institucion)
+            .eq('grado', gradoNombre);
+
+          // Get materias and calculate stats if plan exists
+          let estadisticas = {
+            total_materias: 0,
+            total_temas: 0,
+            horas_semanales: 0,
+            completitud: 0,
+            materias_con_temas: 0,
+            materias_sin_temas: 0,
+          };
+
+          let profesoresAsignados = 0;
+
+          if (plan) {
+            const { data: materias } = await supabase
+              .from('materias')
+              .select('id, horas_semanales')
+              .eq('id_plan_anual', plan.id);
+
+            estadisticas.total_materias = materias?.length || 0;
+            estadisticas.horas_semanales = materias?.reduce((sum, m) => sum + (m.horas_semanales || 0), 0) || 0;
+
+            if (materias && materias.length > 0) {
+              const materiaIds = materias.map(m => m.id);
+              const { data: temas } = await supabase
+                .from('temas')
+                .select('id, id_materia')
+                .in('id_materia', materiaIds);
+
+              estadisticas.total_temas = temas?.length || 0;
+
+              const materiasConTemas = new Set(temas?.map(t => t.id_materia) || []);
+              estadisticas.materias_con_temas = materiasConTemas.size;
+              estadisticas.materias_sin_temas = estadisticas.total_materias - estadisticas.materias_con_temas;
+              estadisticas.completitud = estadisticas.total_materias > 0
+                ? Math.round((estadisticas.materias_con_temas / estadisticas.total_materias) * 100)
+                : 0;
+
+              // Count unique profesores assigned to this grado
+              const { data: asignaciones } = await supabase
+                .from('asignaciones_profesor')
+                .select('id_profesor')
+                .in('id_materia', materiaIds)
+                .eq('anio_escolar', anioEscolar);
+
+              const profesoresUnicos = new Set(asignaciones?.map(a => a.id_profesor) || []);
+              profesoresAsignados = profesoresUnicos.size;
+            }
+          }
+
+          return {
+            grado: gradoNombre,
+            plan_anual: plan,
+            grupos: grupos || [],
+            cantidad_grupos: gruposCount || 0,
+            estadisticas,
+            profesores_asignados: profesoresAsignados,
+          };
+        })
+      );
+
+      return createSuccessResponse({
+        view_mode: 'overview',
+        anio_escolar: anioEscolar,
+        planes_por_grado: planesPorGrado,
       });
     }
 
@@ -90,14 +176,12 @@ Deno.serve(async (req) => {
 
     if (planesError) {
       console.error('Error fetching plan anual:', planesError);
-      return new Response(JSON.stringify({ error: 'Error fetching plan anual' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return createErrorResponse('Error fetching plan anual', 500);
     }
 
     if (!planes || planes.length === 0) {
-      return new Response(JSON.stringify({ 
+      return createSuccessResponse({ 
+        view_mode: 'grado',
         plan_anual: null,
         estadisticas: {
           total_materias: 0,
@@ -107,12 +191,18 @@ Deno.serve(async (req) => {
           distribucion_bimestres: { 1: 0, 2: 0, 3: 0, 4: 0 },
           total_horas_semanales: 0
         },
-        materias: []
-      }), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        materias: [],
+        grupos: []
       });
     }
+
+    // Get grupos for the selected grado(s)
+    const gradosEnPlanes = [...new Set(planes.map(p => p.grado))];
+    const { data: grupos } = await supabase
+      .from('grupos')
+      .select('id, nombre, grado, seccion, cantidad_alumnos')
+      .eq('id_institucion', profile.id_institucion)
+      .in('grado', gradosEnPlanes);
 
     // Process all plans (could be multiple grades)
     const allMateriasData = [];
@@ -200,22 +290,17 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({
+    return createSuccessResponse({
+      view_mode: 'grado',
       plan_anual: planes[0], // Main plan (or first if multiple)
       estadisticas: totalStats,
       materias: allMateriasData,
-    }), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      grupos: grupos || [],
     });
 
   } catch (error) {
     console.error('Error in get-plan-anual-admin:', error);
-    return new Response(JSON.stringify({ 
-      error: error instanceof Error ? error.message : 'Unknown error' 
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return createErrorResponse(errorMessage, 500);
   }
 });

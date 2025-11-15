@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, BookOpen, Filter, Plus, Edit, Trash2, Copy } from "lucide-react";
+import { AlertCircle, BookOpen, Filter, Plus, Edit, Trash2, Copy, Calendar } from "lucide-react";
 import { PlanAnualStats } from "@/components/admin/PlanAnualStats";
 import { MateriaCard } from "@/components/admin/MateriaCard";
 import { TemasTable } from "@/components/admin/TemasTable";
@@ -14,6 +14,9 @@ import { PlanAnualDialog } from "@/components/admin/PlanAnualDialog";
 import { MateriaDialog } from "@/components/admin/MateriaDialog";
 import { TemaDialog } from "@/components/admin/TemaDialog";
 import { SearchAndFilter } from "@/components/admin/SearchAndFilter";
+import { GradoCard } from "@/components/admin/GradoCard";
+import { GruposGrado } from "@/components/admin/GruposGrado";
+import { BreadcrumbNavigation } from "@/components/admin/BreadcrumbNavigation";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -35,8 +38,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 
+type ViewMode = 'overview' | 'grado' | 'materia';
+
 export default function PlanAnual() {
-  const [selectedGrado, setSelectedGrado] = useState<string>("all");
+  const [viewMode, setViewMode] = useState<ViewMode>('overview');
+  const [selectedGrado, setSelectedGrado] = useState<string | null>(null);
+  const [selectedAnioEscolar, setSelectedAnioEscolar] = useState<string>(new Date().getFullYear().toString());
   const [expandedMateria, setExpandedMateria] = useState<string | null>(null);
   const [searchMateria, setSearchMateria] = useState<string>("");
   const [filterEstado, setFilterEstado] = useState<string>("all");
@@ -61,105 +68,82 @@ export default function PlanAnual() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['plan-anual-admin', selectedGrado],
+  // Query for overview mode
+  const { data: overviewData, isLoading: isLoadingOverview, error: overviewError } = useQuery({
+    queryKey: ['plan-anual-admin-overview', selectedAnioEscolar],
     queryFn: async () => {
-      const params = new URLSearchParams();
-      if (selectedGrado !== 'all') {
-        params.append('grado', selectedGrado);
-      }
-      
       const { data, error } = await supabase.functions.invoke('get-plan-anual-admin', {
-        body: {},
+        body: {
+          view_mode: 'overview',
+          anio_escolar: selectedAnioEscolar,
+        },
       });
       
       if (error) throw error;
       return data;
     },
+    enabled: viewMode === 'overview',
   });
 
-  // Mover useMemo ANTES de los early returns para cumplir con las reglas de hooks
-  const materiasFiltradas = useMemo(() => {
-    if (!data?.materias) return [];
-    
-    let filtered = [...data.materias];
+  // Query for grado mode
+  const { data: gradoData, isLoading: isLoadingGrado, error: gradoError } = useQuery({
+    queryKey: ['plan-anual-admin-grado', selectedGrado, selectedAnioEscolar],
+    queryFn: async () => {
+      if (!selectedGrado) return null;
+      
+      const { data, error } = await supabase.functions.invoke('get-plan-anual-admin', {
+        body: {
+          view_mode: 'grado',
+          grado: selectedGrado,
+          anio_escolar: selectedAnioEscolar,
+        },
+      });
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: viewMode === 'grado' && selectedGrado !== null,
+  });
 
-    // Search filter
-    if (searchMateria) {
-      const searchLower = searchMateria.toLowerCase();
-      filtered = filtered.filter((m: any) =>
-        m.nombre.toLowerCase().includes(searchLower) ||
-        (m.descripcion && m.descripcion.toLowerCase().includes(searchLower))
-      );
-    }
+  const data = viewMode === 'overview' ? overviewData : gradoData;
+  const isLoading = viewMode === 'overview' ? isLoadingOverview : isLoadingGrado;
+  const error = viewMode === 'overview' ? overviewError : gradoError;
 
-    // Estado filter
-    if (filterEstado !== 'all') {
-      filtered = filtered.filter((m: any) => m.estado === filterEstado);
-    }
-
-    // Horas semanales filter
-    if (filterHorasMin !== 'all') {
-      const minHoras = parseInt(filterHorasMin);
-      filtered = filtered.filter((m: any) => m.horas_semanales >= minHoras);
-    }
-
-    // Sorting
-    filtered.sort((a: any, b: any) => {
-      let aValue: any;
-      let bValue: any;
-
-      switch (sortBy) {
-        case 'nombre':
-          aValue = a.nombre.toLowerCase();
-          bValue = b.nombre.toLowerCase();
-          break;
-        case 'horas_semanales':
-          aValue = a.horas_semanales || 0;
-          bValue = b.horas_semanales || 0;
-          break;
-        case 'total_temas':
-          aValue = a.total_temas || 0;
-          bValue = b.total_temas || 0;
-          break;
-        case 'estado':
-          aValue = a.estado;
-          bValue = b.estado;
-          break;
-        default: // orden
-          aValue = a.orden || 0;
-          bValue = b.orden || 0;
-      }
-
-      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
-      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
-      return 0;
-    });
-
-    return filtered;
-  }, [data?.materias, searchMateria, filterEstado, filterHorasMin, sortBy, sortOrder]);
-
-  const materiasPorEstado = useMemo(() => ({
-    todas: materiasFiltradas,
-    completas: materiasFiltradas.filter((m: any) => m.estado === 'completo'),
-    pendientes: materiasFiltradas.filter((m: any) => m.estado === 'pendiente'),
-  }), [materiasFiltradas]);
-
-  const handleCreatePlanAnual = () => {
+  const handleCreatePlanAnual = (grado?: string) => {
     setEditingPlanAnual(null);
+    if (grado) {
+      // Pre-fill grado in dialog
+      setEditingPlanAnual({ grado, anio_escolar: selectedAnioEscolar, estado: 'activo' });
+    }
     setPlanAnualDialogOpen(true);
   };
 
+  const handleViewGrado = (grado: string) => {
+    setSelectedGrado(grado);
+    setViewMode('grado');
+  };
+
+  const handleNavigateToOverview = () => {
+    setViewMode('overview');
+    setSelectedGrado(null);
+    setExpandedMateria(null);
+  };
+
+  const handleAnioChange = (anio: string) => {
+    setSelectedAnioEscolar(anio);
+    // Refresh queries will happen automatically via React Query
+  };
+
   const handleEditPlanAnual = () => {
-    if (data?.plan_anual) {
-      setEditingPlanAnual(data.plan_anual);
+    if (gradoData?.plan_anual) {
+      setEditingPlanAnual(gradoData.plan_anual);
       setPlanAnualDialogOpen(true);
     }
   };
 
   const handleDeletePlanAnual = () => {
-    if (data?.plan_anual) {
-      setPlanToDelete(data.plan_anual);
+    if (gradoData?.plan_anual) {
+      setPlanToDelete(gradoData.plan_anual);
       setDeleteDialogOpen(true);
     }
   };
@@ -214,6 +198,8 @@ export default function PlanAnual() {
 
   const handlePlanAnualSuccess = () => {
     queryClient.invalidateQueries({ queryKey: ['plan-anual-admin'] });
+    queryClient.invalidateQueries({ queryKey: ['plan-anual-admin-overview'] });
+    queryClient.invalidateQueries({ queryKey: ['plan-anual-admin-grado'] });
   };
 
   const handleCreateMateria = () => {
@@ -300,6 +286,8 @@ export default function PlanAnual() {
 
   const handleMateriaSuccess = () => {
     queryClient.invalidateQueries({ queryKey: ['plan-anual-admin'] });
+    queryClient.invalidateQueries({ queryKey: ['plan-anual-admin-overview'] });
+    queryClient.invalidateQueries({ queryKey: ['plan-anual-admin-grado'] });
   };
 
   const handleCreateTema = (materiaId: string) => {
@@ -369,10 +357,12 @@ export default function PlanAnual() {
 
   const handleTemaSuccess = () => {
     queryClient.invalidateQueries({ queryKey: ['plan-anual-admin'] });
+    queryClient.invalidateQueries({ queryKey: ['plan-anual-admin-overview'] });
+    queryClient.invalidateQueries({ queryKey: ['plan-anual-admin-grado'] });
   };
 
   const handleDuplicatePlanAnual = async () => {
-    if (!data?.plan_anual) return;
+    if (!gradoData?.plan_anual) return;
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -387,12 +377,12 @@ export default function PlanAnual() {
       if (!profile?.id_institucion) throw new Error('Institución no encontrada');
 
       // Create new plan with suffix
-      const newAnioEscolar = `${data.plan_anual.anio_escolar} (Copia)`;
+      const newAnioEscolar = `${gradoData.plan_anual.anio_escolar} (Copia)`;
       const { data: newPlan, error: planError } = await supabase
         .from('plan_anual')
         .insert({
           id_institucion: profile.id_institucion,
-          grado: data.plan_anual.grado,
+          grado: gradoData.plan_anual.grado,
           anio_escolar: newAnioEscolar,
           estado: 'activo',
         })
@@ -405,7 +395,7 @@ export default function PlanAnual() {
       const { data: materias, error: materiasError } = await supabase
         .from('materias')
         .select('*')
-        .eq('id_plan_anual', data.plan_anual.id);
+        .eq('id_plan_anual', gradoData.plan_anual.id);
 
       if (materiasError) throw materiasError;
 
@@ -486,7 +476,7 @@ export default function PlanAnual() {
       const { data: newMateria, error: materiaError } = await supabase
         .from('materias')
         .insert({
-          id_plan_anual: materia.id_plan_anual || data?.plan_anual?.id,
+          id_plan_anual: materia.id_plan_anual || gradoData?.plan_anual?.id,
           nombre: `${materia.nombre} (Copia)`,
           descripcion: materia.descripcion,
           horas_semanales: materia.horas_semanales,
@@ -620,27 +610,184 @@ export default function PlanAnual() {
     );
   }
 
-  if (!data || !data.plan_anual) {
+  // Overview View
+  if (viewMode === 'overview') {
     return (
       <AppLayout>
+        <div className="space-y-6">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                Plan Anual del Colegio
+              </h1>
+              <p className="text-muted-foreground mt-2">
+                Gestión completa de planes académicos por grado
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <Select value={selectedAnioEscolar} onValueChange={handleAnioChange}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="Año escolar" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 11 }, (_, i) => new Date().getFullYear() - 5 + i).map((year) => (
+                    <SelectItem key={year} value={year.toString()}>
+                      {year}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Grado Cards Grid */}
+          {isLoading ? (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <Skeleton key={i} className="h-64" />
+              ))}
+            </div>
+          ) : error ? (
+            <Card className="border-destructive">
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-2 text-destructive">
+                  <AlertCircle className="h-5 w-5" />
+                  <p>Error al cargar los planes anuales. Por favor, intenta nuevamente.</p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {overviewData?.planes_por_grado?.map((gradoData: any) => (
+                <GradoCard
+                  key={gradoData.grado}
+                  grado={gradoData}
+                  onViewPlan={() => handleViewGrado(gradoData.grado)}
+                  onCreatePlan={() => handleCreatePlanAnual(gradoData.grado)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        <PlanAnualDialog
+          open={planAnualDialogOpen}
+          onOpenChange={setPlanAnualDialogOpen}
+          planAnual={editingPlanAnual}
+          onSuccess={handlePlanAnualSuccess}
+        />
+      </AppLayout>
+    );
+  }
+
+  // Grado View - Show if no plan exists
+  if (viewMode === 'grado' && (!gradoData || !gradoData.plan_anual)) {
+    return (
+      <AppLayout>
+        <div className="space-y-6">
+          <BreadcrumbNavigation
+            anioEscolar={selectedAnioEscolar}
+            onAnioChange={handleAnioChange}
+            grado={selectedGrado || undefined}
+            onNavigateToOverview={handleNavigateToOverview}
+          />
+
         <Card>
           <CardContent className="pt-6">
             <div className="text-center py-12">
               <BookOpen className="h-16 w-16 mx-auto text-muted-foreground opacity-20 mb-4" />
-              <p className="text-lg font-medium mb-2">No hay plan anual configurado</p>
+                <p className="text-lg font-medium mb-2">No hay plan anual configurado para {selectedGrado}</p>
               <p className="text-muted-foreground mb-4">
-                Crea un plan anual para comenzar a gestionar materias y temas
+                  Crea un plan anual para este grado para comenzar a gestionar materias y temas
               </p>
-              <Button onClick={handleCreatePlanAnual}>
+                <Button onClick={() => handleCreatePlanAnual(selectedGrado || undefined)}>
                 <Plus className="mr-2 h-4 w-4" />
                 Crear Plan Anual
               </Button>
             </div>
           </CardContent>
         </Card>
+        </div>
+
+        <PlanAnualDialog
+          open={planAnualDialogOpen}
+          onOpenChange={setPlanAnualDialogOpen}
+          planAnual={editingPlanAnual}
+          onSuccess={handlePlanAnualSuccess}
+        />
       </AppLayout>
     );
   }
+
+  // Grado View - Show plan details
+  if (viewMode === 'grado' && gradoData?.plan_anual) {
+    // Filter and sort materias (only for grado view)
+  const materiasFiltradas = useMemo(() => {
+    if (viewMode !== 'grado' || !gradoData?.materias) return [];
+    let filtered = [...(gradoData.materias || [])];
+
+    // Search filter
+    if (searchMateria) {
+      const searchLower = searchMateria.toLowerCase();
+      filtered = filtered.filter((m: any) =>
+        m.nombre.toLowerCase().includes(searchLower) ||
+        (m.descripcion && m.descripcion.toLowerCase().includes(searchLower))
+      );
+    }
+
+    // Estado filter
+    if (filterEstado !== 'all') {
+      filtered = filtered.filter((m: any) => m.estado === filterEstado);
+    }
+
+    // Horas semanales filter
+    if (filterHorasMin !== 'all') {
+      const minHoras = parseInt(filterHorasMin);
+      filtered = filtered.filter((m: any) => m.horas_semanales >= minHoras);
+    }
+
+    // Sorting
+    filtered.sort((a: any, b: any) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (sortBy) {
+        case 'nombre':
+          aValue = a.nombre.toLowerCase();
+          bValue = b.nombre.toLowerCase();
+          break;
+        case 'horas_semanales':
+          aValue = a.horas_semanales || 0;
+          bValue = b.horas_semanales || 0;
+          break;
+        case 'total_temas':
+          aValue = a.total_temas || 0;
+          bValue = b.total_temas || 0;
+          break;
+        case 'estado':
+          aValue = a.estado;
+          bValue = b.estado;
+          break;
+        default: // orden
+          aValue = a.orden || 0;
+          bValue = b.orden || 0;
+      }
+
+      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return filtered;
+  }, [viewMode, gradoData?.materias, searchMateria, filterEstado, filterHorasMin, sortBy, sortOrder]);
+
+  const materiasPorEstado = {
+    todas: materiasFiltradas,
+    completas: materiasFiltradas.filter((m: any) => m.estado === 'completo'),
+    pendientes: materiasFiltradas.filter((m: any) => m.estado === 'pendiente'),
+  };
 
   const clearFilters = () => {
     setSearchMateria("");
@@ -726,6 +873,8 @@ export default function PlanAnual() {
       setSelectedMaterias(new Set());
       setBulkDeleteDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ['plan-anual-admin'] });
+      queryClient.invalidateQueries({ queryKey: ['plan-anual-admin-overview'] });
+      queryClient.invalidateQueries({ queryKey: ['plan-anual-admin-grado'] });
     } catch (error: any) {
       console.error('Error deleting materias:', error);
       toast({
@@ -736,314 +885,336 @@ export default function PlanAnual() {
     }
   };
 
-  return (
-    <AppLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-              Plan Anual {data.plan_anual.anio_escolar}
-            </h1>
-            <p className="text-muted-foreground mt-2">
-              Gestión completa del plan académico - {data.plan_anual.grado}
-            </p>
+    return (
+      <AppLayout>
+        <div className="space-y-6">
+          {/* Breadcrumb Navigation */}
+          <BreadcrumbNavigation
+            anioEscolar={selectedAnioEscolar}
+            onAnioChange={handleAnioChange}
+            grado={selectedGrado || undefined}
+            onNavigateToOverview={handleNavigateToOverview}
+          />
+
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                Plan Anual {gradoData.plan_anual.anio_escolar}
+              </h1>
+              <p className="text-muted-foreground mt-2">
+                Gestión completa del plan académico - {gradoData.plan_anual.grado}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleEditPlanAnual}>
+                <Edit className="mr-2 h-4 w-4" />
+                Modificar Plan
+              </Button>
+              <Button variant="outline" onClick={handleDuplicatePlanAnual}>
+                <Copy className="mr-2 h-4 w-4" />
+                Duplicar Plan
+              </Button>
+              <Button variant="destructive" onClick={handleDeletePlanAnual}>
+                <Trash2 className="mr-2 h-4 w-4" />
+                Eliminar Plan
+              </Button>
+              <Button onClick={handleCreateMateria}>
+                <Plus className="mr-2 h-4 w-4" />
+                Agregar Materia
+              </Button>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={handleEditPlanAnual}>
-              <Edit className="mr-2 h-4 w-4" />
-              Editar Plan
-            </Button>
-            <Button variant="outline" onClick={handleDuplicatePlanAnual}>
-              <Copy className="mr-2 h-4 w-4" />
-              Duplicar Plan
-            </Button>
-            <Button variant="destructive" onClick={handleDeletePlanAnual}>
-              <Trash2 className="mr-2 h-4 w-4" />
-              Eliminar Plan
-            </Button>
-            <Select value={selectedGrado} onValueChange={setSelectedGrado}>
-              <SelectTrigger className="w-[180px]">
-                <Filter className="mr-2 h-4 w-4" />
-                <SelectValue placeholder="Filtrar por grado" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos los grados</SelectItem>
-                <SelectItem value="1° Primaria">1° Primaria</SelectItem>
-                <SelectItem value="2° Primaria">2° Primaria</SelectItem>
-                <SelectItem value="3° Primaria">3° Primaria</SelectItem>
-                <SelectItem value="4° Primaria">4° Primaria</SelectItem>
-                <SelectItem value="5° Primaria">5° Primaria</SelectItem>
-                <SelectItem value="6° Primaria">6° Primaria</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button onClick={handleCreateMateria} disabled={!data?.plan_anual}>
-              <Plus className="mr-2 h-4 w-4" />
-              Agregar Materia
-            </Button>
-          </div>
-        </div>
 
-        {/* Estadísticas generales */}
-        <PlanAnualStats estadisticas={data.estadisticas} />
+          {/* Estadísticas generales */}
+          <PlanAnualStats estadisticas={gradoData.estadisticas} />
 
-        {/* Search and Filters */}
-        <Card>
-          <CardContent className="pt-6 space-y-4">
-            <SearchAndFilter
-              searchValue={searchMateria}
-              onSearchChange={setSearchMateria}
-              placeholder="Buscar materias por nombre o descripción..."
-              filters={[
-                {
-                  label: "Estado",
-                  value: filterEstado,
-                  options: [
-                    { label: "Todos", value: "all" },
-                    { label: "Completas", value: "completo" },
-                    { label: "Pendientes", value: "pendiente" },
-                  ],
-                  onChange: setFilterEstado,
-                },
-                {
-                  label: "Horas mín.",
-                  value: filterHorasMin,
-                  options: [
-                    { label: "Todas", value: "all" },
-                    { label: "1+ horas", value: "1" },
-                    { label: "3+ horas", value: "3" },
-                    { label: "5+ horas", value: "5" },
-                    { label: "8+ horas", value: "8" },
-                  ],
-                  onChange: setFilterHorasMin,
-                },
-                {
-                  label: "Ordenar por",
-                  value: sortBy,
-                  options: [
-                    { label: "Orden", value: "orden" },
-                    { label: "Nombre", value: "nombre" },
-                    { label: "Horas/sem", value: "horas_semanales" },
-                    { label: "Total temas", value: "total_temas" },
-                    { label: "Estado", value: "estado" },
-                  ],
-                  onChange: setSortBy,
-                },
-                {
-                  label: "Dirección",
-                  value: sortOrder,
-                  options: [
-                    { label: "Ascendente", value: "asc" },
-                    { label: "Descendente", value: "desc" },
-                  ],
-                  onChange: (value) => setSortOrder(value as "asc" | "desc"),
-                },
-              ]}
-              onClear={clearFilters}
-            />
-            
-            {selectedMaterias.size > 0 && (
-              <div className="flex items-center justify-between p-3 bg-primary/10 rounded-md border border-primary/20">
-                <span className="text-sm font-medium">
-                  {selectedMaterias.size} materia(s) seleccionada(s)
-                </span>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setSelectedMaterias(new Set())}
-                  >
-                    Deseleccionar
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => setBulkDeleteDialogOpen(true)}
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Eliminar ({selectedMaterias.size})
-                  </Button>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+          {/* Tabs: Materias y Grupos */}
+          <Tabs defaultValue="materias" className="space-y-6">
+            <TabsList className="grid w-full max-w-md grid-cols-2">
+              <TabsTrigger value="materias">
+                Materias
+              </TabsTrigger>
+              <TabsTrigger value="grupos">
+                Grupos/Salones
+              </TabsTrigger>
+            </TabsList>
 
-        {/* Tabs de materias */}
-        <Tabs defaultValue="todas" className="space-y-6">
-          <TabsList className="grid w-full max-w-md grid-cols-3">
-            <TabsTrigger value="todas">
-              Todas ({materiasPorEstado.todas.length})
-            </TabsTrigger>
-            <TabsTrigger value="completas">
-              Completas ({materiasPorEstado.completas.length})
-            </TabsTrigger>
-            <TabsTrigger value="pendientes">
-              Pendientes ({materiasPorEstado.pendientes.length})
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="todas" className="space-y-4">
-            <MateriasList 
-              materias={materiasPorEstado.todas} 
-              expandedMateria={expandedMateria}
-              setExpandedMateria={setExpandedMateria}
-              onEditMateria={handleEditMateria}
-              onDeleteMateria={handleDeleteMateria}
-              onDuplicateMateria={handleDuplicateMateria}
-              onCreateTema={handleCreateTema}
-              onEditTema={handleEditTema}
-              onDeleteTema={handleDeleteTema}
-              onDuplicateTema={handleDuplicateTema}
-              selectedMaterias={selectedMaterias}
-              onToggleSelection={toggleMateriaSelection}
-            />
-          </TabsContent>
-
-          <TabsContent value="completas" className="space-y-4">
-            <MateriasList 
-              materias={materiasPorEstado.completas}
-              expandedMateria={expandedMateria}
-              setExpandedMateria={setExpandedMateria}
-              onEditMateria={handleEditMateria}
-              onDeleteMateria={handleDeleteMateria}
-              onDuplicateMateria={handleDuplicateMateria}
-              onCreateTema={handleCreateTema}
-              onEditTema={handleEditTema}
-              onDeleteTema={handleDeleteTema}
-              onDuplicateTema={handleDuplicateTema}
-              selectedMaterias={selectedMaterias}
-              onToggleSelection={toggleMateriaSelection}
-            />
-          </TabsContent>
-
-          <TabsContent value="pendientes" className="space-y-4">
-            {materiasPorEstado.pendientes.length > 0 ? (
-              <MateriasList 
-                materias={materiasPorEstado.pendientes}
-                expandedMateria={expandedMateria}
-                setExpandedMateria={setExpandedMateria}
-                onEditMateria={handleEditMateria}
-                onDeleteMateria={handleDeleteMateria}
-                onDuplicateMateria={handleDuplicateMateria}
-                onCreateTema={handleCreateTema}
-                onEditTema={handleEditTema}
-                onDeleteTema={handleDeleteTema}
-                onDuplicateTema={handleDuplicateTema}
-                selectedMaterias={selectedMaterias}
-                onToggleSelection={toggleMateriaSelection}
+            <TabsContent value="grupos" className="space-y-4">
+              <GruposGrado
+                grupos={gradoData.grupos || []}
+                grado={selectedGrado || ''}
+                onRefresh={() => {
+                  queryClient.invalidateQueries({ queryKey: ['plan-anual-admin-grado'] });
+                  queryClient.invalidateQueries({ queryKey: ['plan-anual-admin-overview'] });
+                }}
               />
-            ) : (
+            </TabsContent>
+
+            <TabsContent value="materias" className="space-y-4">
+              {/* Search and Filters */}
               <Card>
-                <CardContent className="pt-6">
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground">
-                      ¡Excelente! Todas las materias tienen temas configurados
-                    </p>
-                  </div>
+                <CardContent className="pt-6 space-y-4">
+                  <SearchAndFilter
+                    searchValue={searchMateria}
+                    onSearchChange={setSearchMateria}
+                    placeholder="Buscar materias por nombre o descripción..."
+                    filters={[
+                      {
+                        label: "Estado",
+                        value: filterEstado,
+                        options: [
+                          { label: "Todos", value: "all" },
+                          { label: "Completas", value: "completo" },
+                          { label: "Pendientes", value: "pendiente" },
+                        ],
+                        onChange: setFilterEstado,
+                      },
+                      {
+                        label: "Horas mín.",
+                        value: filterHorasMin,
+                        options: [
+                          { label: "Todas", value: "all" },
+                          { label: "1+ horas", value: "1" },
+                          { label: "3+ horas", value: "3" },
+                          { label: "5+ horas", value: "5" },
+                          { label: "8+ horas", value: "8" },
+                        ],
+                        onChange: setFilterHorasMin,
+                      },
+                      {
+                        label: "Ordenar por",
+                        value: sortBy,
+                        options: [
+                          { label: "Orden", value: "orden" },
+                          { label: "Nombre", value: "nombre" },
+                          { label: "Horas/sem", value: "horas_semanales" },
+                          { label: "Total temas", value: "total_temas" },
+                          { label: "Estado", value: "estado" },
+                        ],
+                        onChange: setSortBy,
+                      },
+                      {
+                        label: "Dirección",
+                        value: sortOrder,
+                        options: [
+                          { label: "Ascendente", value: "asc" },
+                          { label: "Descendente", value: "desc" },
+                        ],
+                        onChange: (value) => setSortOrder(value as "asc" | "desc"),
+                      },
+                    ]}
+                    onClear={clearFilters}
+                  />
+                  
+                  {selectedMaterias.size > 0 && (
+                    <div className="flex items-center justify-between p-3 bg-primary/10 rounded-md border border-primary/20">
+                      <span className="text-sm font-medium">
+                        {selectedMaterias.size} materia(s) seleccionada(s)
+                      </span>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setSelectedMaterias(new Set())}
+                        >
+                          Deseleccionar
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => setBulkDeleteDialogOpen(true)}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Eliminar ({selectedMaterias.size})
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
-            )}
-          </TabsContent>
-        </Tabs>
-      </div>
 
-      <PlanAnualDialog
-        open={planAnualDialogOpen}
-        onOpenChange={setPlanAnualDialogOpen}
-        planAnual={editingPlanAnual}
-        onSuccess={handlePlanAnualSuccess}
-      />
+              {/* Tabs de materias por estado */}
+              <Tabs defaultValue="todas" className="space-y-6">
+                <TabsList className="grid w-full max-w-md grid-cols-3">
+                  <TabsTrigger value="todas">
+                    Todas ({materiasPorEstado.todas.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="completas">
+                    Completas ({materiasPorEstado.completas.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="pendientes">
+                    Pendientes ({materiasPorEstado.pendientes.length})
+                  </TabsTrigger>
+                </TabsList>
 
-      <MateriaDialog
-        open={materiaDialogOpen}
-        onOpenChange={setMateriaDialogOpen}
-        materia={editingMateria}
-        planAnualId={data?.plan_anual?.id || ''}
-        onSuccess={handleMateriaSuccess}
-      />
+                <TabsContent value="todas" className="space-y-4">
+                  <MateriasList 
+                    materias={materiasPorEstado.todas} 
+                    expandedMateria={expandedMateria}
+                    setExpandedMateria={setExpandedMateria}
+                    onEditMateria={handleEditMateria}
+                    onDeleteMateria={handleDeleteMateria}
+                    onDuplicateMateria={handleDuplicateMateria}
+                    onCreateTema={handleCreateTema}
+                    onEditTema={handleEditTema}
+                    onDeleteTema={handleDeleteTema}
+                    onDuplicateTema={handleDuplicateTema}
+                    selectedMaterias={selectedMaterias}
+                    onToggleSelection={toggleMateriaSelection}
+                  />
+                </TabsContent>
 
-      <TemaDialog
-        open={temaDialogOpen}
-        onOpenChange={setTemaDialogOpen}
-        tema={editingTema}
-        materiaId={currentMateriaId}
-        onSuccess={handleTemaSuccess}
-      />
+                <TabsContent value="completas" className="space-y-4">
+                  <MateriasList 
+                    materias={materiasPorEstado.completas}
+                    expandedMateria={expandedMateria}
+                    setExpandedMateria={setExpandedMateria}
+                    onEditMateria={handleEditMateria}
+                    onDeleteMateria={handleDeleteMateria}
+                    onDuplicateMateria={handleDuplicateMateria}
+                    onCreateTema={handleCreateTema}
+                    onEditTema={handleEditTema}
+                    onDeleteTema={handleDeleteTema}
+                    onDuplicateTema={handleDuplicateTema}
+                    selectedMaterias={selectedMaterias}
+                    onToggleSelection={toggleMateriaSelection}
+                  />
+                </TabsContent>
 
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción no se puede deshacer. Se eliminará el plan anual "{planToDelete?.grado}" del año {planToDelete?.anio_escolar}.
-              Asegúrate de que no tenga materias asignadas.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground">
-              Eliminar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+                <TabsContent value="pendientes" className="space-y-4">
+                  {materiasPorEstado.pendientes.length > 0 ? (
+                    <MateriasList 
+                      materias={materiasPorEstado.pendientes}
+                      expandedMateria={expandedMateria}
+                      setExpandedMateria={setExpandedMateria}
+                      onEditMateria={handleEditMateria}
+                      onDeleteMateria={handleDeleteMateria}
+                      onDuplicateMateria={handleDuplicateMateria}
+                      onCreateTema={handleCreateTema}
+                      onEditTema={handleEditTema}
+                      onDeleteTema={handleDeleteTema}
+                      onDuplicateTema={handleDuplicateTema}
+                      selectedMaterias={selectedMaterias}
+                      onToggleSelection={toggleMateriaSelection}
+                    />
+                  ) : (
+                    <Card>
+                      <CardContent className="pt-6">
+                        <div className="text-center py-8">
+                          <p className="text-muted-foreground">
+                            ¡Excelente! Todas las materias tienen temas configurados
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </TabsContent>
+              </Tabs>
+            </TabsContent>
+          </Tabs>
+        </div>
 
-      <AlertDialog open={deleteMateriaDialogOpen} onOpenChange={setDeleteMateriaDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción no se puede deshacer. Se eliminará la materia "{materiaToDelete?.nombre}".
-              Asegúrate de que no tenga temas o asignaciones.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeleteMateria} className="bg-destructive text-destructive-foreground">
-              Eliminar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        <PlanAnualDialog
+          open={planAnualDialogOpen}
+          onOpenChange={setPlanAnualDialogOpen}
+          planAnual={editingPlanAnual}
+          onSuccess={handlePlanAnualSuccess}
+        />
 
-      <AlertDialog open={deleteTemaDialogOpen} onOpenChange={setDeleteTemaDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción no se puede deshacer. Se eliminará el tema "{temaToDelete?.nombre}".
-              Asegúrate de que no tenga clases programadas.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeleteTema} className="bg-destructive text-destructive-foreground">
-              Eliminar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        <MateriaDialog
+          open={materiaDialogOpen}
+          onOpenChange={setMateriaDialogOpen}
+          materia={editingMateria}
+          planAnualId={gradoData?.plan_anual?.id || ''}
+          onSuccess={handleMateriaSuccess}
+        />
 
-      <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar {selectedMaterias.size} materia(s)?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción no se puede deshacer. Se eliminarán {selectedMaterias.size} materia(s) seleccionada(s).
-              Asegúrate de que no tengan temas o asignaciones.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive text-destructive-foreground">
-              Eliminar {selectedMaterias.size} materia(s)
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </AppLayout>
-  );
+        <TemaDialog
+          open={temaDialogOpen}
+          onOpenChange={setTemaDialogOpen}
+          tema={editingTema}
+          materiaId={currentMateriaId}
+          onSuccess={handleTemaSuccess}
+        />
+
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta acción no se puede deshacer. Se eliminará el plan anual "{planToDelete?.grado}" del año {planToDelete?.anio_escolar}.
+                Asegúrate de que no tenga materias asignadas.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground">
+                Eliminar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={deleteMateriaDialogOpen} onOpenChange={setDeleteMateriaDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta acción no se puede deshacer. Se eliminará la materia "{materiaToDelete?.nombre}".
+                Asegúrate de que no tenga temas o asignaciones.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDeleteMateria} className="bg-destructive text-destructive-foreground">
+                Eliminar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={deleteTemaDialogOpen} onOpenChange={setDeleteTemaDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta acción no se puede deshacer. Se eliminará el tema "{temaToDelete?.nombre}".
+                Asegúrate de que no tenga clases programadas.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDeleteTema} className="bg-destructive text-destructive-foreground">
+                Eliminar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Eliminar {selectedMaterias.size} materia(s)?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta acción no se puede deshacer. Se eliminarán {selectedMaterias.size} materia(s) seleccionada(s).
+                Asegúrate de que no tengan temas o asignaciones.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive text-destructive-foreground">
+                Eliminar {selectedMaterias.size} materia(s)
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </AppLayout>
+    );
+  }
+
+  // This should never be reached, but TypeScript needs it
+  return null;
 }
 
 interface MateriasListProps {
@@ -1097,10 +1268,10 @@ function MateriasList({
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-base">Temas de {materia.nombre}</CardTitle>
-                    <CardDescription>
-                      {materia.total_temas} {materia.total_temas === 1 ? 'tema' : 'temas'} configurados
-                    </CardDescription>
+                <CardTitle className="text-base">Temas de {materia.nombre}</CardTitle>
+                <CardDescription>
+                  {materia.total_temas} {materia.total_temas === 1 ? 'tema' : 'temas'} configurados
+                </CardDescription>
                   </div>
                   <Button 
                     size="sm" 
@@ -1127,7 +1298,7 @@ function MateriasList({
 
                   <TabsContent value="todos">
                     <TemasTable 
-                      temas={Object.values(materia.temas_por_bimestre).flat() as any[]}
+                      temas={Object.values(materia.temas_por_bimestre).flat() as any[]} 
                       onEdit={(tema) => onEditTema(tema, materia.id)}
                       onDelete={onDeleteTema}
                       onDuplicate={(tema) => onDuplicateTema(tema, materia.id)}

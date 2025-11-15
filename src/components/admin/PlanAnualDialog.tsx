@@ -158,7 +158,7 @@ export const PlanAnualDialog = ({
 
         toast({
           title: "Éxito",
-          description: "Plan anual creado correctamente",
+          description: "Plan anual por grado creado correctamente",
         });
       }
 
@@ -185,7 +185,7 @@ export const PlanAnualDialog = ({
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>
-            {isEditMode ? "Editar Plan Anual" : "Crear Plan Anual"}
+            {isEditMode ? "Modificar Plan Anual por Grado" : "Crear Plan Anual por Grado"}
           </DialogTitle>
         </DialogHeader>
         
