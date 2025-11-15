@@ -66,10 +66,20 @@ export const PlanAnualDialog = ({
   };
 
   const handleSubmit = async () => {
-    if (!grado || !anioEscolar) {
+    // Validate required fields
+    if (!grado?.trim()) {
       toast({
         title: "Error",
-        description: "Por favor completa todos los campos requeridos",
+        description: "Por favor selecciona un grado",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!anioEscolar?.trim()) {
+      toast({
+        title: "Error",
+        description: "Por favor ingresa el año escolar",
         variant: "destructive",
       });
       return;
@@ -89,7 +99,7 @@ export const PlanAnualDialog = ({
     try {
       if (isEditMode && planAnual) {
         // Check for duplicates (excluding current plan)
-        const { data: existing } = await supabase
+        const { data: existing, error: checkError } = await supabase
           .from('plan_anual')
           .select('id')
           .eq('grado', grado)
@@ -97,6 +107,11 @@ export const PlanAnualDialog = ({
           .eq('id_institucion', idInstitucion)
           .neq('id', planAnual.id)
           .maybeSingle();
+
+        if (checkError) {
+          console.error('Error checking for duplicates:', checkError);
+          throw new Error('Error al verificar duplicados');
+        }
 
         if (existing) {
           toast({
@@ -126,13 +141,18 @@ export const PlanAnualDialog = ({
         });
       } else {
         // Check for duplicates
-        const { data: existing } = await supabase
+        const { data: existing, error: checkError } = await supabase
           .from('plan_anual')
           .select('id')
           .eq('grado', grado)
           .eq('anio_escolar', anioEscolar)
           .eq('id_institucion', idInstitucion)
           .maybeSingle();
+
+        if (checkError) {
+          console.error('Error checking for duplicates:', checkError);
+          throw new Error('Error al verificar duplicados');
+        }
 
         if (existing) {
           toast({
@@ -169,7 +189,7 @@ export const PlanAnualDialog = ({
       onOpenChange(false);
       onSuccess();
     } catch (error: any) {
-      console.error('Error:', error);
+      console.error('Error saving plan anual:', error);
       toast({
         title: "Error",
         description: error.message || "No se pudo guardar el plan anual",

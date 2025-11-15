@@ -19,12 +19,22 @@ interface PlanAnualStatsProps {
 }
 
 export function PlanAnualStats({ estadisticas }: PlanAnualStatsProps) {
-  const completitudPlan = estadisticas.total_materias > 0 
-    ? (estadisticas.materias_con_temas / estadisticas.total_materias) * 100 
+  // Provide default values for safety
+  const stats = estadisticas || {
+    total_materias: 0,
+    materias_con_temas: 0,
+    materias_sin_temas: 0,
+    total_temas: 0,
+    distribucion_bimestres: { 1: 0, 2: 0, 3: 0, 4: 0 },
+    total_horas_semanales: 0
+  };
+
+  const completitudPlan = stats.total_materias > 0 
+    ? (stats.materias_con_temas / stats.total_materias) * 100 
     : 0;
 
-  const promedioTemasPorMateria = estadisticas.materias_con_temas > 0
-    ? Math.round(estadisticas.total_temas / estadisticas.materias_con_temas)
+  const promedioTemasPorMateria = stats.materias_con_temas > 0
+    ? Math.round(stats.total_temas / stats.materias_con_temas)
     : 0;
 
   return (
@@ -37,9 +47,9 @@ export function PlanAnualStats({ estadisticas }: PlanAnualStatsProps) {
             <BookOpen className="h-5 w-5 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-primary">{estadisticas.total_materias}</div>
+            <div className="text-3xl font-bold text-primary">{stats.total_materias}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              {estadisticas.materias_con_temas} con temas configurados
+              {stats.materias_con_temas} con temas configurados
             </p>
           </CardContent>
         </Card>
@@ -50,7 +60,7 @@ export function PlanAnualStats({ estadisticas }: PlanAnualStatsProps) {
             <FileText className="h-5 w-5 text-secondary" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-secondary">{estadisticas.total_temas}</div>
+            <div className="text-3xl font-bold text-secondary">{stats.total_temas}</div>
             <p className="text-xs text-muted-foreground mt-1">
               {promedioTemasPorMateria} promedio por materia
             </p>
@@ -63,7 +73,7 @@ export function PlanAnualStats({ estadisticas }: PlanAnualStatsProps) {
             <Clock className="h-5 w-5 text-accent" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-accent">{estadisticas.total_horas_semanales}</div>
+            <div className="text-3xl font-bold text-accent">{stats.total_horas_semanales}</div>
             <p className="text-xs text-muted-foreground mt-1">
               Total del plan anual
             </p>
@@ -93,17 +103,17 @@ export function PlanAnualStats({ estadisticas }: PlanAnualStatsProps) {
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Materias con Temas</span>
-              <span className="font-medium">{estadisticas.materias_con_temas} / {estadisticas.total_materias}</span>
+              <span className="font-medium">{stats.materias_con_temas} / {stats.total_materias}</span>
             </div>
             <Progress value={completitudPlan} className="h-3" />
           </div>
 
-          {estadisticas.materias_sin_temas > 0 && (
+          {stats.materias_sin_temas > 0 && (
             <div className="flex items-center gap-2 p-3 bg-warning/10 border border-warning/20 rounded-md">
               <AlertTriangle className="h-5 w-5 text-warning" />
               <div>
                 <p className="text-sm font-medium text-warning">
-                  {estadisticas.materias_sin_temas} {estadisticas.materias_sin_temas === 1 ? 'materia' : 'materias'} sin temas configurados
+                  {stats.materias_sin_temas} {stats.materias_sin_temas === 1 ? 'materia' : 'materias'} sin temas configurados
                 </p>
                 <p className="text-xs text-muted-foreground">
                   Completa la configuración de todas las materias para el plan anual
@@ -122,9 +132,9 @@ export function PlanAnualStats({ estadisticas }: PlanAnualStatsProps) {
         <CardContent>
           <div className="grid grid-cols-4 gap-4">
             {[1, 2, 3, 4].map(bim => {
-              const count = estadisticas.distribucion_bimestres[bim as 1 | 2 | 3 | 4];
-              const percentage = estadisticas.total_temas > 0 
-                ? (count / estadisticas.total_temas) * 100 
+              const count = stats.distribucion_bimestres[bim as 1 | 2 | 3 | 4] || 0;
+              const percentage = stats.total_temas > 0 
+                ? (count / stats.total_temas) * 100 
                 : 0;
               
               return (
