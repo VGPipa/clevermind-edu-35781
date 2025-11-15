@@ -11,11 +11,79 @@ Deno.serve(async (req: Request): Promise<Response> => {
   }
 
   try {
+    // Handle GET requests (no body) or POST requests (with body)
+    let body: any = {};
+    if (req.method === 'POST') {
+      try {
+        body = await req.json();
+      } catch {
+        // Body is optional
+      }
+    }
+    
     const { supabase, profesor } = await authenticateProfesor(req, true);
 
+    // Get optional fecha_referencia from body
+    const fechaReferenciaParam = body.fecha_referencia;
+
+    // Use current date for alert calculations (always)
     const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Use fecha_referencia for filtering if provided, otherwise use today
+    const fechaReferencia = fechaReferenciaParam 
+      ? new Date(fechaReferenciaParam)
+      : new Date(today);
+    fechaReferencia.setHours(0, 0, 0, 0);
+
     const weekStart = new Date(today);
     weekStart.setDate(today.getDate() - today.getDay());
+
+    // Get profesor's institution
+    const { data: profesorData } = await supabase
+      .from('profesores')
+      .select('id_institucion')
+      .eq('id', profesor.id)
+      .single();
+
+    // Get active academic year
+    let anioActivo = null;
+    if (profesorData?.id_institucion) {
+      const { data: anio } = await supabase
+        .from('anios_escolares')
+        .select('*')
+        .eq('id_institucion', profesorData.id_institucion)
+        .eq('activo', true)
+        .maybeSingle();
+      anioActivo = anio;
+    }
+
+    // Get alert configuration
+    let configAlertas = {
+      rango_dias_clases_pendientes: 60,
+      dias_urgente: 2,
+      dias_proxima: 5,
+      dias_programada: 14,
+      dias_lejana: 999,
+    };
+
+    if (profesorData?.id_institucion) {
+      const { data: config } = await supabase
+        .from('configuracion_alertas')
+        .select('*')
+        .eq('id_institucion', profesorData.id_institucion)
+        .maybeSingle();
+      
+      if (config) {
+        configAlertas = {
+          rango_dias_clases_pendientes: config.rango_dias_clases_pendientes,
+          dias_urgente: config.dias_urgente,
+          dias_proxima: config.dias_proxima,
+          dias_programada: config.dias_programada,
+          dias_lejana: config.dias_lejana,
+        };
+      }
+    }
 
     // Classes this week
     const { count: classesThisWeek } = await supabase
@@ -58,10 +126,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
       ? results.reduce((sum, r) => sum + Number(r.promedio_puntaje || 0), 0) / results.length
       : 0;
 
-    // Upcoming classes (next 7 days)
-    const sevenDaysFromNow = new Date(today);
-    sevenDaysFromNow.setDate(today.getDate() + 7);
+    // Calculate date range for pending classes based on configuration
+    const fechaFinRango = new Date(fechaReferencia);
+    fechaFinRango.setDate(fechaReferencia.getDate() + configAlertas.rango_dias_clases_pendientes);
 
+    // Get upcoming classes within configured range
     const { data: upcomingClasses } = await supabase
       .from('clases')
       .select(`
@@ -70,12 +139,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
         estado,
         duracion_minutos,
         metodologia,
+        numero_sesion,
         temas!inner(id, nombre, id_materia),
         grupos!inner(id, nombre, cantidad_alumnos, grado, seccion)
       `)
       .eq('id_profesor', profesor.id)
-      .gte('fecha_programada', today.toISOString())
-      .lte('fecha_programada', sevenDaysFromNow.toISOString())
+      .gte('fecha_programada', fechaReferencia.toISOString())
+      .lte('fecha_programada', fechaFinRango.toISOString())
       .order('fecha_programada', { ascending: true });
 
     // Get materia names for each class
@@ -99,25 +169,52 @@ Deno.serve(async (req: Request): Promise<Response> => {
     // Check for guides and evaluations for each class
     const classesWithStatus = await Promise.all(
       classesWithMaterias.map(async (clase: any) => {
-        const { data: guia } = await supabase
+        // Check for guide version (using new versioning system)
+        const { data: guiaVersion } = await supabase
+          .from('guias_clase_versiones')
+          .select('id, estado')
+          .eq('id_clase', clase.id)
+          .maybeSingle();
+        
+        // Also check old guias_clase for backward compatibility
+        const { data: guiaOld } = await supabase
           .from('guias_clase')
           .select('id')
           .eq('id_clase', clase.id)
           .maybeSingle();
         
+        const tieneGuia = !!guiaVersion || !!guiaOld;
+        
         const { data: evalPre } = await supabase
           .from('quizzes')
           .select('id, estado')
           .eq('id_clase', clase.id)
-          .eq('tipo', 'diagnostica')
+          .eq('tipo_evaluacion', 'pre')
           .maybeSingle();
         
         const { data: evalPost } = await supabase
           .from('quizzes')
           .select('id, estado')
           .eq('id_clase', clase.id)
-          .eq('tipo', 'sumativa')
+          .eq('tipo_evaluacion', 'post')
           .maybeSingle();
+        
+        // Calculate days remaining (based on today, not fecha_referencia)
+        const fechaClase = new Date(clase.fecha_programada);
+        fechaClase.setHours(0, 0, 0, 0);
+        const diasRestantes = Math.ceil((fechaClase.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        
+        // Classify by alert level (based on today)
+        let nivelAlerta: 'urgente' | 'proxima' | 'programada' | 'lejana';
+        if (diasRestantes <= configAlertas.dias_urgente) {
+          nivelAlerta = 'urgente';
+        } else if (diasRestantes <= configAlertas.dias_proxima) {
+          nivelAlerta = 'proxima';
+        } else if (diasRestantes <= configAlertas.dias_programada) {
+          nivelAlerta = 'programada';
+        } else {
+          nivelAlerta = 'lejana';
+        }
         
         return {
           id: clase.id,
@@ -127,11 +224,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
           grupo: `${clase.grupo_info.grado} ${clase.grupo_info.seccion}`,
           estudiantes: clase.grupo_info.cantidad_alumnos || 0,
           estado: clase.estado,
-          tiene_guia: !!guia,
+          numero_sesion: clase.numero_sesion,
+          tiene_guia: tieneGuia,
           tiene_eval_pre: !!evalPre,
           tiene_eval_post: !!evalPost,
           eval_pre_estado: evalPre?.estado || null,
           eval_post_estado: evalPost?.estado || null,
+          dias_restantes: diasRestantes,
+          nivel_alerta: nivelAlerta,
         };
       })
     );
@@ -163,7 +263,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
       },
       clases_pendientes: clasesPendientes,
       clases_listas: clasesListas,
-      recommendations: recommendations || []
+      recommendations: recommendations || [],
+      anio_escolar: anioActivo,
+      configuracion_alertas: configAlertas,
+      fecha_referencia: fechaReferencia.toISOString(),
+      fecha_actual: today.toISOString(),
     });
 
   } catch (error) {

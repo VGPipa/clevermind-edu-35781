@@ -1,4 +1,4 @@
-import { useMemo, ReactNode } from "react";
+import { useMemo, ReactNode, useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { StatsCard } from "@/components/profesor/StatsCard";
+import { FechaSelector } from "@/components/profesor/FechaSelector";
+import { AlertaBadge } from "@/components/profesor/AlertaBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -26,11 +28,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function ProfesorDashboard() {
   const navigate = useNavigate();
+  const [fechaReferencia, setFechaReferencia] = useState<string>(() => {
+    return new Date().toISOString().split('T')[0];
+  });
 
   const { data: dashboardData, isLoading } = useQuery({
-    queryKey: ['dashboard-profesor'],
+    queryKey: ['dashboard-profesor', fechaReferencia],
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke('dashboard-profesor');
+      const { data, error } = await supabase.functions.invoke('dashboard-profesor', {
+        body: { fecha_referencia: fechaReferencia },
+      });
       if (error) throw error;
       return data;
     }
@@ -243,22 +250,29 @@ export default function ProfesorDashboard() {
     <AppLayout>
       <div className="space-y-6 animate-fade-in">
         {/* Header */}
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-4xl font-bold">Panel del Profesor</h1>
-            <p className="text-muted-foreground mt-2">
-              Gestiona tus clases y desarrolla el pensamiento crítico de tus estudiantes
-            </p>
+        <div className="flex flex-col gap-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-4xl font-bold">Panel del Profesor</h1>
+              <p className="text-muted-foreground mt-2">
+                Gestiona tus clases y desarrolla el pensamiento crítico de tus estudiantes
+              </p>
+            </div>
+            <Button 
+              size="lg" 
+              onClick={() => navigate('/profesor/generar-clase')}
+              className="bg-gradient-primary hover:opacity-90 shadow-lg"
+              aria-label="Crear nueva clase con IA"
+            >
+              <Brain className="mr-2 h-5 w-5" />
+              Nueva Clase con IA
+            </Button>
           </div>
-          <Button 
-            size="lg" 
-            onClick={() => navigate('/profesor/generar-clase')}
-            className="bg-gradient-primary hover:opacity-90 shadow-lg"
-            aria-label="Crear nueva clase con IA"
-          >
-            <Brain className="mr-2 h-5 w-5" />
-            Nueva Clase con IA
-          </Button>
+          <FechaSelector
+            fechaReferencia={fechaReferencia}
+            onFechaChange={setFechaReferencia}
+            anioEscolar={dashboardData?.anio_escolar}
+          />
         </div>
 
         {/* Quick Actions */}
@@ -304,7 +318,7 @@ export default function ProfesorDashboard() {
                   Clases Pendientes de Preparación
                 </CardTitle>
                 <CardDescription>
-                  Clases programadas en los próximos 7 días que necesitan guía
+                  Clases programadas dentro del rango configurado que necesitan guía
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -328,6 +342,9 @@ export default function ProfesorDashboard() {
                             {clase.numero_sesion && (
                               <Badge variant="outline">Sesión {clase.numero_sesion}</Badge>
                             )}
+                            {clase.nivel_alerta && (
+                              <AlertaBadge nivel={clase.nivel_alerta} diasRestantes={clase.dias_restantes || 0} />
+                            )}
                           </div>
                           <p className="text-sm text-muted-foreground">{clase.tema || clase.nombre}</p>
                           <div className="flex flex-wrap items-center gap-4 mt-2 text-xs text-muted-foreground">
@@ -341,6 +358,11 @@ export default function ProfesorDashboard() {
                               <span className="flex items-center gap-1">
                                 <Users className="h-3 w-3" />
                                 {clase.estudiantes} estudiantes
+                              </span>
+                            )}
+                            {clase.dias_restantes !== undefined && (
+                              <span className="flex items-center gap-1">
+                                {clase.dias_restantes === 0 ? 'Hoy' : clase.dias_restantes === 1 ? 'Mañana' : `En ${clase.dias_restantes} días`}
                               </span>
                             )}
                           </div>
@@ -408,6 +430,9 @@ export default function ProfesorDashboard() {
                             {clase.numero_sesion && (
                               <Badge variant="outline">Sesión {clase.numero_sesion}</Badge>
                             )}
+                            {clase.nivel_alerta && (
+                              <AlertaBadge nivel={clase.nivel_alerta} diasRestantes={clase.dias_restantes || 0} />
+                            )}
                           </div>
                           <p className="text-sm text-muted-foreground">{clase.tema || clase.nombre}</p>
                           <div className="flex flex-wrap items-center gap-4 mt-2 text-xs text-muted-foreground">
@@ -421,6 +446,11 @@ export default function ProfesorDashboard() {
                               <span className="flex items-center gap-1">
                                 <Users className="h-3 w-3" />
                                 {clase.estudiantes} estudiantes
+                              </span>
+                            )}
+                            {clase.dias_restantes !== undefined && (
+                              <span className="flex items-center gap-1">
+                                {clase.dias_restantes === 0 ? 'Hoy' : clase.dias_restantes === 1 ? 'Mañana' : `En ${clase.dias_restantes} días`}
                               </span>
                             )}
                           </div>
