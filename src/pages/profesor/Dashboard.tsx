@@ -224,12 +224,17 @@ export default function ProfesorDashboard() {
 
 
         {/* Stats Grid */}
-        <div className="grid gap-4 md:grid-cols-4">
-          {stats.map((stat, index) => <StatsCard key={index} {...stat} />)}
+        <div>
+          <h2 className="text-2xl font-bold mb-4">Estadísticas Generales</h2>
+          <div className="grid gap-4 md:grid-cols-4">
+            {stats.map((stat, index) => <StatsCard key={index} {...stat} />)}
+          </div>
         </div>
 
         {/* Main Content - 2 Blocks */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div>
+          <h2 className="text-2xl font-bold mb-4">Estatus de Clases</h2>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Bloque 1: Clases en Preparación */}
           <Card>
             <CardHeader>
@@ -363,6 +368,7 @@ export default function ProfesorDashboard() {
                 </div> : renderEmptyState(Calendar, "No hay clases en calendario", "Las clases programadas aparecerán aquí")}
             </CardContent>
           </Card>
+          </div>
         </div>
 
         {/* AI Recommendations */}
