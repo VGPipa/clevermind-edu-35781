@@ -2,7 +2,7 @@ import { useMemo, ReactNode, useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BookOpen, Users, GraduationCap, TrendingUp, Clock, Sparkles, Calendar, CheckCircle2, Brain, ChevronLeft, ChevronRight } from "lucide-react";
+import { BookOpen, Users, GraduationCap, TrendingUp, Clock, Sparkles, Calendar, CheckCircle2, Brain, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -442,21 +442,33 @@ export default function ProfesorDashboard() {
                       className="justify-start text-left font-normal w-full sm:w-auto"
                     >
                       <Calendar className="mr-2 h-4 w-4" />
-                      {timeFilterType === 'semana_pasada' && 'Semana pasada'}
-                      {timeFilterType === 'semana_actual' && 'Semana actual'}
-                      {timeFilterType === 'semana_proxima' && 'Semana próxima'}
-                      {timeFilterType === 'todos' && 'Todas'}
-                      {timeFilterType === 'personalizado' && customDateRange?.from && customDateRange?.to && (
-                        <>
-                          {format(customDateRange.from, "d MMM", { locale: es })} - {format(customDateRange.to, "d MMM", { locale: es })}
-                        </>
+                      <span className="flex-1">
+                        {timeFilterType === 'semana_pasada' && 'Semana pasada'}
+                        {timeFilterType === 'semana_actual' && 'Semana actual'}
+                        {timeFilterType === 'semana_proxima' && 'Semana próxima'}
+                        {timeFilterType === 'todos' && 'Seleccionar período'}
+                        {timeFilterType === 'personalizado' && customDateRange?.from && customDateRange?.to && (
+                          <>
+                            {format(customDateRange.from, "d MMM", { locale: es })} - {format(customDateRange.to, "d MMM", { locale: es })}
+                          </>
+                        )}
+                        {timeFilterType === 'personalizado' && !customDateRange?.to && customDateRange?.from && (
+                          <>
+                            {format(customDateRange.from, "d MMM", { locale: es })}
+                          </>
+                        )}
+                        {timeFilterType === 'personalizado' && !customDateRange?.from && 'Rango personalizado'}
+                      </span>
+                      {timeFilterType !== 'todos' && (
+                        <X 
+                          className="ml-2 h-4 w-4 hover:text-destructive transition-colors" 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setTimeFilterType('todos');
+                            setCustomDateRange(undefined);
+                          }}
+                        />
                       )}
-                      {timeFilterType === 'personalizado' && !customDateRange?.to && customDateRange?.from && (
-                        <>
-                          {format(customDateRange.from, "d MMM", { locale: es })}
-                        </>
-                      )}
-                      {timeFilterType === 'personalizado' && !customDateRange?.from && 'Rango personalizado'}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-4 z-50 bg-card" align="start">
