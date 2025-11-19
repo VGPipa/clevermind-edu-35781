@@ -183,14 +183,14 @@ export const SidebarLink = ({
         "flex items-center gap-2 group/sidebar py-2 rounded-lg cursor-pointer transition-all duration-150",
         animate && !open ? "justify-center px-0" : "justify-start px-2",
         isActive 
-          ? "bg-accent/10 border-l-4 border-accent text-accent" 
+          ? "bg-white/20 border-l-4 border-white text-white font-semibold" 
           : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
         className
       )}
     >
       <div className={cn(
         "transition-all duration-300",
-        isActive && "drop-shadow-[0_4px_12px_rgba(249,115,22,0.6)]"
+        isActive && "drop-shadow-[0_2px_8px_rgba(255,255,255,0.4)]"
       )}>
         {link.icon}
       </div>
