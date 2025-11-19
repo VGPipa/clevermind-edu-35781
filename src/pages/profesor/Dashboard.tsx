@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { BookOpen, Users, GraduationCap, TrendingUp, Clock, Sparkles, Calendar, CheckCircle2, Brain, ChevronLeft, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { StatsCard } from "@/components/profesor/StatsCard";
 import { FechaSelector } from "@/components/profesor/FechaSelector";
 import { supabase } from "@/integrations/supabase/client";
@@ -620,6 +621,45 @@ export default function ProfesorDashboard() {
             </CardContent>
           </Card>
           </div>
+        </div>
+
+        {/* Materias Asignadas */}
+        <div className="space-y-4">
+          <h2 className="text-2xl font-bold">Materias Asignadas</h2>
+          <Card>
+            <CardContent className="pt-6">
+              {dashboardData?.materias_asignadas && dashboardData.materias_asignadas.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Materia</TableHead>
+                      <TableHead>Sección</TableHead>
+                      <TableHead className="text-center">N° Temas</TableHead>
+                      <TableHead className="text-center">N° Estudiantes</TableHead>
+                      <TableHead className="text-center">% Cobertura</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {dashboardData.materias_asignadas.map((materia: any) => (
+                      <TableRow key={materia.id}>
+                        <TableCell className="font-medium">{materia.nombre}</TableCell>
+                        <TableCell>{materia.secciones}</TableCell>
+                        <TableCell className="text-center">{materia.total_temas}</TableCell>
+                        <TableCell className="text-center">{materia.total_estudiantes}</TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant={materia.cobertura >= 75 ? 'default' : materia.cobertura >= 50 ? 'secondary' : 'outline'}>
+                            {materia.cobertura}%
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                renderEmptyState(GraduationCap, "No hay materias asignadas", "Las materias asignadas aparecerán aquí")
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         {/* AI Recommendations */}

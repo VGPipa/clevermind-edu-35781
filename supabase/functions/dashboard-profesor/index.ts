@@ -226,6 +226,107 @@ Deno.serve(async (req: Request): Promise<Response> => {
       .order('created_at', { ascending: false })
       .limit(3);
 
+    // Get materias asignadas with detailed information
+    const { data: asignaciones } = await supabase
+      .from('asignaciones_profesor')
+      .select(`
+        id,
+        id_materia,
+        id_grupo,
+        materias(
+          id,
+          nombre
+        ),
+        grupos(
+          id,
+          nombre,
+          grado,
+          seccion,
+          cantidad_alumnos
+        )
+      `)
+      .eq('id_profesor', profesor.id);
+
+    // Get temas count for each materia
+    const { data: allMaterias } = await supabase
+      .from('materias')
+      .select(`
+        id,
+        nombre,
+        temas(id)
+      `);
+
+    // Process materias to get stats
+    const materiasMap = new Map();
+    
+    if (asignaciones) {
+      for (const asig of asignaciones as any[]) {
+        const materia = allMaterias?.find(m => m.id === asig.id_materia);
+        if (!materia) continue;
+        
+        if (!materiasMap.has(materia.id)) {
+          materiasMap.set(materia.id, {
+            id: materia.id,
+            nombre: materia.nombre,
+            grupos: [],
+            total_temas: materia.temas?.length || 0,
+            total_estudiantes: 0,
+          });
+        }
+        
+        const materiaData = materiasMap.get(materia.id);
+        materiaData.grupos.push({
+          nombre: asig.grupos.nombre,
+          grado: asig.grupos.grado,
+          seccion: asig.grupos.seccion,
+        });
+        materiaData.total_estudiantes += asig.grupos.cantidad_alumnos || 0;
+      }
+    }
+
+    // Calculate coverage for each materia
+    const materiasAsignadas = await Promise.all(
+      Array.from(materiasMap.values()).map(async (materia: any) => {
+        // Get temas IDs for this materia
+        const { data: temas } = await supabase
+          .from('temas')
+          .select('id')
+          .eq('id_materia', materia.id);
+        
+        const temaIds = temas?.map(t => t.id) || [];
+        
+        if (temaIds.length === 0) {
+          return {
+            ...materia,
+            secciones: materia.grupos.map((g: any) => `${g.grado}${g.seccion}`).join(', '),
+            cobertura: 0,
+          };
+        }
+
+        // Get total clases for this materia and profesor
+        const { data: clasesMateria } = await supabase
+          .from('clases')
+          .select('id, estado')
+          .eq('id_profesor', profesor.id)
+          .in('id_tema', temaIds);
+
+        const totalClasesEsperadas = materia.total_temas;
+        const clasesCompletadas = clasesMateria?.filter(
+          c => c.estado === 'completada' || c.estado === 'ejecutada'
+        ).length || 0;
+        
+        const cobertura = totalClasesEsperadas > 0 
+          ? Math.round((clasesCompletadas / totalClasesEsperadas) * 100)
+          : 0;
+
+        return {
+          ...materia,
+          secciones: materia.grupos.map((g: any) => `${g.grado}${g.seccion}`).join(', '),
+          cobertura,
+        };
+      })
+    );
+
     return createSuccessResponse({
       stats: {
         classes_this_week: classesThisWeek || 0,
@@ -236,6 +337,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       clases_pendientes: clasesPendientes,
       clases_listas: clasesListas,
       recommendations: recommendations || [],
+      materias_asignadas: materiasAsignadas || [],
       anio_escolar: anioActivo,
       configuracion_alertas: configAlertas,
       fecha_referencia: fechaReferencia.toISOString(),
