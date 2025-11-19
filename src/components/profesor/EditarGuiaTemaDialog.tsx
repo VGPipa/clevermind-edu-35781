@@ -68,7 +68,10 @@ export function EditarGuiaTemaDialog({ open, onOpenChange, guiaTema, temaNombre 
   useEffect(() => {
     if (open && guiaTema) {
       setObjetivosGenerales(guiaTema.objetivos_generales || "");
-      setEstructuraSesiones(guiaTema.estructura_sesiones || []);
+      setEstructuraSesiones((guiaTema.estructura_sesiones || []).map(s => ({
+        ...s,
+        duracion_sugerida: s.duracion_sugerida || 45
+      })));
       setRecursos(guiaTema.contenido?.recursos || []);
       setEstrategiasEvaluacion(guiaTema.contenido?.estrategias_evaluacion || []);
       setActividadesTransversales(guiaTema.contenido?.actividades_transversales || []);

@@ -58,13 +58,13 @@ All colors MUST be HSL.
     --radius: 0.75rem;
 
     /* Sidebar */
-    --sidebar-background: 12 100% 73%;
+    --sidebar-background: 196 44% 36%;
     --sidebar-foreground: 0 0% 100%;
     --sidebar-primary: 0 0% 100%;
-    --sidebar-primary-foreground: 12 100% 73%;
-    --sidebar-accent: 12 100% 94%;
-    --sidebar-accent-foreground: 12 100% 73%;
-    --sidebar-border: 12 100% 60%;
+    --sidebar-primary-foreground: 196 44% 36%;
+    --sidebar-accent: 196 44% 46%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 196 44% 30%;
     --sidebar-ring: 0 0% 100%;
 
     /* Gradients */
@@ -128,14 +128,14 @@ All colors MUST be HSL.
     --input: 258 48% 30%;
     --ring: 12 100% 73%;
 
-    --sidebar-background: 258 48% 20%;
+    --sidebar-background: 196 44% 30%;
     --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 12 100% 73%;
+    --sidebar-primary: 196 44% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 258 48% 30%;
+    --sidebar-accent: 196 44% 40%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 258 48% 30%;
-    --sidebar-ring: 12 100% 73%;
+    --sidebar-border: 196 44% 25%;
+    --sidebar-ring: 196 44% 50%;
   }
 }
 
