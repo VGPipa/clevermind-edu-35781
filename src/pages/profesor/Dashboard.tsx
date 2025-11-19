@@ -319,8 +319,9 @@ export default function ProfesorDashboard() {
           {/* Bloque 1: Clases en Preparación */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">En preparación<Clock className="h-5 w-5 text-orange-500" />
-                Clases en Preparación
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="h-5 w-5 text-orange-500" />
+                En preparación
               </CardTitle>
               <CardDescription>
                 Clases que necesitan tu atención antes de ser dictadas
@@ -349,8 +350,9 @@ export default function ProfesorDashboard() {
           {/* Bloque 2: Calendario de Clases */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">Programadas<Calendar className="h-5 w-5 text-orange-500" />
-                Calendario de Clases
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-orange-500" />
+                Programadas
               </CardTitle>
               <CardDescription>
                 Clases programadas, en curso y completadas
