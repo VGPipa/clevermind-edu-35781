@@ -29,8 +29,8 @@ All colors MUST be HSL.
     --secondary-foreground: 0 0% 100%;
     --secondary-light: 258 100% 98%;
 
-    /* Accent: Orange */
-    --accent: 25 95% 53%;
+    /* Accent: Intense Orange */
+    --accent: 14 100% 57%;
     --accent-foreground: 0 0% 100%;
 
     /* Action Button: Intense Orange */
@@ -105,7 +105,7 @@ All colors MUST be HSL.
     --secondary-foreground: 0 0% 100%;
     --secondary-light: 12 100% 73%;
 
-    --accent: 35 100% 50%;
+    --accent: 14 100% 57%;
     --accent-foreground: 0 0% 100%;
 
     /* Action Button: Intense Orange */
