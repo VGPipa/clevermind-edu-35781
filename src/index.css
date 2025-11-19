@@ -29,8 +29,8 @@ All colors MUST be HSL.
     --secondary-foreground: 0 0% 100%;
     --secondary-light: 258 100% 98%;
 
-    /* Accent: Orange */
-    --accent: 25 95% 53%;
+    /* Accent: Orange-Red */
+    --accent: 13 100% 57%;
     --accent-foreground: 0 0% 100%;
     
     --muted: 240 5% 96%;
@@ -101,7 +101,7 @@ All colors MUST be HSL.
     --secondary-foreground: 0 0% 100%;
     --secondary-light: 27 100% 62%;
 
-    --accent: 35 100% 50%;
+    --accent: 13 100% 57%;
     --accent-foreground: 0 0% 100%;
 
     --muted: 258 48% 25%;
