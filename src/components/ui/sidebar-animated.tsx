@@ -97,9 +97,10 @@ export const DesktopSidebar = ({
   return (
     <motion.div
       className={cn(
-        "min-h-screen sticky top-0 hidden md:flex md:flex-col bg-sidebar w-[300px] flex-shrink-0 border-r border-sidebar-border",
+        "min-h-screen sticky top-0 hidden md:flex md:flex-col w-[300px] flex-shrink-0 border-r border-sidebar-border",
         className
       )}
+      style={{ backgroundImage: 'var(--gradient-sidebar)' }}
       animate={{
         width: animate ? (open ? "300px" : "80px") : "300px",
         paddingLeft: animate ? (open ? "16px" : "8px") : "16px",
@@ -125,7 +126,7 @@ export const MobileSidebar = ({
   const { open, setOpen } = useSidebar();
   return (
     <>
-      <div className="h-16 px-4 py-4 flex flex-row md:hidden items-center justify-between bg-sidebar w-full border-b border-sidebar-border">
+      <div className="h-16 px-4 py-4 flex flex-row md:hidden items-center justify-between w-full border-b border-sidebar-border" style={{ backgroundImage: 'var(--gradient-sidebar)' }}>
         <div className="flex justify-end z-20 w-full">
           <Menu
             className="text-sidebar-foreground cursor-pointer"
@@ -143,9 +144,10 @@ export const MobileSidebar = ({
                 ease: "easeInOut",
               }}
               className={cn(
-                "fixed h-full w-full inset-0 bg-sidebar p-10 z-[100] flex flex-col justify-between",
+                "fixed h-full w-full inset-0 p-10 z-[100] flex flex-col justify-between",
                 className
               )}
+              style={{ backgroundImage: 'var(--gradient-sidebar)' }}
             >
               <div
                 className="absolute right-10 top-10 z-50 text-sidebar-foreground cursor-pointer"
