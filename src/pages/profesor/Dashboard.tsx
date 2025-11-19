@@ -13,11 +13,13 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ClaseActionsMenu } from "@/components/profesor/ClaseActionsMenu";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 export default function ProfesorDashboard() {
   const navigate = useNavigate();
   const [fechaReferencia, setFechaReferencia] = useState<string>(() => {
     return new Date().toISOString().split('T')[0];
   });
+  const [cursoFilter, setCursoFilter] = useState<string>("todos");
   const {
     data: dashboardData,
     isLoading
@@ -132,17 +134,51 @@ export default function ProfesorDashboard() {
   };
 
   // Separar clases en 2 bloques principales
+  // Obtener lista única de cursos
+  const cursosDisponibles = useMemo(() => {
+    const cursos = new Set<string>();
+    dashboardData?.clases_pendientes?.forEach((clase: any) => {
+      if (clase.materia_nombre && clase.grupo_nombre) {
+        cursos.add(`${clase.materia_nombre} - ${clase.grupo_nombre}`);
+      }
+    });
+    dashboardData?.clases_listas?.forEach((clase: any) => {
+      if (clase.materia_nombre && clase.grupo_nombre) {
+        cursos.add(`${clase.materia_nombre} - ${clase.grupo_nombre}`);
+      }
+    });
+    return Array.from(cursos).sort();
+  }, [dashboardData]);
+
   const clasesEnPreparacion = useMemo(() => {
     if (!dashboardData?.clases_pendientes) return [];
-    return dashboardData.clases_pendientes.map((clase: any) => ({
+    let clases = dashboardData.clases_pendientes;
+    
+    // Aplicar filtro de curso
+    if (cursoFilter !== "todos") {
+      clases = clases.filter((clase: any) => 
+        `${clase.materia_nombre} - ${clase.grupo_nombre}` === cursoFilter
+      );
+    }
+    
+    return clases.map((clase: any) => ({
       ...clase,
       estado_label: getClaseStage(clase.estado).label,
       estado_variant: getClaseStage(clase.estado).variant
     }));
-  }, [dashboardData]);
+  }, [dashboardData, cursoFilter]);
   const clasesCalendario = useMemo(() => {
     if (!dashboardData?.clases_listas) return [];
-    return dashboardData.clases_listas.map((clase: any) => ({
+    let clases = dashboardData.clases_listas;
+    
+    // Aplicar filtro de curso
+    if (cursoFilter !== "todos") {
+      clases = clases.filter((clase: any) => 
+        `${clase.materia_nombre} - ${clase.grupo_nombre}` === cursoFilter
+      );
+    }
+    
+    return clases.map((clase: any) => ({
       ...clase,
       estado_label: getClaseStage(clase.estado).label,
       estado_variant: getClaseStage(clase.estado).variant
@@ -151,7 +187,7 @@ export default function ProfesorDashboard() {
       if (!b.fecha_programada) return -1;
       return new Date(a.fecha_programada).getTime() - new Date(b.fecha_programada).getTime();
     });
-  }, [dashboardData]);
+  }, [dashboardData, cursoFilter]);
 
   // Agrupar clases del calendario por categorías temporales
   const groupedCalendario = useMemo(() => {
@@ -233,7 +269,22 @@ export default function ProfesorDashboard() {
 
         {/* Main Content - 2 Blocks */}
         <div>
-          <h2 className="text-2xl font-bold mb-4">Estatus de Clases</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold">Estatus de Clases</h2>
+            <Select value={cursoFilter} onValueChange={setCursoFilter}>
+              <SelectTrigger className="w-[280px]">
+                <SelectValue placeholder="Filtrar por curso" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos los cursos</SelectItem>
+                {cursosDisponibles.map((curso) => (
+                  <SelectItem key={curso} value={curso}>
+                    {curso}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Bloque 1: Clases en Preparación */}
           <Card>
