@@ -1,31 +1,24 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  authenticateProfesor,
+  handleCors,
+  createErrorResponse,
+  createSuccessResponse,
+} from '../_shared/auth.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
-serve(async (req) => {
+Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return handleCors();
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const { supabase, profesor } = await authenticateProfesor(req, true);
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
-    
-    const authHeader = req.headers.get('Authorization')!;
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user } } = await supabase.auth.getUser(token);
-
-    if (!user) {
-      return new Response(JSON.stringify({ error: 'No autorizado' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    // Validar que el body existe
+    let body;
+    try {
+      body = await req.json();
+    } catch (e) {
+      return createErrorResponse('Error al procesar el cuerpo de la solicitud', 400);
     }
 
     const { 
@@ -35,23 +28,13 @@ serve(async (req) => {
       contenido,
       metodologias,
       contexto_grupo
-    } = await req.json();
+    } = body;
+
+    if (!id_guia_tema) {
+      return createErrorResponse('id_guia_tema es requerido', 400);
+    }
 
     console.log('Actualizando guía tema:', id_guia_tema);
-
-    // Obtener datos del profesor
-    const { data: profesor } = await supabase
-      .from('profesores')
-      .select('id')
-      .eq('user_id', user.id)
-      .single();
-
-    if (!profesor) {
-      return new Response(JSON.stringify({ error: 'Profesor no encontrado' }), {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
 
     // Verificar que el profesor sea dueño de la guía
     const { data: guiaTema, error: guiaError } = await supabase
@@ -62,10 +45,7 @@ serve(async (req) => {
       .single();
 
     if (guiaError || !guiaTema) {
-      return new Response(JSON.stringify({ error: 'Guía maestra no encontrada o no autorizada' }), {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return createErrorResponse('Guía maestra no encontrada o no autorizada', 404);
     }
 
     // Preparar datos de actualización
@@ -99,26 +79,20 @@ serve(async (req) => {
 
     if (updateError) {
       console.error('Error actualizando guía:', updateError);
-      throw updateError;
+      return createErrorResponse(updateError.message, 500);
     }
 
     console.log('Guía maestra actualizada:', guiaActualizada.id);
 
-    return new Response(JSON.stringify({ 
+    return createSuccessResponse({
       success: true, 
       guia_tema: guiaActualizada,
       mensaje: 'Guía maestra actualizada exitosamente'
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
     console.error('Error en actualizar-guia-tema:', error);
     const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
-    return new Response(JSON.stringify({ error: errorMessage }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return createErrorResponse(errorMessage, 500);
   }
 });
-
