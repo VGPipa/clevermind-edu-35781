@@ -29,3 +29,6 @@ verify_jwt = true
 
 [functions.get-mis-temas]
 verify_jwt = true
+
+[functions.actualizar-guia-tema]
+verify_jwt = true
