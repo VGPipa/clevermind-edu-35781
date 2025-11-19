@@ -243,7 +243,7 @@ export default function ProfesorDashboard() {
             </CardHeader>
             <CardContent>
               {clasesEnPreparacion.length > 0 ? <div className="space-y-3">
-                  {clasesEnPreparacion.map((clase: any) => <div key={clase.id} className="p-4 border rounded-lg space-y-2 hover:bg-accent/50 transition-colors">
+                  {clasesEnPreparacion.map((clase: any) => <div key={clase.id} className="p-4 border rounded-lg space-y-2 transition-colors">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-sm truncate">{clase.tema_nombre}</p>
