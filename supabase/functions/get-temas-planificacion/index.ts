@@ -142,18 +142,26 @@ Deno.serve(async (req: Request): Promise<Response> => {
         duracion_estimada: tema.duracion_estimada,
         bimestre: tema.bimestre,
         orden: tema.orden,
-        materia: {
-          id: tema.materias?.id,
-          nombre: tema.materias?.nombre,
-          horas_semanales: tema.materias?.horas_semanales,
-          grado: tema.materias?.plan_anual?.grado,
-        },
-        grupo: asignacion?.grupos ? {
-          id: asignacion.grupos.id,
-          nombre: asignacion.grupos.nombre,
-          grado: asignacion.grupos.grado,
-          seccion: asignacion.grupos.seccion,
-        } : null,
+        materia: (() => {
+          const materia = Array.isArray(tema.materias) ? tema.materias[0] : tema.materias;
+          const planAnual = Array.isArray(materia?.plan_anual) ? materia?.plan_anual[0] : materia?.plan_anual;
+          return {
+            id: materia?.id,
+            nombre: materia?.nombre,
+            horas_semanales: materia?.horas_semanales,
+            grado: planAnual?.grado,
+          };
+        })(),
+        grupo: (() => {
+          if (!asignacion?.grupos) return null;
+          const grupo = Array.isArray(asignacion.grupos) ? asignacion.grupos[0] : asignacion.grupos;
+          return {
+            id: grupo?.id,
+            nombre: grupo?.nombre,
+            grado: grupo?.grado,
+            seccion: grupo?.seccion,
+          };
+        })(),
         tiene_guia_maestra: tieneGuia,
         total_sesiones_guia: temasConGuia.get(tema.id)?.total_sesiones || null,
         sesiones_creadas: sesionesPorTema.get(tema.id) || 0,

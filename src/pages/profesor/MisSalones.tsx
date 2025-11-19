@@ -203,7 +203,12 @@ export default function MisSalones() {
           }}
           temaId={temaSeleccionado.temaId}
           guiaTema={temaSeleccionado.guiaTema}
-          gruposDisponibles={[{ id: temaSeleccionado.grupoId }]}
+          gruposDisponibles={temaSeleccionado.grupoId ? [{
+            id: temaSeleccionado.grupoId,
+            nombre: data?.salones?.find((s: any) => s.grupo.id === temaSeleccionado.grupoId)?.grupo.nombre || '',
+            grado: data?.salones?.find((s: any) => s.grupo.id === temaSeleccionado.grupoId)?.grupo.grado || '',
+            seccion: data?.salones?.find((s: any) => s.grupo.id === temaSeleccionado.grupoId)?.grupo.seccion || '',
+          }] : []}
           onSuccess={() => {
             refetch();
             toast({
