@@ -112,10 +112,9 @@ export function EditarGuiaTemaDialog({ open, onOpenChange, guiaTema, temaNombre 
       onOpenChange(false);
     } catch (error: any) {
       console.error('Error actualizando guía:', error);
-      const errorMessage = error.message || error.error?.message || "No se pudo actualizar la guía maestra";
       toast({
         title: "Error",
-        description: errorMessage,
+        description: error.message || "No se pudo actualizar la guía maestra",
         variant: "destructive"
       });
     } finally {
