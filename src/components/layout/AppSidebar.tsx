@@ -1,4 +1,4 @@
-import { Home, Users, BookOpen, FileText, Settings, BarChart3, Calendar, GraduationCap, LogOut, Sparkles, School } from "lucide-react";
+import { Home, Users, BookOpen, FileText, Settings, BarChart3, Calendar, GraduationCap, LogOut, Sparkles } from "lucide-react";
 import { AnimatedSidebar, SidebarBody, SidebarLink, useSidebar } from "@/components/ui/sidebar-animated";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -38,7 +38,6 @@ export function AppSidebar({ role, userName, userEmail }: AppSidebarProps) {
     { title: "Inicio", icon: <Home className="h-5 w-5 flex-shrink-0" />, url: "/profesor/dashboard" },
     { title: "Mi Perfil", icon: <Users className="h-5 w-5 flex-shrink-0" />, url: "/profesor/perfil" },
     { title: "Planificación", icon: <Calendar className="h-5 w-5 flex-shrink-0" />, url: "/profesor/planificacion" },
-    { title: "Mis Salones", icon: <School className="h-5 w-5 flex-shrink-0" />, url: "/profesor/mis-salones" },
     { title: "Generar Clase", icon: <FileText className="h-5 w-5 flex-shrink-0" />, url: "/profesor/generar-clase" },
     { title: "Métricas", icon: <BarChart3 className="h-5 w-5 flex-shrink-0" />, url: "/profesor/metricas" },
     { title: "Capacitación IA", icon: <Sparkles className="h-5 w-5 flex-shrink-0" />, url: "/profesor/capacitacion" },

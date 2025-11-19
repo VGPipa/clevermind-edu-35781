@@ -13,7 +13,6 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { ProgressBar } from "@/components/profesor/ProgressBar";
 import { useQuery } from "@tanstack/react-query";
-import { SeleccionarSesionDialog } from "@/components/profesor/SeleccionarSesionDialog";
 
 const STEPS = [
   { id: 1, label: "Contexto" },
@@ -38,9 +37,7 @@ export default function GenerarClase() {
   const navigate = useNavigate();
   const temaId = searchParams.get('tema');
   const claseIdParam = searchParams.get('clase');
-  const extraordinaria = searchParams.get('extraordinaria') === 'true';
   
-  const [showSeleccionarDialog, setShowSeleccionarDialog] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [isLoadingClase, setIsLoadingClase] = useState(false);
@@ -55,48 +52,6 @@ export default function GenerarClase() {
     duracionClase: "90",
     contextoEspecifico: "",
   });
-
-  // Show selection dialog if no params or if tema doesn't have guía
-  useEffect(() => {
-    if (!claseIdParam && !temaId && !extraordinaria) {
-      setShowSeleccionarDialog(true);
-    } else if (temaId && !extraordinaria) {
-      // Check if tema has guía maestra
-      checkTemaGuia();
-    }
-  }, [claseIdParam, temaId, extraordinaria]);
-
-  const checkTemaGuia = async () => {
-    if (!temaId) return;
-    
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: profesor } = await supabase
-        .from('profesores')
-        .select('id')
-        .eq('user_id', user.id)
-        .single();
-
-      if (!profesor) return;
-
-      const { data: guiaTema } = await supabase
-        .from('guias_tema')
-        .select('id')
-        .eq('id_tema', temaId)
-        .eq('id_profesor', profesor.id)
-        .single();
-
-      if (!guiaTema) {
-        // No tiene guía, redirigir a temas
-        toast.error("Este tema no tiene una guía maestra. Debes crear la guía maestra primero desde la sección de Temas en Planificación.");
-        navigate('/profesor/planificacion');
-      }
-    } catch (error) {
-      console.error('Error checking tema guía:', error);
-    }
-  };
 
   // Fetch tema data if temaId is provided
   const { data: temaData, isLoading: loadingTema } = useQuery({
@@ -597,23 +552,6 @@ export default function GenerarClase() {
       </Card>
     </div>
   );
-
-  // Show selection dialog if needed
-  if (showSeleccionarDialog && !claseIdParam && !temaId && !extraordinaria) {
-    return (
-      <AppLayout>
-        <SeleccionarSesionDialog
-          open={showSeleccionarDialog}
-          onOpenChange={(open) => {
-            setShowSeleccionarDialog(open);
-            if (!open) {
-              navigate('/profesor/dashboard');
-            }
-          }}
-        />
-      </AppLayout>
-    );
-  }
 
   return (
     <AppLayout>

@@ -7,7 +7,6 @@ import { BookOpen, Calendar, CheckCircle2, AlertCircle, TrendingUp } from "lucid
 import { useQuery, QueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { TemaCard } from "@/components/profesor/TemaCard";
-import { TemaListCard } from "@/components/profesor/TemaListCard";
 import { TemaDetailModal } from "@/components/profesor/TemaDetailModal";
 import { IniciarTemaDialog } from "@/components/profesor/IniciarTemaDialog";
 import { StatsCard } from "@/components/profesor/StatsCard";
@@ -16,9 +15,6 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search } from "lucide-react";
 
 interface Tema {
   id: string;
@@ -66,11 +62,6 @@ export default function Planificacion() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isIniciarTemaOpen, setIsIniciarTemaOpen] = useState(false);
   const [temaParaIniciar, setTemaParaIniciar] = useState<any>(null);
-  const [vistaActiva, setVistaActiva] = useState<'materias' | 'temas'>('materias');
-  const [filtroMateria, setFiltroMateria] = useState<string>('todos');
-  const [filtroBimestre, setFiltroBimestre] = useState<string>('todos');
-  const [filtroEstatus, setFiltroEstatus] = useState<string>('todos');
-  const [busqueda, setBusqueda] = useState<string>('');
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['planificacion-profesor'],
@@ -82,22 +73,8 @@ export default function Planificacion() {
     },
   });
 
-  const { data: temasData, isLoading: isLoadingTemas, refetch: refetchTemas } = useQuery({
-    queryKey: ['temas-planificacion'],
-    queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke('get-temas-planificacion');
-      if (error) throw error;
-      return data;
-    },
-    enabled: vistaActiva === 'temas',
-  });
-
   const handleProgramarClase = (temaId: string) => {
-    navigate(`/profesor/planificacion/tema/${temaId}`);
-  };
-
-  const handleVerTema = (temaId: string) => {
-    navigate(`/profesor/planificacion/tema/${temaId}`);
+    navigate(`/profesor/generar-clase?tema=${temaId}`);
   };
 
   const handleIniciarTema = (tema: any) => {
@@ -260,7 +237,7 @@ export default function Planificacion() {
         </div>
 
         {/* Alertas de materias sin temas */}
-        {vistaActiva === 'materias' && data.materias.some((m: Materia) => m.bimestres.every(b => b.temas.length === 0)) && (
+        {data.materias.some((m: Materia) => m.bimestres.every(b => b.temas.length === 0)) && (
           <Card className="border-warning">
             <CardContent className="pt-6">
               <div className="flex items-center gap-2 text-warning">
@@ -276,16 +253,8 @@ export default function Planificacion() {
           </Card>
         )}
 
-        {/* Tabs principales: Materias / Temas */}
-        <Tabs value={vistaActiva} onValueChange={(v) => setVistaActiva(v as 'materias' | 'temas')}>
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="materias">Por Materias</TabsTrigger>
-            <TabsTrigger value="temas">Temas</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="materias" className="space-y-6 mt-6">
-            {/* Subject Selector */}
-            <Card>
+        {/* Subject Selector */}
+        <Card>
           <CardHeader>
             <CardTitle>Selecciona una Materia</CardTitle>
           </CardHeader>
@@ -399,169 +368,6 @@ export default function Planificacion() {
             </Tabs>
           </CardContent>
         </Card>
-          </TabsContent>
-
-          <TabsContent value="temas" className="space-y-6 mt-6">
-            {/* Filtros y búsqueda */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Gestión de Temas</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Búsqueda */}
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Buscar tema por nombre..."
-                    value={busqueda}
-                    onChange={(e) => setBusqueda(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-
-                {/* Filtros */}
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Materia</label>
-                    <Select value={filtroMateria} onValueChange={setFiltroMateria}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Todas" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="todos">Todas las materias</SelectItem>
-                        {data?.materias.map((m) => (
-                          <SelectItem key={m.id} value={m.id}>
-                            {m.nombre}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Bimestre</label>
-                    <Select value={filtroBimestre} onValueChange={setFiltroBimestre}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Todos" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="todos">Todos los bimestres</SelectItem>
-                        <SelectItem value="1">Bimestre I</SelectItem>
-                        <SelectItem value="2">Bimestre II</SelectItem>
-                        <SelectItem value="3">Bimestre III</SelectItem>
-                        <SelectItem value="4">Bimestre IV</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Estatus</label>
-                    <Select value={filtroEstatus} onValueChange={setFiltroEstatus}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Todos" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="todos">Todos los estatus</SelectItem>
-                        <SelectItem value="sin_guia">Sin Guía</SelectItem>
-                        <SelectItem value="con_guia_sin_sesiones">Con Guía Sin Sesiones</SelectItem>
-                        <SelectItem value="con_sesiones">Con Sesiones</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                {/* Estadísticas */}
-                {temasData && (
-                  <div className="grid grid-cols-4 gap-4 pt-4 border-t">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold">{temasData.total || 0}</div>
-                      <p className="text-xs text-muted-foreground">Total Temas</p>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-orange-600">{temasData.sin_guia || 0}</div>
-                      <p className="text-xs text-muted-foreground">Sin Guía</p>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-purple-600">{temasData.con_guia || 0}</div>
-                      <p className="text-xs text-muted-foreground">Con Guía</p>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-green-600">{temasData.con_sesiones || 0}</div>
-                      <p className="text-xs text-muted-foreground">Con Sesiones</p>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Lista de Temas */}
-            {isLoadingTemas ? (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {[1, 2, 3, 4, 5, 6].map((i) => (
-                  <Skeleton key={i} className="h-48" />
-                ))}
-              </div>
-            ) : temasData?.temas && temasData.temas.length > 0 ? (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {temasData.temas
-                  .filter((tema: any) => {
-                    // Filtro por búsqueda
-                    if (busqueda && !tema.nombre.toLowerCase().includes(busqueda.toLowerCase())) {
-                      return false;
-                    }
-                    // Filtro por materia
-                    if (filtroMateria !== 'todos' && tema.materia?.id !== filtroMateria) {
-                      return false;
-                    }
-                    // Filtro por bimestre
-                    if (filtroBimestre !== 'todos' && tema.bimestre.toString() !== filtroBimestre) {
-                      return false;
-                    }
-                    // Filtro por estatus
-                    if (filtroEstatus !== 'todos' && tema.estatus !== filtroEstatus) {
-                      return false;
-                    }
-                    return true;
-                  })
-                  .map((tema: any) => (
-                    <TemaListCard
-                      key={tema.id}
-                      tema={tema}
-                      onIniciarTema={() => {
-                        // Buscar tema completo para iniciar
-                        for (const materia of data.materias) {
-                          for (const bimestre of materia.bimestres) {
-                            const temaCompleto = bimestre.temas.find(t => t.id === tema.id);
-                            if (temaCompleto) {
-                              setTemaParaIniciar({
-                                ...temaCompleto,
-                                materias: {
-                                  horas_semanales: materia.horas_semanales
-                                }
-                              });
-                              setIsIniciarTemaOpen(true);
-                              return;
-                            }
-                          }
-                        }
-                      }}
-                      onVerGuia={() => handleVerTema(tema.id)}
-                      onProgramarSesion={() => handleVerTema(tema.id)}
-                      onVerDetalle={() => handleVerTema(tema.id)}
-                      onVerEnSalones={() => navigate('/profesor/mis-salones')}
-                    />
-                  ))}
-              </div>
-            ) : (
-              <Card>
-                <CardContent className="py-12 text-center">
-                  <BookOpen className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                  <p className="text-muted-foreground">No hay temas disponibles</p>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-        </Tabs>
       </div>
 
       {/* Tema Detail Modal */}
@@ -577,10 +383,7 @@ export default function Planificacion() {
           open={isIniciarTemaOpen}
           onOpenChange={setIsIniciarTemaOpen}
           tema={temaParaIniciar}
-          onSuccess={() => {
-            refetchPlanificacion();
-            refetchTemas();
-          }}
+          onSuccess={refetchPlanificacion}
         />
       )}
     </AppLayout>
