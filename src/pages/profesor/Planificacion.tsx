@@ -4,13 +4,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { BookOpen, Calendar, CheckCircle2, AlertCircle, TrendingUp } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, QueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { TemaCard } from "@/components/profesor/TemaCard";
 import { TemaDetailModal } from "@/components/profesor/TemaDetailModal";
+import { IniciarTemaDialog } from "@/components/profesor/IniciarTemaDialog";
 import { StatsCard } from "@/components/profesor/StatsCard";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
@@ -53,9 +55,13 @@ interface PlanificacionData {
 
 export default function Planificacion() {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const queryClient = new QueryClient();
   const [selectedMateria, setSelectedMateria] = useState<string | null>(null);
   const [selectedTema, setSelectedTema] = useState<Tema | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isIniciarTemaOpen, setIsIniciarTemaOpen] = useState(false);
+  const [temaParaIniciar, setTemaParaIniciar] = useState<any>(null);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['planificacion-profesor'],
@@ -71,6 +77,25 @@ export default function Planificacion() {
     navigate(`/profesor/generar-clase?tema=${temaId}`);
   };
 
+  const handleIniciarTema = (tema: any) => {
+    // Buscar datos completos del tema con materia
+    for (const materia of data.materias) {
+      for (const bimestre of materia.bimestres) {
+        const temaCompleto = bimestre.temas.find(t => t.id === tema.id);
+        if (temaCompleto) {
+          setTemaParaIniciar({
+            ...temaCompleto,
+            materias: {
+              horas_semanales: materia.horas_semanales
+            }
+          });
+          setIsIniciarTemaOpen(true);
+          return;
+        }
+      }
+    }
+  };
+
   const handleVerDetalle = (temaId: string) => {
     // Encontrar el tema completo basado en el ID
     for (const materia of data.materias) {
@@ -83,6 +108,10 @@ export default function Planificacion() {
         }
       }
     }
+  };
+
+  const refetchPlanificacion = async () => {
+    await queryClient.invalidateQueries({ queryKey: ['planificacion-profesor'] });
   };
 
   if (isLoading) {
@@ -319,6 +348,7 @@ export default function Planificacion() {
                                     tema={tema}
                                     onProgramarClase={handleProgramarClase}
                                     onVerDetalle={handleVerDetalle}
+                                    onIniciarTema={handleIniciarTema}
                                   />
                                 ))}
                               </div>
@@ -346,6 +376,16 @@ export default function Planificacion() {
         onClose={() => setIsModalOpen(false)}
         tema={selectedTema}
       />
+
+      {/* Iniciar Tema Dialog */}
+      {temaParaIniciar && (
+        <IniciarTemaDialog
+          open={isIniciarTemaOpen}
+          onOpenChange={setIsIniciarTemaOpen}
+          tema={temaParaIniciar}
+          onSuccess={refetchPlanificacion}
+        />
+      )}
     </AppLayout>
   );
 }

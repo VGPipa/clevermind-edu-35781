@@ -2,7 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { CheckCircle2, Circle, Clock, Calendar } from "lucide-react";
+import { CheckCircle2, Circle, Clock, Calendar, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface TemaCardProps {
@@ -17,12 +17,14 @@ interface TemaCardProps {
     clases_ejecutadas: number;
     progreso: number;
     es_modificado: boolean;
+    tiene_guia_maestra?: boolean;
   };
   onProgramarClase: (temaId: string) => void;
   onVerDetalle: (temaId: string) => void;
+  onIniciarTema?: (tema: any) => void;
 }
 
-export function TemaCard({ tema, onProgramarClase, onVerDetalle }: TemaCardProps) {
+export function TemaCard({ tema, onProgramarClase, onVerDetalle, onIniciarTema }: TemaCardProps) {
   const getEstadoIcon = () => {
     switch (tema.estado) {
       case 'completado':
@@ -64,6 +66,12 @@ export function TemaCard({ tema, onProgramarClase, onVerDetalle }: TemaCardProps
           </div>
           <div className="flex flex-col gap-1 items-end">
             {getEstadoBadge()}
+            {tema.tiene_guia_maestra && (
+              <Badge variant="outline" className="text-xs bg-purple-500 text-white border-purple-500">
+                <BookOpen className="h-3 w-3 mr-1" />
+                Guía Maestra
+              </Badge>
+            )}
             {tema.es_modificado && (
               <Badge variant="outline" className="text-xs">Modificado</Badge>
             )}
@@ -87,16 +95,31 @@ export function TemaCard({ tema, onProgramarClase, onVerDetalle }: TemaCardProps
           </span>
         </div>
 
-        <Button 
-          size="sm" 
-          className="w-full"
-          onClick={(e) => {
-            e.stopPropagation();
-            onProgramarClase(tema.id);
-          }}
-        >
-          Programar Clase
-        </Button>
+        {tema.tiene_guia_maestra ? (
+          <Button 
+            size="sm" 
+            className="w-full"
+            onClick={(e) => {
+              e.stopPropagation();
+              onProgramarClase(tema.id);
+            }}
+          >
+            Programar Sesión
+          </Button>
+        ) : (
+          <Button 
+            size="sm" 
+            variant="outline"
+            className="w-full"
+            onClick={(e) => {
+              e.stopPropagation();
+              onIniciarTema?.(tema);
+            }}
+          >
+            <BookOpen className="h-4 w-4 mr-1" />
+            Iniciar Tema
+          </Button>
+        )}
       </CardContent>
     </Card>
   );
