@@ -199,7 +199,7 @@ export default function ProfesorDashboard() {
             </p>
           </div>
           <div className="flex items-center gap-4">
-            <Button onClick={() => navigate("/profesor/generar-clase")} size="lg">
+            <Button onClick={() => navigate("/profesor/generar-clase")} size="lg" variant="action">
               <Sparkles className="mr-2 h-5 w-5" />
               Nueva Clase con IA
             </Button>

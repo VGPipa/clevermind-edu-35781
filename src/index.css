@@ -32,6 +32,10 @@ All colors MUST be HSL.
     /* Accent: Orange */
     --accent: 25 95% 53%;
     --accent-foreground: 0 0% 100%;
+
+    /* Action Button: Intense Orange */
+    --action: 14 100% 57%;
+    --action-foreground: 0 0% 100%;
     
     --muted: 240 5% 96%;
     --muted-foreground: 240 4% 46%;
@@ -103,6 +107,10 @@ All colors MUST be HSL.
 
     --accent: 35 100% 50%;
     --accent-foreground: 0 0% 100%;
+
+    /* Action Button: Intense Orange */
+    --action: 14 100% 57%;
+    --action-foreground: 0 0% 100%;
 
     --muted: 258 48% 25%;
     --muted-foreground: 240 5% 65%;
