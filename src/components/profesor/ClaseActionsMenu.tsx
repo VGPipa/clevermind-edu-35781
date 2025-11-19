@@ -19,14 +19,14 @@ export const ClaseActionsMenu = ({ clase }: ClaseActionsMenuProps) => {
           label: 'Continuar',
           onClick: () => navigate(`/profesor/generar-clase?clase=${clase.id}`),
           icon: FileText,
-          variant: 'default' as const,
+          variant: 'action' as const,
         };
       case 'editando_guia':
         return {
           label: 'Editar guía',
           onClick: () => navigate(`/profesor/editar-guia/${clase.id}`),
           icon: FileText,
-          variant: 'default' as const,
+          variant: 'action' as const,
         };
       case 'guia_aprobada':
       case 'quiz_pre_generando':

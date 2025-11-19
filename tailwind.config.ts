@@ -42,6 +42,10 @@ export default {
           DEFAULT: "hsl(var(--accent))",
           foreground: "hsl(var(--accent-foreground))",
         },
+        action: {
+          DEFAULT: "hsl(var(--action))",
+          foreground: "hsl(var(--action-foreground))",
+        },
         success: {
           DEFAULT: "hsl(var(--success))",
           foreground: "hsl(var(--success-foreground))",
