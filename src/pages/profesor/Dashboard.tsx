@@ -430,77 +430,84 @@ export default function ProfesorDashboard() {
                 Clases programadas, en curso y completadas
               </CardDescription>
               
-              {/* Filtro de tiempo */}
-              <div className="mt-4 space-y-3">
-                <div className="flex gap-2 flex-wrap">
-                  <Button
-                    variant={timeFilterType === "semana_pasada" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setTimeFilterType("semana_pasada")}
-                  >
-                    Semana pasada
-                  </Button>
-                  <Button
-                    variant={timeFilterType === "semana_actual" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setTimeFilterType("semana_actual")}
-                  >
-                    Semana actual
-                  </Button>
-                  <Button
-                    variant={timeFilterType === "semana_proxima" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setTimeFilterType("semana_proxima")}
-                  >
-                    Semana próxima
-                  </Button>
-                  <Button
-                    variant={timeFilterType === "todos" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setTimeFilterType("todos")}
-                  >
-                    Todas
-                  </Button>
-                </div>
-                
-                {/* Selector de rango personalizado */}
+              {/* Filtro de tiempo - Trigger */}
+              <div className="mt-4 flex gap-2">
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button
-                      variant={timeFilterType === "personalizado" ? "default" : "outline"}
-                      size="sm"
-                      className="w-full justify-start text-left font-normal"
-                    >
+                    <Button variant="outline" className="flex-1 justify-start">
                       <Calendar className="mr-2 h-4 w-4" />
-                      {customDateRange?.from ? (
-                        customDateRange.to ? (
-                          <>
-                            {format(customDateRange.from, "d MMM", { locale: es })} -{" "}
-                            {format(customDateRange.to, "d MMM", { locale: es })}
-                          </>
-                        ) : (
-                          format(customDateRange.from, "d MMM", { locale: es })
-                        )
-                      ) : (
-                        <span>Seleccionar rango personalizado</span>
-                      )}
+                      Seleccionar fechas
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <CalendarComponent
-                      mode="range"
-                      selected={customDateRange}
-                      onSelect={(range) => {
-                        setCustomDateRange(range);
-                        if (range?.from) {
-                          setTimeFilterType("personalizado");
-                        }
-                      }}
-                      numberOfMonths={2}
-                      locale={es}
-                    />
+                  <PopoverContent className="w-auto p-4 bg-background z-50" align="start">
+                    <div className="space-y-4">
+                      {/* Filtros rápidos */}
+                      <div>
+                        <h4 className="font-medium mb-3">Filtros rápidos</h4>
+                        <div className="flex gap-2 flex-wrap">
+                          <Button
+                            variant={timeFilterType === "semana_pasada" ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setTimeFilterType("semana_pasada")}
+                          >
+                            Semana pasada
+                          </Button>
+                          <Button
+                            variant={timeFilterType === "semana_actual" ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setTimeFilterType("semana_actual")}
+                          >
+                            Semana actual
+                          </Button>
+                          <Button
+                            variant={timeFilterType === "semana_proxima" ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setTimeFilterType("semana_proxima")}
+                          >
+                            Semana próxima
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      {/* Rango personalizado */}
+                      <div>
+                        <h4 className="font-medium mb-3">Rango personalizado</h4>
+                        <CalendarComponent
+                          mode="range"
+                          selected={customDateRange}
+                          onSelect={(range) => {
+                            setCustomDateRange(range);
+                            if (range?.from) {
+                              setTimeFilterType("personalizado");
+                            }
+                          }}
+                          numberOfMonths={2}
+                          locale={es}
+                          className="pointer-events-auto"
+                        />
+                      </div>
+                    </div>
                   </PopoverContent>
                 </Popover>
+                
+                <Select value={timeFilterType} onValueChange={setTimeFilterType}>
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Filtro" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background z-50">
+                    <SelectItem value="todos">Todos</SelectItem>
+                    <SelectItem value="semana_pasada">Semana pasada</SelectItem>
+                    <SelectItem value="semana_actual">Semana actual</SelectItem>
+                    <SelectItem value="semana_proxima">Semana próxima</SelectItem>
+                    {customDateRange?.from && (
+                      <SelectItem value="personalizado">
+                        {customDateRange.to
+                          ? `${format(customDateRange.from, "d MMM", { locale: es })} - ${format(customDateRange.to, "d MMM", { locale: es })}`
+                          : format(customDateRange.from, "d MMM", { locale: es })}
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
               </div>
             </CardHeader>
             <CardContent>
