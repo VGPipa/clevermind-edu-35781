@@ -2,18 +2,21 @@ import { useMemo, ReactNode, useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BookOpen, Users, GraduationCap, TrendingUp, Clock, Sparkles, Calendar, CheckCircle2, Brain } from "lucide-react";
+import { BookOpen, Users, GraduationCap, TrendingUp, Clock, Sparkles, Calendar, CheckCircle2, Brain, ChevronLeft, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { StatsCard } from "@/components/profesor/StatsCard";
 import { FechaSelector } from "@/components/profesor/FechaSelector";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
-import { format } from "date-fns";
+import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, isWithinInterval, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ClaseActionsMenu } from "@/components/profesor/ClaseActionsMenu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import type { DateRange } from "react-day-picker";
 export default function ProfesorDashboard() {
   const navigate = useNavigate();
   const [fechaReferencia, setFechaReferencia] = useState<string>(() => {
@@ -21,6 +24,9 @@ export default function ProfesorDashboard() {
   });
   const [cursoFilter, setCursoFilter] = useState<string>("todos");
   const [salonFilter, setSalonFilter] = useState<string>("todos");
+  const [statusFilter, setStatusFilter] = useState<string>("todos");
+  const [timeFilterType, setTimeFilterType] = useState<string>("semana_actual");
+  const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>();
   const {
     data: dashboardData,
     isLoading
@@ -134,6 +140,18 @@ export default function ProfesorDashboard() {
     };
   };
 
+  // Función para categorizar estado de preparación (frontend)
+  const getPreparacionCategory = (estado: string): string => {
+    const guiaPendiente = ['borrador', 'generando_clase', 'editando_guia'];
+    const evalPrePendiente = ['guia_aprobada', 'quiz_pre_generando'];
+    const evalPostPendiente = ['quiz_pre_enviado', 'analizando_quiz_pre', 'modificando_guia', 'guia_final', 'quiz_post_generando'];
+    
+    if (guiaPendiente.includes(estado)) return 'guia_pendiente';
+    if (evalPrePendiente.includes(estado)) return 'eval_pre_pendiente';
+    if (evalPostPendiente.includes(estado)) return 'eval_post_pendiente';
+    return 'otros';
+  };
+
   // Separar clases en 2 bloques principales
   // Obtener lista única de cursos y salones
   const cursosDisponibles = useMemo(() => {
@@ -177,12 +195,18 @@ export default function ProfesorDashboard() {
     if (salonFilter !== "todos") {
       clases = clases.filter((clase: any) => clase.grupo_nombre === salonFilter);
     }
+
+    // Aplicar filtro de estatus
+    if (statusFilter !== "todos") {
+      clases = clases.filter((clase: any) => getPreparacionCategory(clase.estado) === statusFilter);
+    }
+
     return clases.map((clase: any) => ({
       ...clase,
       estado_label: getClaseStage(clase.estado).label,
       estado_variant: getClaseStage(clase.estado).variant
     }));
-  }, [dashboardData, cursoFilter, salonFilter]);
+  }, [dashboardData, cursoFilter, salonFilter, statusFilter]);
   const clasesCalendario = useMemo(() => {
     if (!dashboardData?.clases_listas) return [];
     let clases = dashboardData.clases_listas;
@@ -196,6 +220,39 @@ export default function ProfesorDashboard() {
     if (salonFilter !== "todos") {
       clases = clases.filter((clase: any) => clase.grupo_nombre === salonFilter);
     }
+
+    // Aplicar filtro de tiempo
+    if (timeFilterType !== "todos") {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      let startDate: Date;
+      let endDate: Date;
+
+      if (timeFilterType === "semana_pasada") {
+        startDate = startOfWeek(subWeeks(today, 1), { weekStartsOn: 1 });
+        endDate = endOfWeek(subWeeks(today, 1), { weekStartsOn: 1 });
+      } else if (timeFilterType === "semana_actual") {
+        startDate = startOfWeek(today, { weekStartsOn: 1 });
+        endDate = endOfWeek(today, { weekStartsOn: 1 });
+      } else if (timeFilterType === "semana_proxima") {
+        startDate = startOfWeek(addWeeks(today, 1), { weekStartsOn: 1 });
+        endDate = endOfWeek(addWeeks(today, 1), { weekStartsOn: 1 });
+      } else if (timeFilterType === "personalizado" && customDateRange?.from) {
+        startDate = customDateRange.from;
+        endDate = customDateRange.to || customDateRange.from;
+      } else {
+        startDate = today;
+        endDate = today;
+      }
+
+      clases = clases.filter((clase: any) => {
+        if (!clase.fecha_programada) return false;
+        const claseDate = parseISO(clase.fecha_programada.split('T')[0]);
+        return isWithinInterval(claseDate, { start: startDate, end: endDate });
+      });
+    }
+
     return clases.map((clase: any) => ({
       ...clase,
       estado_label: getClaseStage(clase.estado).label,
@@ -205,7 +262,7 @@ export default function ProfesorDashboard() {
       if (!b.fecha_programada) return -1;
       return new Date(a.fecha_programada).getTime() - new Date(b.fecha_programada).getTime();
     });
-  }, [dashboardData, cursoFilter, salonFilter]);
+  }, [dashboardData, cursoFilter, salonFilter, timeFilterType, customDateRange]);
 
   // Agrupar clases del calendario por categorías temporales
   const groupedCalendario = useMemo(() => {
@@ -326,6 +383,21 @@ export default function ProfesorDashboard() {
               <CardDescription>
                 Clases que necesitan tu atención antes de ser dictadas
               </CardDescription>
+              
+              {/* Filtro de estatus */}
+              <div className="mt-4">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Filtrar por estatus" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos los estatus</SelectItem>
+                    <SelectItem value="guia_pendiente">Guía pendiente</SelectItem>
+                    <SelectItem value="eval_pre_pendiente">Evaluación Pre pendiente</SelectItem>
+                    <SelectItem value="eval_post_pendiente">Evaluación Post pendiente</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </CardHeader>
             <CardContent>
               {clasesEnPreparacion.length > 0 ? <div className="space-y-3">
@@ -357,6 +429,79 @@ export default function ProfesorDashboard() {
               <CardDescription>
                 Clases programadas, en curso y completadas
               </CardDescription>
+              
+              {/* Filtro de tiempo */}
+              <div className="mt-4 space-y-3">
+                <div className="flex gap-2 flex-wrap">
+                  <Button
+                    variant={timeFilterType === "semana_pasada" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setTimeFilterType("semana_pasada")}
+                  >
+                    Semana pasada
+                  </Button>
+                  <Button
+                    variant={timeFilterType === "semana_actual" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setTimeFilterType("semana_actual")}
+                  >
+                    Semana actual
+                  </Button>
+                  <Button
+                    variant={timeFilterType === "semana_proxima" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setTimeFilterType("semana_proxima")}
+                  >
+                    Semana próxima
+                  </Button>
+                  <Button
+                    variant={timeFilterType === "todos" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setTimeFilterType("todos")}
+                  >
+                    Todas
+                  </Button>
+                </div>
+                
+                {/* Selector de rango personalizado */}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={timeFilterType === "personalizado" ? "default" : "outline"}
+                      size="sm"
+                      className="w-full justify-start text-left font-normal"
+                    >
+                      <Calendar className="mr-2 h-4 w-4" />
+                      {customDateRange?.from ? (
+                        customDateRange.to ? (
+                          <>
+                            {format(customDateRange.from, "d MMM", { locale: es })} -{" "}
+                            {format(customDateRange.to, "d MMM", { locale: es })}
+                          </>
+                        ) : (
+                          format(customDateRange.from, "d MMM", { locale: es })
+                        )
+                      ) : (
+                        <span>Seleccionar rango personalizado</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="range"
+                      selected={customDateRange}
+                      onSelect={(range) => {
+                        setCustomDateRange(range);
+                        if (range?.from) {
+                          setTimeFilterType("personalizado");
+                        }
+                      }}
+                      numberOfMonths={2}
+                      locale={es}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
             </CardHeader>
             <CardContent>
               {clasesCalendario.length > 0 ? <div className="space-y-4">
