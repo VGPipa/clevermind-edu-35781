@@ -150,7 +150,6 @@ export default function ProfesorDashboard() {
     });
     return Array.from(cursos).sort();
   }, [dashboardData]);
-
   const salonesDisponibles = useMemo(() => {
     const salones = new Set<string>();
     dashboardData?.clases_pendientes?.forEach((clase: any) => {
@@ -165,25 +164,19 @@ export default function ProfesorDashboard() {
     });
     return Array.from(salones).sort();
   }, [dashboardData]);
-
   const clasesEnPreparacion = useMemo(() => {
     if (!dashboardData?.clases_pendientes) return [];
     let clases = dashboardData.clases_pendientes;
-    
+
     // Aplicar filtro de curso
     if (cursoFilter !== "todos") {
-      clases = clases.filter((clase: any) => 
-        `${clase.materia_nombre} - ${clase.grupo_nombre}` === cursoFilter
-      );
+      clases = clases.filter((clase: any) => `${clase.materia_nombre} - ${clase.grupo_nombre}` === cursoFilter);
     }
-    
+
     // Aplicar filtro de salón
     if (salonFilter !== "todos") {
-      clases = clases.filter((clase: any) => 
-        clase.grupo_nombre === salonFilter
-      );
+      clases = clases.filter((clase: any) => clase.grupo_nombre === salonFilter);
     }
-    
     return clases.map((clase: any) => ({
       ...clase,
       estado_label: getClaseStage(clase.estado).label,
@@ -193,21 +186,16 @@ export default function ProfesorDashboard() {
   const clasesCalendario = useMemo(() => {
     if (!dashboardData?.clases_listas) return [];
     let clases = dashboardData.clases_listas;
-    
+
     // Aplicar filtro de curso
     if (cursoFilter !== "todos") {
-      clases = clases.filter((clase: any) => 
-        `${clase.materia_nombre} - ${clase.grupo_nombre}` === cursoFilter
-      );
+      clases = clases.filter((clase: any) => `${clase.materia_nombre} - ${clase.grupo_nombre}` === cursoFilter);
     }
-    
+
     // Aplicar filtro de salón
     if (salonFilter !== "todos") {
-      clases = clases.filter((clase: any) => 
-        clase.grupo_nombre === salonFilter
-      );
+      clases = clases.filter((clase: any) => clase.grupo_nombre === salonFilter);
     }
-    
     return clases.map((clase: any) => ({
       ...clase,
       estado_label: getClaseStage(clase.estado).label,
@@ -308,11 +296,9 @@ export default function ProfesorDashboard() {
                 </SelectTrigger>
                 <SelectContent className="bg-card z-50">
                   <SelectItem value="todos">Todos los cursos</SelectItem>
-                  {cursosDisponibles.map((curso) => (
-                    <SelectItem key={curso} value={curso}>
+                  {cursosDisponibles.map(curso => <SelectItem key={curso} value={curso}>
                       {curso}
-                    </SelectItem>
-                  ))}
+                    </SelectItem>)}
                 </SelectContent>
               </Select>
               
@@ -322,11 +308,9 @@ export default function ProfesorDashboard() {
                 </SelectTrigger>
                 <SelectContent className="bg-card z-50">
                   <SelectItem value="todos">Todos los salones</SelectItem>
-                  {salonesDisponibles.map((salon) => (
-                    <SelectItem key={salon} value={salon}>
+                  {salonesDisponibles.map(salon => <SelectItem key={salon} value={salon}>
                       {salon}
-                    </SelectItem>
-                  ))}
+                    </SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -335,8 +319,7 @@ export default function ProfesorDashboard() {
           {/* Bloque 1: Clases en Preparación */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5 text-orange-500" />
+              <CardTitle className="flex items-center gap-2">En preparación<Clock className="h-5 w-5 text-orange-500" />
                 Clases en Preparación
               </CardTitle>
               <CardDescription>
@@ -366,8 +349,7 @@ export default function ProfesorDashboard() {
           {/* Bloque 2: Calendario de Clases */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-orange-500" />
+              <CardTitle className="flex items-center gap-2">Programadas<Calendar className="h-5 w-5 text-orange-500" />
                 Calendario de Clases
               </CardTitle>
               <CardDescription>
