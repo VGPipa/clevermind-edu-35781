@@ -20,6 +20,7 @@ export default function ProfesorDashboard() {
     return new Date().toISOString().split('T')[0];
   });
   const [cursoFilter, setCursoFilter] = useState<string>("todos");
+  const [salonFilter, setSalonFilter] = useState<string>("todos");
   const {
     data: dashboardData,
     isLoading
@@ -134,7 +135,7 @@ export default function ProfesorDashboard() {
   };
 
   // Separar clases en 2 bloques principales
-  // Obtener lista única de cursos
+  // Obtener lista única de cursos y salones
   const cursosDisponibles = useMemo(() => {
     const cursos = new Set<string>();
     dashboardData?.clases_pendientes?.forEach((clase: any) => {
@@ -150,6 +151,21 @@ export default function ProfesorDashboard() {
     return Array.from(cursos).sort();
   }, [dashboardData]);
 
+  const salonesDisponibles = useMemo(() => {
+    const salones = new Set<string>();
+    dashboardData?.clases_pendientes?.forEach((clase: any) => {
+      if (clase.grupo_nombre) {
+        salones.add(clase.grupo_nombre);
+      }
+    });
+    dashboardData?.clases_listas?.forEach((clase: any) => {
+      if (clase.grupo_nombre) {
+        salones.add(clase.grupo_nombre);
+      }
+    });
+    return Array.from(salones).sort();
+  }, [dashboardData]);
+
   const clasesEnPreparacion = useMemo(() => {
     if (!dashboardData?.clases_pendientes) return [];
     let clases = dashboardData.clases_pendientes;
@@ -161,12 +177,19 @@ export default function ProfesorDashboard() {
       );
     }
     
+    // Aplicar filtro de salón
+    if (salonFilter !== "todos") {
+      clases = clases.filter((clase: any) => 
+        clase.grupo_nombre === salonFilter
+      );
+    }
+    
     return clases.map((clase: any) => ({
       ...clase,
       estado_label: getClaseStage(clase.estado).label,
       estado_variant: getClaseStage(clase.estado).variant
     }));
-  }, [dashboardData, cursoFilter]);
+  }, [dashboardData, cursoFilter, salonFilter]);
   const clasesCalendario = useMemo(() => {
     if (!dashboardData?.clases_listas) return [];
     let clases = dashboardData.clases_listas;
@@ -175,6 +198,13 @@ export default function ProfesorDashboard() {
     if (cursoFilter !== "todos") {
       clases = clases.filter((clase: any) => 
         `${clase.materia_nombre} - ${clase.grupo_nombre}` === cursoFilter
+      );
+    }
+    
+    // Aplicar filtro de salón
+    if (salonFilter !== "todos") {
+      clases = clases.filter((clase: any) => 
+        clase.grupo_nombre === salonFilter
       );
     }
     
@@ -187,7 +217,7 @@ export default function ProfesorDashboard() {
       if (!b.fecha_programada) return -1;
       return new Date(a.fecha_programada).getTime() - new Date(b.fecha_programada).getTime();
     });
-  }, [dashboardData, cursoFilter]);
+  }, [dashboardData, cursoFilter, salonFilter]);
 
   // Agrupar clases del calendario por categorías temporales
   const groupedCalendario = useMemo(() => {
@@ -271,19 +301,35 @@ export default function ProfesorDashboard() {
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-bold">Estatus de Clases</h2>
-            <Select value={cursoFilter} onValueChange={setCursoFilter}>
-              <SelectTrigger className="w-[280px]">
-                <SelectValue placeholder="Filtrar por curso" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos los cursos</SelectItem>
-                {cursosDisponibles.map((curso) => (
-                  <SelectItem key={curso} value={curso}>
-                    {curso}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex gap-3">
+              <Select value={cursoFilter} onValueChange={setCursoFilter}>
+                <SelectTrigger className="w-[280px]">
+                  <SelectValue placeholder="Filtrar por curso" />
+                </SelectTrigger>
+                <SelectContent className="bg-card z-50">
+                  <SelectItem value="todos">Todos los cursos</SelectItem>
+                  {cursosDisponibles.map((curso) => (
+                    <SelectItem key={curso} value={curso}>
+                      {curso}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              <Select value={salonFilter} onValueChange={setSalonFilter}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Filtrar por salón" />
+                </SelectTrigger>
+                <SelectContent className="bg-card z-50">
+                  <SelectItem value="todos">Todos los salones</SelectItem>
+                  {salonesDisponibles.map((salon) => (
+                    <SelectItem key={salon} value={salon}>
+                      {salon}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Bloque 1: Clases en Preparación */}
