@@ -29,3 +29,15 @@ verify_jwt = true
 
 [functions.get-mis-temas]
 verify_jwt = true
+
+[functions.get-temas-planificacion]
+verify_jwt = true
+
+[functions.get-tema-detalle]
+verify_jwt = true
+
+[functions.get-mis-salones]
+verify_jwt = true
+
+[functions.get-sesiones-pendientes]
+verify_jwt = true
