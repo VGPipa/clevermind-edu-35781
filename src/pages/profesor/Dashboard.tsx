@@ -62,11 +62,11 @@ export default function ProfesorDashboard() {
   const getClaseStage = (estado: string) => {
     const estadoMap: Record<string, {
       label: string;
-      variant: "default" | "secondary" | "destructive" | "outline";
+      variant: "default" | "secondary" | "destructive" | "outline" | "neutral";
     }> = {
       'borrador': {
         label: "Borrador",
-        variant: "outline"
+        variant: "neutral"
       },
       'generando_clase': {
         label: "Generando clase",
@@ -74,7 +74,7 @@ export default function ProfesorDashboard() {
       },
       'editando_guia': {
         label: "Editando guía",
-        variant: "secondary"
+        variant: "neutral"
       },
       'guia_aprobada': {
         label: "Guía aprobada",
