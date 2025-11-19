@@ -184,7 +184,7 @@ export const SidebarLink = ({
         animate && !open ? "justify-center px-0" : "justify-start px-2",
         isActive 
           ? "bg-white/20 border-l-4 border-white text-white font-semibold" 
-          : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+          : "text-sidebar-foreground hover:bg-white/10 hover:text-white",
         className
       )}
     >
