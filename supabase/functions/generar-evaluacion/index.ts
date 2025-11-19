@@ -125,7 +125,7 @@ Responde en formato JSON:
       responseFormat: 'json_object',
       temperature: 0.7,
       maxTokens: 2000,
-    });
+      });
 
     const questionsData = parseAIJSON<{
       preguntas: Array<{
@@ -145,7 +145,7 @@ Responde en formato JSON:
       // Adjust to valid range for post
       if (numPreguntas < 5) {
         return createErrorResponse('El quiz post debe tener al menos 5 preguntas', 400);
-      }
+    }
       questionsData.preguntas = questionsData.preguntas.slice(0, 10);
     }
 
@@ -191,7 +191,7 @@ Responde en formato JSON:
     }
 
     return createSuccessResponse({ 
-      quiz_id: quiz.id,
+        quiz_id: quiz.id,
       preguntas: questionsData.preguntas,
       tiempo_limite: tiempoLimite,
       max_preguntas: maxPreguntas,

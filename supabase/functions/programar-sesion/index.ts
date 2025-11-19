@@ -76,7 +76,9 @@ serve(async (req) => {
       .single();
 
     if (!guiaTema) {
-      return new Response(JSON.stringify({ error: 'Guía maestra no encontrada. Primero debes iniciar el tema.' }), {
+      return new Response(JSON.stringify({ 
+        error: 'Guía maestra no encontrada. Primero debes crear la guía maestra del tema desde la página de Planificación haciendo clic en "Iniciar Tema".' 
+      }), {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });

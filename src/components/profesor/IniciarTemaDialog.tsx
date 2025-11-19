@@ -8,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, BookOpen } from "lucide-react";
+import { EditarGuiaTemaDialog } from "./EditarGuiaTemaDialog";
 
 interface IniciarTemaDialogProps {
   open: boolean;
@@ -37,11 +38,21 @@ const METODOLOGIAS = [
 export function IniciarTemaDialog({ open, onOpenChange, tema, onSuccess }: IniciarTemaDialogProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [totalSesiones, setTotalSesiones] = useState(
-    tema.duracion_estimada ? Math.ceil(tema.duracion_estimada / (tema.materias.horas_semanales / 2)) : 8
-  );
+  
+  // Calcular sesiones sugeridas: duracion_estimada (semanas) × horas_semanales = total horas
+  // Asumiendo ~2 horas por sesión como estándar
+  const calcularSesionesSugeridas = () => {
+    if (!tema.duracion_estimada || !tema.materias.horas_semanales) return 8;
+    const totalHoras = tema.duracion_estimada * tema.materias.horas_semanales;
+    const horasPorSesion = 2; // Estándar de 2 horas por sesión
+    return Math.ceil(totalHoras / horasPorSesion);
+  };
+  
+  const [totalSesiones, setTotalSesiones] = useState(calcularSesionesSugeridas());
   const [contextoGrupo, setContextoGrupo] = useState("");
   const [metodologias, setMetodologias] = useState<string[]>([]);
+  const [guiaCreada, setGuiaCreada] = useState<any>(null);
+  const [mostrarEdicion, setMostrarEdicion] = useState(false);
 
   const handleSubmit = async () => {
     if (!totalSesiones || totalSesiones < 1) {
@@ -76,13 +87,29 @@ export function IniciarTemaDialog({ open, onOpenChange, tema, onSuccess }: Inici
 
       if (error) throw error;
 
-      toast({
-        title: "¡Guía maestra generada!",
-        description: `Se ha creado la guía maestra para "${tema.nombre}" con ${totalSesiones} sesiones programadas.`,
-      });
+      // Si ya existe una guía, mostrar mensaje y abrir edición
+      if (data.guia_existente) {
+        toast({
+          title: "Guía maestra existente",
+          description: data.mensaje || "Ya existe una guía maestra para este tema.",
+        });
+        setGuiaCreada(data.guia_tema);
+        setMostrarEdicion(true);
+        return;
+      }
 
-      onOpenChange(false);
-      onSuccess();
+      // Si se creó exitosamente, mostrar preview/edición
+      if (data.guia_tema) {
+        toast({
+          title: "¡Guía maestra generada!",
+          description: `Se ha creado la guía maestra para "${tema.nombre}" con ${totalSesiones} sesiones programadas.`,
+        });
+        setGuiaCreada(data.guia_tema);
+        setMostrarEdicion(true);
+      } else {
+        onOpenChange(false);
+        onSuccess();
+      }
     } catch (error: any) {
       console.error('Error iniciando tema:', error);
       toast({
@@ -120,8 +147,14 @@ export function IniciarTemaDialog({ open, onOpenChange, tema, onSuccess }: Inici
               disabled={loading}
             />
             <p className="text-sm text-muted-foreground">
-              Sugerido: {Math.ceil((tema.duracion_estimada || 0) / (tema.materias.horas_semanales / 2))} sesiones 
-              ({tema.duracion_estimada} hrs ÷ {tema.materias.horas_semanales / 2} hrs/sesión)
+              {tema.duracion_estimada && tema.materias.horas_semanales ? (
+                <>
+                  Sugerido: {calcularSesionesSugeridas()} sesiones 
+                  ({(tema.duracion_estimada * tema.materias.horas_semanales)} horas totales ÷ 2 horas/sesión)
+                </>
+              ) : (
+                'Ingresa el número de sesiones para este tema'
+              )}
             </p>
           </div>
 
@@ -180,6 +213,23 @@ export function IniciarTemaDialog({ open, onOpenChange, tema, onSuccess }: Inici
           </div>
         </div>
       </DialogContent>
+
+      {/* Diálogo de edición */}
+      {guiaCreada && (
+        <EditarGuiaTemaDialog
+          open={mostrarEdicion}
+          onOpenChange={(open) => {
+            setMostrarEdicion(open);
+            if (!open) {
+              // Si se cierra el diálogo de edición, cerrar también el de iniciar tema
+              onOpenChange(false);
+              onSuccess();
+            }
+          }}
+          guiaTema={guiaCreada}
+          temaNombre={tema.nombre}
+        />
+      )}
     </Dialog>
   );
 }

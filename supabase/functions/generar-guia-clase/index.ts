@@ -44,6 +44,14 @@ Deno.serve(async (req) => {
       return createErrorResponse('Clase no encontrada o no autorizada', 404);
     }
 
+    // Verificar que la clase tenga guía maestra asociada
+    if (!clase.id_guia_tema) {
+      return createErrorResponse(
+        'Esta clase no tiene una guía maestra asociada. Debes crear la guía maestra del tema primero desde la página de Planificación.',
+        400
+      );
+    }
+
     // Get existing versions to determine next version number
     const { data: existingVersions } = await supabase
       .from('guias_clase_versiones')

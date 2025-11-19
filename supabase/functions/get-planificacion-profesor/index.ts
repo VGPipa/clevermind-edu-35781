@@ -82,6 +82,16 @@ Deno.serve(async (req: Request): Promise<Response> => {
           console.error('Error al obtener clases:', clasesError);
         }
 
+        // Obtener guías maestras del profesor para estos temas
+        const temaIds = (temas || []).map(t => t.id);
+        const { data: guiasTema } = await supabase
+          .from('guias_tema')
+          .select('id_tema')
+          .eq('id_profesor', profesor.id)
+          .in('id_tema', temaIds.length > 0 ? temaIds : ['00000000-0000-0000-0000-000000000000']); // Evitar error con array vacío
+
+        const temasConGuia = new Set(guiasTema?.map(g => g.id_tema) || []);
+
         // Organize temas by bimestre and calculate progress
         const bimestres = [
           { numero: 1, nombre: 'Bimestre I', periodo: 'Marzo - Mayo', temas: [] as any[] },
@@ -117,6 +127,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
             clases_ejecutadas: clasesEjecutadas,
             progreso,
             es_modificado: tema.tema_base_id !== null,
+            tiene_guia_maestra: temasConGuia.has(tema.id),
           });
         });
 
