@@ -119,6 +119,23 @@ Deno.serve(async (req: Request): Promise<Response> => {
                 id,
                 nombre
               )
+            ),
+            quizzes (
+              id,
+              tipo,
+              estado,
+              created_at,
+              fecha_envio,
+              respuestas_alumno (
+                id,
+                id_alumno,
+                estado,
+                fecha_envio,
+                calificaciones (
+                  nota_numerica,
+                  porcentaje_aciertos
+                )
+              )
             )
           `)
           .eq('id_profesor', profesor.id)
@@ -178,12 +195,251 @@ Deno.serve(async (req: Request): Promise<Response> => {
           };
         });
 
+        const { data: alumnosGrupo, error: alumnosGrupoError } = await supabase
+          .from('alumnos_grupo')
+          .select(`
+            id,
+            alumnos (
+              id,
+              nombre,
+              apellido,
+              grado,
+              seccion
+            )
+          `)
+          .eq('id_grupo', grupo.id);
+
+        if (alumnosGrupoError) {
+          console.error('Error obteniendo alumnos del grupo:', alumnosGrupoError);
+        }
+
+        const alumnosSalon = (alumnosGrupo || [])
+          .map((registro: any) => registro.alumnos)
+          .filter(Boolean);
+
+        const clasesConDatos = clases || [];
+        const quizzesSalon = clasesConDatos.flatMap((clase: any) =>
+          (clase.quizzes || []).map((quiz: any) => ({
+            ...quiz,
+            clase_metadata: {
+              id: clase.id,
+              numero_sesion: clase.numero_sesion,
+              fecha_programada: clase.fecha_programada,
+              estado: clase.estado,
+            },
+          }))
+        );
+
+        const respuestasSalon = quizzesSalon.flatMap((quiz: any) =>
+          (quiz.respuestas_alumno || []).map((respuesta: any) => ({
+            ...respuesta,
+            quiz_id: quiz.id,
+            quiz_tipo: quiz.tipo,
+            calificacion: Array.isArray(respuesta.calificaciones)
+              ? respuesta.calificaciones[0]
+              : respuesta.calificaciones,
+          }))
+        );
+
+        const notas = respuestasSalon
+          .map(respuesta => respuesta.calificacion?.nota_numerica)
+          .filter((nota): nota is number => typeof nota === 'number');
+
+        const porcentajes = respuestasSalon
+          .map(respuesta => respuesta.calificacion?.porcentaje_aciertos)
+          .filter((valor): valor is number => typeof valor === 'number');
+
+        const promedioNota = notas.length > 0
+          ? notas.reduce((sum, nota) => sum + nota, 0) / notas.length
+          : null;
+
+        const promedioComprension = porcentajes.length > 0
+          ? porcentajes.reduce((sum, valor) => sum + valor, 0) / porcentajes.length
+          : null;
+
+        const totalEsperadoRespuestas = alumnosSalon.length * quizzesSalon.length;
+        const respuestasCompletadas = respuestasSalon.filter(r => r.estado === 'completado').length;
+        const participacionPromedio = totalEsperadoRespuestas > 0
+          ? (respuestasCompletadas / totalEsperadoRespuestas) * 100
+          : null;
+
+        const quizzesPendientes = quizzesSalon.filter(quiz => {
+          const completadasQuiz = (quiz.respuestas_alumno || []).filter((r: any) => r.estado === 'completado').length;
+          return alumnosSalon.length > 0 ? completadasQuiz < alumnosSalon.length : false;
+        }).length;
+
+        const promedioQuizPre = (() => {
+          const notasPre = respuestasSalon
+            .filter(r => r.quiz_tipo === 'previo')
+            .map(r => r.calificacion?.nota_numerica)
+            .filter((nota): nota is number => typeof nota === 'number');
+          if (!notasPre.length) return null;
+          return notasPre.reduce((sum, nota) => sum + nota, 0) / notasPre.length;
+        })();
+
+        const promedioQuizPost = (() => {
+          const notasPost = respuestasSalon
+            .filter(r => r.quiz_tipo === 'post')
+            .map(r => r.calificacion?.nota_numerica)
+            .filter((nota): nota is number => typeof nota === 'number');
+          if (!notasPost.length) return null;
+          return notasPost.reduce((sum, nota) => sum + nota, 0) / notasPost.length;
+        })();
+
+        const { data: retroalimentacionesData, error: retroError } = await supabase
+          .from('retroalimentaciones')
+          .select(`
+            id,
+            id_alumno,
+            tipo,
+            contenido,
+            fecha_envio,
+            created_at,
+            clases!inner (
+              id,
+              id_grupo,
+              id_profesor
+            )
+          `)
+          .eq('clases.id_grupo', grupo.id)
+          .eq('clases.id_profesor', profesor.id)
+          .order('created_at', { ascending: false })
+          .limit(20);
+
+        if (retroError) {
+          console.error('Error obteniendo retroalimentaciones:', retroError);
+        }
+
+        const retroalimentacionesSalon = (retroalimentacionesData || []).map((retro: any) => ({
+          id: retro.id,
+          id_alumno: retro.id_alumno,
+          tipo: retro.tipo,
+          contenido: retro.contenido,
+          fecha_envio: retro.fecha_envio,
+          created_at: retro.created_at,
+        }));
+
+        const retroPorAlumno = new Map<string, any>();
+        retroalimentacionesSalon.forEach(retro => {
+          if (retro.id_alumno && !retroPorAlumno.has(retro.id_alumno)) {
+            retroPorAlumno.set(retro.id_alumno, retro);
+          }
+        });
+
+        const { data: recomendacionesData, error: recomendacionesError } = await supabase
+          .from('recomendaciones')
+          .select(`
+            id,
+            tipo,
+            aplicada,
+            contenido,
+            created_at,
+            clases!inner (
+              id,
+              numero_sesion,
+              fecha_programada,
+              estado,
+              id_grupo,
+              id_profesor
+            )
+          `)
+          .eq('clases.id_grupo', grupo.id)
+          .eq('clases.id_profesor', profesor.id)
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        if (recomendacionesError) {
+          console.error('Error obteniendo recomendaciones:', recomendacionesError);
+        }
+
+        const recomendacionesSalon = (recomendacionesData || []).map((recomendacion: any) => ({
+          id: recomendacion.id,
+          tipo: recomendacion.tipo,
+          aplicada: recomendacion.aplicada,
+          contenido: recomendacion.contenido,
+          created_at: recomendacion.created_at,
+          clase: recomendacion.clases
+            ? {
+                id: recomendacion.clases.id,
+                numero_sesion: recomendacion.clases.numero_sesion,
+                fecha_programada: recomendacion.clases.fecha_programada,
+                estado: recomendacion.clases.estado,
+              }
+            : null,
+        }));
+
+        const alumnosStats = alumnosSalon.map((alumno: any) => {
+          const respuestasAlumno = respuestasSalon.filter(r => r.id_alumno === alumno.id);
+          const calificacionesAlumno = respuestasAlumno
+            .map(r => r.calificacion?.nota_numerica)
+            .filter((nota): nota is number => typeof nota === 'number');
+          const aciertosAlumno = respuestasAlumno
+            .map(r => r.calificacion?.porcentaje_aciertos)
+            .filter((valor): valor is number => typeof valor === 'number');
+
+          const promedioAlumno =
+            calificacionesAlumno.length > 0
+              ? calificacionesAlumno.reduce((sum, nota) => sum + nota, 0) / calificacionesAlumno.length
+              : null;
+
+          const promedioAciertos =
+            aciertosAlumno.length > 0
+              ? aciertosAlumno.reduce((sum, valor) => sum + valor, 0) / aciertosAlumno.length
+              : null;
+
+          const quizzesCompletados = respuestasAlumno.filter(r => r.estado === 'completado').length;
+          const quizzesTotales = quizzesSalon.length;
+          const quizzesPendientesAlumno = quizzesTotales > 0 ? Math.max(quizzesTotales - quizzesCompletados, 0) : 0;
+
+          const alertas = {
+            bajoRendimiento: promedioAlumno !== null ? promedioAlumno < 11 : false,
+            pocaParticipacion: quizzesTotales > 0 ? quizzesCompletados / quizzesTotales < 0.5 : false,
+          };
+
+          const ultimaRetro = retroPorAlumno.get(alumno.id);
+
+          return {
+            id: alumno.id,
+            nombre: alumno.nombre,
+            apellido: alumno.apellido,
+            grado: alumno.grado,
+            seccion: alumno.seccion,
+            promedio_nota: promedioAlumno,
+            promedio_aciertos: promedioAciertos,
+            quizzes_completados: quizzesCompletados,
+            quizzes_pendientes: quizzesPendientesAlumno,
+            alertas,
+            ultima_retroalimentacion: ultimaRetro
+              ? {
+                  tipo: ultimaRetro.tipo,
+                  resumen: ultimaRetro.contenido?.resumen || null,
+                  fecha: ultimaRetro.fecha_envio || ultimaRetro.created_at,
+                }
+              : null,
+          };
+        });
+
+        const alumnosEnRiesgo = alumnosStats.filter(
+          alumno => alumno.alertas?.bajoRendimiento || alumno.alertas?.pocaParticipacion
+        ).length;
+
         // Calculate overall progress for salón
         const totalSesionesSalon = temasData.reduce((sum, t) => sum + (t.guia_tema?.total_sesiones || 0), 0);
         const sesionesCompletadasSalon = temasData.reduce((sum, t) => sum + t.progreso.completadas, 0);
         const progresoGeneral = totalSesionesSalon > 0
           ? Math.round((sesionesCompletadasSalon / totalSesionesSalon) * 100)
           : 0;
+
+        const resumenSalon = {
+          promedio_nota: promedioNota,
+          comprension_promedio: promedioComprension,
+          participacion_promedio: participacionPromedio,
+          completitud_promedio: participacionPromedio,
+          alumnos_en_riesgo: alumnosEnRiesgo,
+          quizzes_pendientes: quizzesPendientes,
+          promedio_quiz_pre: promedioQuizPre,
+          promedio_quiz_post: promedioQuizPost,
+        };
 
         return {
           grupo,
@@ -195,6 +451,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
             programadas: temasData.reduce((sum, t) => sum + t.progreso.programadas, 0),
             pendientes: temasData.reduce((sum, t) => sum + t.progreso.pendientes, 0),
           },
+          resumen: resumenSalon,
+          alumnos: alumnosStats,
+          recomendaciones: recomendacionesSalon,
+          retroalimentaciones: retroalimentacionesSalon,
         };
       })
     );
