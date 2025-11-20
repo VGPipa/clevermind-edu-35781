@@ -136,8 +136,8 @@ function BottomSection({ userName, userEmail, handleLogout }: { userName?: strin
   return (
     <div className="flex flex-col gap-2 pb-2">
       <div className={cn(
-        "flex items-center gap-3",
-        open ? "px-2" : "justify-center px-0"
+        "flex gap-3",
+        open ? "flex-row items-center px-2" : "flex-col items-center px-0"
       )}>
         <Avatar className="h-9 w-9 flex-shrink-0">
           <AvatarImage src="" />
@@ -145,20 +145,34 @@ function BottomSection({ userName, userEmail, handleLogout }: { userName?: strin
             {userName?.charAt(0).toUpperCase() || userEmail?.charAt(0).toUpperCase()}
           </AvatarFallback>
         </Avatar>
-        <motion.div
-          className="flex-1 min-w-0"
-          animate={{
-            display: open ? "block" : "none",
-            opacity: open ? 1 : 0,
-          }}
-        >
-          <p className="text-sm font-medium text-sidebar-foreground truncate">
-            {userName || "Usuario"}
-          </p>
-          <p className="text-xs text-sidebar-foreground/70 truncate">
-            {userEmail}
-          </p>
-        </motion.div>
+        
+        {/* Información del usuario - SIEMPRE VISIBLE */}
+        <div className={cn(
+          "min-w-0 transition-all duration-150",
+          open ? "flex-1" : "text-center"
+        )}>
+          {open ? (
+            // Vista expandida
+            <>
+              <p className="text-sm font-medium text-sidebar-foreground truncate">
+                {userName || "Usuario"}
+              </p>
+              <p className="text-xs text-sidebar-foreground/70 truncate">
+                {userEmail}
+              </p>
+            </>
+          ) : (
+            // Vista contraída - información compacta pero visible
+            <>
+              <p className="text-[10px] font-medium text-sidebar-foreground leading-tight">
+                {userName?.split(' ')[0] || userEmail?.split('@')[0]}
+              </p>
+              <p className="text-[8px] text-sidebar-foreground/70 leading-tight truncate max-w-[60px]">
+                {userEmail?.split('@')[0].substring(0, 5)}...
+              </p>
+            </>
+          )}
+        </div>
       </div>
       <div
         onClick={handleLogout}
