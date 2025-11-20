@@ -666,7 +666,7 @@ export default function ProfesorDashboard() {
                         </TableCell>
                         <TableCell className="text-right">
                           <Button
-                            variant="ghost"
+                            variant="outline"
                             size="sm"
                             onClick={() => navigate(`/profesor/planificacion?materia=${materia.id_materia}&grupo=${materia.id_grupo}`)}
                           >
