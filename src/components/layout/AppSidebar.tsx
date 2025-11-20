@@ -146,34 +146,20 @@ function BottomSection({ userName, userEmail, handleLogout }: { userName?: strin
           </AvatarFallback>
         </Avatar>
         
-        {/* Información del usuario - SIEMPRE VISIBLE */}
-        <div className={cn(
-          "min-w-0 transition-all duration-150",
-          open ? "flex-1" : "text-center"
-        )}>
-          {open ? (
-            // Vista expandida
-            <>
-              <p className="text-sm font-medium text-sidebar-foreground truncate">
-                {userName || "Usuario"}
-              </p>
-              <p className="text-xs text-sidebar-foreground/70 truncate">
-                {userEmail}
-              </p>
-            </>
-          ) : (
-            // Vista contraída - información compacta pero visible
-            <>
-              <p className="text-[10px] font-medium text-sidebar-foreground leading-tight">
-                {userName?.split(' ')[0] || userEmail?.split('@')[0]}
-              </p>
-              <p className="text-[8px] text-sidebar-foreground/70 leading-tight truncate max-w-[60px]">
-                {userEmail?.split('@')[0].substring(0, 5)}...
-              </p>
-            </>
-          )}
-        </div>
+        {/* Información del usuario - SOLO VISIBLE cuando está expandido */}
+        {open && (
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-sidebar-foreground truncate">
+              {userName || "Usuario"}
+            </p>
+            <p className="text-xs text-sidebar-foreground/70 truncate">
+              {userEmail}
+            </p>
+          </div>
+        )}
       </div>
+      
+      {/* Botón de cerrar sesión */}
       <div
         onClick={handleLogout}
         className={cn(
@@ -182,15 +168,11 @@ function BottomSection({ userName, userEmail, handleLogout }: { userName?: strin
         )}
       >
         <LogOut className="h-5 w-5 flex-shrink-0" />
-        <motion.span
-          className="text-sm whitespace-pre"
-          animate={{
-            display: open ? "inline-block" : "none",
-            opacity: open ? 1 : 0,
-          }}
-        >
-          Cerrar Sesión
-        </motion.span>
+        {open && (
+          <span className="text-sm whitespace-pre">
+            Cerrar Sesión
+          </span>
+        )}
       </div>
     </div>
   );
