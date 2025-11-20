@@ -104,7 +104,7 @@ export default function TemaDetalle() {
               Volver
             </Button>
             <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+              <h1 className="text-3xl font-bold text-black dark:text-white">
                 {tema.nombre}
               </h1>
               <p className="text-muted-foreground mt-1">
