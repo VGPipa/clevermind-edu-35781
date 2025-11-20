@@ -187,12 +187,16 @@ Deno.serve(async (req: Request): Promise<Response> => {
         duracion_estimada: tema.duracion_estimada,
         bimestre: tema.bimestre,
         orden: tema.orden,
-        materia: {
-          id: tema.materias?.id,
-          nombre: tema.materias?.nombre,
-          horas_semanales: tema.materias?.horas_semanales,
-          grado: tema.materias?.plan_anual?.grado,
-        },
+        materia: (() => {
+          const materia = Array.isArray(tema.materias) ? tema.materias[0] : tema.materias;
+          const planAnual = materia?.plan_anual ? (Array.isArray(materia.plan_anual) ? materia.plan_anual[0] : materia.plan_anual) : null;
+          return materia ? {
+            id: materia.id,
+            nombre: materia.nombre,
+            horas_semanales: materia.horas_semanales,
+            grado: planAnual?.grado || null,
+          } : null;
+        })(),
       },
       guia_maestra: guiaTema ? {
         id: guiaTema.id,
@@ -217,12 +221,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
           : 0,
       },
       tiene_guia_maestra: !!guiaTema,
-      grupos_disponibles: asignaciones?.map(a => ({
-        id: a.grupos?.id,
-        nombre: a.grupos?.nombre,
-        grado: a.grupos?.grado,
-        seccion: a.grupos?.seccion,
-      })) || [],
+      grupos_disponibles: asignaciones?.map(a => {
+        const grupo = Array.isArray(a.grupos) ? a.grupos[0] : a.grupos;
+        return grupo ? {
+          id: grupo.id,
+          nombre: grupo.nombre,
+          grado: grupo.grado,
+          seccion: grupo.seccion,
+        } : null;
+      }).filter((g): g is NonNullable<typeof g> => g !== null) || [],
     });
 
   } catch (error) {
