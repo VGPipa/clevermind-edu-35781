@@ -23,7 +23,7 @@ export type Database = {
           grado: string
           id: string
           seccion: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           activo?: boolean | null
@@ -33,7 +33,7 @@ export type Database = {
           grado: string
           id?: string
           seccion: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           activo?: boolean | null
@@ -43,7 +43,7 @@ export type Database = {
           grado?: string
           id?: string
           seccion?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: []
       }
