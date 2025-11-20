@@ -226,7 +226,7 @@ export function SalonCard({ salon, onProgramarSesion, onVerSesion }: SalonCardPr
               ))}
             </div>
 
-            {(salon.resumen || salon.alumnos?.length) && (
+            {salon.resumen && (
               <div className="space-y-4">
                 <div className="grid gap-3 md:grid-cols-3">
                   <MetricCard
@@ -278,7 +278,7 @@ export function SalonCard({ salon, onProgramarSesion, onVerSesion }: SalonCardPr
               </div>
             )}
 
-            {salon.alumnos && salon.alumnos.length > 0 && (
+            {salon.alumnos && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
@@ -288,20 +288,21 @@ export function SalonCard({ salon, onProgramarSesion, onVerSesion }: SalonCardPr
                     </p>
                   </div>
                 </div>
-                <ScrollArea className="max-h-80">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Alumno</TableHead>
-                        <TableHead>Prom. nota</TableHead>
-                        <TableHead>Prom. aciertos</TableHead>
-                        <TableHead>Quizzes</TableHead>
-                        <TableHead>Alertas</TableHead>
-                        <TableHead>Última retro</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {salon.alumnos.map((alumno) => {
+                {salon.alumnos.length > 0 ? (
+                  <ScrollArea className="max-h-80">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Alumno</TableHead>
+                          <TableHead>Prom. nota</TableHead>
+                          <TableHead>Prom. aciertos</TableHead>
+                          <TableHead>Quizzes</TableHead>
+                          <TableHead>Alertas</TableHead>
+                          <TableHead>Última retro</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {salon.alumnos.map((alumno) => {
                         const alertas: string[] = [];
                         if (alumno.alertas?.bajoRendimiento) alertas.push("Bajo rendimiento");
                         if (alumno.alertas?.pocaParticipacion) alertas.push("Baja participación");
@@ -363,18 +364,24 @@ export function SalonCard({ salon, onProgramarSesion, onVerSesion }: SalonCardPr
                             </TableCell>
                           </TableRow>
                         );
-                      })}
-                    </TableBody>
-                  </Table>
-                </ScrollArea>
+                        })}
+                      </TableBody>
+                    </Table>
+                  </ScrollArea>
+                ) : (
+                  <div className="text-center py-6 text-sm text-muted-foreground">
+                    No hay datos de alumnos disponibles aún
+                  </div>
+                )}
               </div>
             )}
 
-            {salon.recomendaciones && salon.recomendaciones.length > 0 && (
+            {salon.recomendaciones && (
               <div className="space-y-3">
                 <h4 className="font-semibold text-sm">Recomendaciones recientes</h4>
-                <div className="space-y-2">
-                  {salon.recomendaciones.slice(0, 4).map((recomendacion) => (
+                {salon.recomendaciones.length > 0 ? (
+                  <div className="space-y-2">
+                    {salon.recomendaciones.slice(0, 4).map((recomendacion) => (
                     <div
                       key={recomendacion.id}
                       className={cn(
@@ -403,9 +410,14 @@ export function SalonCard({ salon, onProgramarSesion, onVerSesion }: SalonCardPr
                           {new Date(recomendacion.created_at).toLocaleDateString("es-ES", { month: "short", day: "numeric" })}
                         </p>
                       )}
-                    </div>
-                  ))}
-                </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-sm text-muted-foreground">
+                    No hay recomendaciones disponibles aún
+                  </div>
+                )}
               </div>
             )}
           </div>

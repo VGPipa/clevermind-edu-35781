@@ -71,6 +71,19 @@ Deno.serve(async (req: Request): Promise<Response> => {
             grupo,
             temas: [],
             progreso_general: { porcentaje: 0, total_sesiones: 0, completadas: 0, programadas: 0, pendientes: 0 },
+            resumen: {
+              promedio_nota: null,
+              comprension_promedio: null,
+              participacion_promedio: null,
+              completitud_promedio: null,
+              alumnos_en_riesgo: 0,
+              quizzes_pendientes: 0,
+              promedio_quiz_pre: null,
+              promedio_quiz_post: null,
+            },
+            alumnos: [],
+            recomendaciones: [],
+            retroalimentaciones: [],
           };
         }
 
@@ -84,6 +97,19 @@ Deno.serve(async (req: Request): Promise<Response> => {
             grupo,
             temas: [],
             progreso_general: { porcentaje: 0, total_sesiones: 0, completadas: 0, programadas: 0, pendientes: 0 },
+            resumen: {
+              promedio_nota: null,
+              comprension_promedio: null,
+              participacion_promedio: null,
+              completitud_promedio: null,
+              alumnos_en_riesgo: 0,
+              quizzes_pendientes: 0,
+              promedio_quiz_pre: null,
+              promedio_quiz_post: null,
+            },
+            alumnos: [],
+            recomendaciones: [],
+            retroalimentaciones: [],
           };
         }
 
