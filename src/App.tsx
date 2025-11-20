@@ -22,6 +22,8 @@ import ProfesorEvaluacionInicial from "./pages/profesor/EvaluacionInicial";
 import ProfesorNodoAprendizaje from "./pages/profesor/NodoAprendizaje";
 import ProfesorPerfil from "./pages/profesor/Perfil";
 import ProfesorMisTemas from "./pages/profesor/MisTemas";
+import ProfesorMisSalones from "./pages/profesor/MisSalones";
+import ProfesorTemaDetalle from "./pages/profesor/TemaDetalle";
 import AlumnoDashboard from "./pages/alumno/Dashboard";
 import AlumnoClases from "./pages/alumno/Clases";
 import ApoderadoDashboard from "./pages/apoderado/Dashboard";
@@ -48,7 +50,9 @@ const App = () => (
           {/* Profesor Routes */}
           <Route path="/profesor/dashboard" element={<ProfesorDashboard />} />
           <Route path="/profesor/planificacion" element={<ProfesorPlanificacion />} />
+          <Route path="/profesor/planificacion/tema/:temaId" element={<ProfesorTemaDetalle />} />
           <Route path="/profesor/mis-temas" element={<ProfesorMisTemas />} />
+          <Route path="/profesor/mis-salones" element={<ProfesorMisSalones />} />
           <Route path="/profesor/perfil" element={<ProfesorPerfil />} />
           <Route path="/profesor/generar-clase" element={<ProfesorGenerarClase />} />
           <Route path="/profesor/ver-guia/:claseId" element={<ProfesorVerGuiaClase />} />

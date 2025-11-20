@@ -104,7 +104,7 @@ export function TemaCard({ tema, onProgramarClase, onVerDetalle, onIniciarTema }
               onProgramarClase(tema.id);
             }}
           >
-            Programar Sesión
+            Ver Tema
           </Button>
         ) : (
           <Button 
