@@ -2,7 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { CheckCircle2, Circle, Clock, Calendar, BookOpen } from "lucide-react";
+import { CheckCircle2, Circle, Clock, Calendar, BookOpen, Eye, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface TemaCardProps {
@@ -18,13 +18,27 @@ interface TemaCardProps {
     progreso: number;
     es_modificado: boolean;
     tiene_guia_maestra?: boolean;
+    estatus?: 'sin_guia' | 'con_guia_sin_sesiones' | 'con_sesiones';
+    sesiones_creadas?: number;
+    total_sesiones_guia?: number | null;
   };
   onProgramarClase: (temaId: string) => void;
   onVerDetalle: (temaId: string) => void;
   onIniciarTema?: (tema: any) => void;
+  onVerGuia?: (temaId: string) => void;
+  onGestionarTema?: (temaId: string) => void;
+  onVerEnSalones?: (temaId: string) => void;
 }
 
-export function TemaCard({ tema, onProgramarClase, onVerDetalle, onIniciarTema }: TemaCardProps) {
+export function TemaCard({
+  tema,
+  onProgramarClase,
+  onVerDetalle,
+  onIniciarTema,
+  onVerGuia,
+  onGestionarTema,
+  onVerEnSalones,
+}: TemaCardProps) {
   const getEstadoIcon = () => {
     switch (tema.estado) {
       case 'completado':
@@ -47,6 +61,121 @@ export function TemaCard({ tema, onProgramarClase, onVerDetalle, onIniciarTema }
     }
   };
 
+  const renderEstatusBadge = () => {
+    switch (tema.estatus) {
+      case 'sin_guia':
+        return (
+          <Badge variant="secondary" className="bg-orange-100 text-orange-700 border-orange-300">
+            Sin Guía
+          </Badge>
+        );
+      case 'con_guia_sin_sesiones':
+        return (
+          <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-300">
+            Con Guía
+          </Badge>
+        );
+      case 'con_sesiones':
+        return (
+          <Badge variant="default" className="bg-green-100 text-green-700 border-green-300">
+            Con Sesiones
+          </Badge>
+        );
+      default:
+        return null;
+    }
+  };
+
+  const renderAcciones = () => {
+    if (tema.estatus === 'sin_guia' || !tema.tiene_guia_maestra) {
+      return (
+        <Button
+          size="sm"
+          variant="outline"
+          className="w-full"
+          onClick={(e) => {
+            e.stopPropagation();
+            onIniciarTema?.(tema);
+          }}
+        >
+          <BookOpen className="h-4 w-4 mr-1" />
+          Iniciar Tema
+        </Button>
+      );
+    }
+
+    if (tema.estatus === 'con_guia_sin_sesiones') {
+      return (
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            className="flex-1"
+            onClick={(e) => {
+              e.stopPropagation();
+              onVerGuia?.(tema.id);
+            }}
+          >
+            <BookOpen className="h-4 w-4 mr-1" />
+            Ver Guía
+          </Button>
+          <Button
+            size="sm"
+            className="flex-1"
+            onClick={(e) => {
+              e.stopPropagation();
+              onProgramarClase(tema.id);
+            }}
+          >
+            Programar Sesión
+          </Button>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex flex-col gap-2">
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            className="flex-1"
+            onClick={(e) => {
+              e.stopPropagation();
+              onVerGuia?.(tema.id);
+            }}
+          >
+            <Eye className="h-4 w-4 mr-1" />
+            Ver Guía
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="flex-1"
+            onClick={(e) => {
+              e.stopPropagation();
+              (onGestionarTema || onProgramarClase)(tema.id);
+            }}
+          >
+            <ArrowRight className="h-4 w-4 mr-1" />
+            Gestionar
+          </Button>
+        </div>
+        <Button
+          size="sm"
+          variant="secondary"
+          className="w-full"
+          onClick={(e) => {
+            e.stopPropagation();
+            onVerEnSalones?.(tema.id);
+          }}
+        >
+          Ver en Mis Salones
+        </Button>
+      </div>
+    );
+  };
+
   return (
     <Card 
       className={cn(
@@ -66,10 +195,11 @@ export function TemaCard({ tema, onProgramarClase, onVerDetalle, onIniciarTema }
           </div>
           <div className="flex flex-col gap-1 items-end">
             {getEstadoBadge()}
-            {tema.tiene_guia_maestra && (
+            {renderEstatusBadge()}
+            {tema.tiene_guia_maestra && tema.total_sesiones_guia && (
               <Badge variant="outline" className="text-xs bg-purple-500 text-white border-purple-500">
                 <BookOpen className="h-3 w-3 mr-1" />
-                Guía Maestra
+                {tema.total_sesiones_guia} sesiones
               </Badge>
             )}
             {tema.es_modificado && (
@@ -95,31 +225,13 @@ export function TemaCard({ tema, onProgramarClase, onVerDetalle, onIniciarTema }
           </span>
         </div>
 
-        {tema.tiene_guia_maestra ? (
-          <Button 
-            size="sm" 
-            className="w-full"
-            onClick={(e) => {
-              e.stopPropagation();
-              onProgramarClase(tema.id);
-            }}
-          >
-            Ver Tema
-          </Button>
-        ) : (
-          <Button 
-            size="sm" 
-            variant="outline"
-            className="w-full"
-            onClick={(e) => {
-              e.stopPropagation();
-              onIniciarTema?.(tema);
-            }}
-          >
-            <BookOpen className="h-4 w-4 mr-1" />
-            Iniciar Tema
-          </Button>
+        {tema.sesiones_creadas !== undefined && (
+          <div className="text-xs text-muted-foreground text-right">
+            {tema.sesiones_creadas} clases creadas
+          </div>
         )}
+
+        {renderAcciones()}
       </CardContent>
     </Card>
   );

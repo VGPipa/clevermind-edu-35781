@@ -86,11 +86,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
         const temaIds = (temas || []).map(t => t.id);
         const { data: guiasTema } = await supabase
           .from('guias_tema')
-          .select('id_tema')
+          .select('id_tema, total_sesiones')
           .eq('id_profesor', profesor.id)
           .in('id_tema', temaIds.length > 0 ? temaIds : ['00000000-0000-0000-0000-000000000000']); // Evitar error con array vacío
 
-        const temasConGuia = new Set(guiasTema?.map(g => g.id_tema) || []);
+        const guiaPorTema = new Map((guiasTema || []).map((g: any) => [g.id_tema, g]));
 
         // Organize temas by bimestre and calculate progress
         const bimestres = [
@@ -120,6 +120,16 @@ Deno.serve(async (req: Request): Promise<Response> => {
             ? Math.round((clasesEjecutadas / clasesProgramadas) * 100) 
             : 0;
 
+          const guiaTema = guiaPorTema.get(tema.id);
+          const tieneGuiaMaestra = !!guiaTema;
+
+          let estatus: 'sin_guia' | 'con_guia_sin_sesiones' | 'con_sesiones' = 'sin_guia';
+          if (tieneGuiaMaestra && clasesProgramadas === 0) {
+            estatus = 'con_guia_sin_sesiones';
+          } else if (tieneGuiaMaestra && clasesProgramadas > 0) {
+            estatus = 'con_sesiones';
+          }
+
           bimestres[bimestreIndex].temas.push({
             ...tema,
             estado,
@@ -127,7 +137,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
             clases_ejecutadas: clasesEjecutadas,
             progreso,
             es_modificado: tema.tema_base_id !== null,
-            tiene_guia_maestra: temasConGuia.has(tema.id),
+            tiene_guia_maestra: tieneGuiaMaestra,
+            sesiones_creadas: clasesProgramadas,
+            total_sesiones_guia: guiaTema?.total_sesiones || null,
+            estatus,
           });
         });
 
