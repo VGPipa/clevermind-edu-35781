@@ -95,7 +95,7 @@ export function AppSidebar({ role, userName, userEmail }: AppSidebarProps) {
 
   return (
     <AnimatedSidebar>
-      <SidebarBody className="justify-between gap-10">
+      <SidebarBody className="flex flex-col h-full">
         <SidebarContent menuItems={menuItems} Logo={Logo} LogoIcon={LogoIcon} />
         <BottomSection userName={userName} userEmail={userEmail} handleLogout={handleLogout} />
       </SidebarBody>
@@ -107,14 +107,17 @@ function SidebarContent({ menuItems, Logo, LogoIcon }: { menuItems: any[]; Logo:
   const { open } = useSidebar();
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
-      <div className="md:block hidden">
-        {open ? <Logo /> : <LogoIcon />}
+    <div className="flex flex-col flex-1">
+      <div className="flex-shrink-0 pb-4">
+        <div className="md:block hidden">
+          {open ? <Logo /> : <LogoIcon />}
+        </div>
+        <div className="md:hidden">
+          <LogoIcon />
+        </div>
       </div>
-      <div className="md:hidden">
-        <LogoIcon />
-      </div>
-      <div className="mt-8 flex flex-col gap-2">
+      
+      <div className="flex flex-col gap-2 flex-1">
         {menuItems.map((item, idx) => (
           <SidebarLink
             key={idx}
@@ -134,7 +137,7 @@ function BottomSection({ userName, userEmail, handleLogout }: { userName?: strin
   const { open } = useSidebar();
 
   return (
-    <div className="flex flex-col gap-2 pb-2">
+    <div className="flex flex-col gap-2 pb-2 flex-shrink-0 border-t border-sidebar-border/50 pt-4 mt-4">
       <div className={cn(
         "flex gap-3",
         open ? "flex-row items-center px-2" : "flex-col items-center px-0"
