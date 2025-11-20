@@ -78,9 +78,27 @@ export default function MisSalones() {
   }
 
   const salones = data?.salones || [];
+  // Asegurar que cada salón tenga la estructura completa esperada
+  const salonesConEstructura = salones.map((salon: any) => ({
+    ...salon,
+    resumen: salon.resumen || {
+      promedio_nota: null,
+      comprension_promedio: null,
+      participacion_promedio: null,
+      completitud_promedio: null,
+      alumnos_en_riesgo: 0,
+      quizzes_pendientes: 0,
+      promedio_quiz_pre: null,
+      promedio_quiz_post: null,
+    },
+    alumnos: Array.isArray(salon.alumnos) ? salon.alumnos : [],
+    recomendaciones: Array.isArray(salon.recomendaciones) ? salon.recomendaciones : [],
+    retroalimentaciones: Array.isArray(salon.retroalimentaciones) ? salon.retroalimentaciones : [],
+  }));
+  
   const salonesFiltrados = filtroSalon === 'todos' 
-    ? salones 
-    : salones.filter((s: any) => s.grupo.id === filtroSalon);
+    ? salonesConEstructura 
+    : salonesConEstructura.filter((s: any) => s.grupo?.id === filtroSalon);
 
   return (
     <AppLayout>
@@ -98,7 +116,7 @@ export default function MisSalones() {
         </div>
 
         {/* Filtros */}
-        {salones.length > 0 && (
+        {salonesConEstructura.length > 0 && (
           <Card>
             <CardHeader>
               <CardTitle>Filtros</CardTitle>
@@ -112,9 +130,9 @@ export default function MisSalones() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="todos">Todos los salones</SelectItem>
-                    {salones.map((salon: any) => (
-                      <SelectItem key={salon.grupo.id} value={salon.grupo.id}>
-                        {salon.grupo.nombre} - {salon.grupo.grado}° {salon.grupo.seccion}
+                    {salonesConEstructura.map((salon: any) => (
+                      <SelectItem key={salon.grupo?.id} value={salon.grupo?.id}>
+                        {salon.grupo?.nombre} - {salon.grupo?.grado}° {salon.grupo?.seccion}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -125,12 +143,12 @@ export default function MisSalones() {
         )}
 
         {/* Estadísticas Generales */}
-        {salones.length > 0 && (
+        {salonesConEstructura.length > 0 && (
           <div className="grid gap-4 md:grid-cols-4">
             <Card>
               <CardContent className="pt-6">
                 <div className="text-center">
-                  <div className="text-3xl font-bold">{salones.length}</div>
+                  <div className="text-3xl font-bold">{salonesConEstructura.length}</div>
                   <p className="text-sm text-muted-foreground mt-1">Salones</p>
                 </div>
               </CardContent>
@@ -139,7 +157,7 @@ export default function MisSalones() {
               <CardContent className="pt-6">
                 <div className="text-center">
                   <div className="text-3xl font-bold text-green-600">
-                    {salones.reduce((sum: number, s: any) => sum + s.progreso_general.completadas, 0)}
+                    {salonesConEstructura.reduce((sum: number, s: any) => sum + (s.progreso_general?.completadas || 0), 0)}
                   </div>
                   <p className="text-sm text-muted-foreground mt-1">Sesiones Completadas</p>
                 </div>
@@ -149,7 +167,7 @@ export default function MisSalones() {
               <CardContent className="pt-6">
                 <div className="text-center">
                   <div className="text-3xl font-bold text-blue-600">
-                    {salones.reduce((sum: number, s: any) => sum + s.progreso_general.programadas, 0)}
+                    {salonesConEstructura.reduce((sum: number, s: any) => sum + (s.progreso_general?.programadas || 0), 0)}
                   </div>
                   <p className="text-sm text-muted-foreground mt-1">Sesiones Programadas</p>
                 </div>
@@ -159,7 +177,7 @@ export default function MisSalones() {
               <CardContent className="pt-6">
                 <div className="text-center">
                   <div className="text-3xl font-bold text-orange-600">
-                    {salones.reduce((sum: number, s: any) => sum + s.progreso_general.pendientes, 0)}
+                    {salonesConEstructura.reduce((sum: number, s: any) => sum + (s.progreso_general?.pendientes || 0), 0)}
                   </div>
                   <p className="text-sm text-muted-foreground mt-1">Sesiones Pendientes</p>
                 </div>

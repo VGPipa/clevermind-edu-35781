@@ -289,6 +289,16 @@ Deno.serve(async (req: Request): Promise<Response> => {
           ? (respuestasCompletadas / totalEsperadoRespuestas) * 100
           : null;
 
+        // Debug logs
+        console.log(`[get-mis-salones] Grupo ${grupo.id}:`, {
+          alumnosCount: alumnosSalon.length,
+          quizzesCount: quizzesSalon.length,
+          respuestasCount: respuestasSalon.length,
+          promedioNota,
+          promedioComprension,
+          participacionPromedio,
+        });
+
         const quizzesPendientes = quizzesSalon.filter(quiz => {
           const completadasQuiz = (quiz.respuestas_alumno || []).filter((r: any) => r.estado === 'completado').length;
           return alumnosSalon.length > 0 ? completadasQuiz < alumnosSalon.length : false;
@@ -467,7 +477,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
           promedio_quiz_post: promedioQuizPost,
         };
 
-        return {
+        const salonData = {
           grupo,
           temas: temasData,
           progreso_general: {
@@ -482,6 +492,17 @@ Deno.serve(async (req: Request): Promise<Response> => {
           recomendaciones: recomendacionesSalon,
           retroalimentaciones: retroalimentacionesSalon,
         };
+
+        // Debug: verificar estructura completa
+        console.log(`[get-mis-salones] Datos completos para grupo ${grupo.id}:`, {
+          tieneResumen: !!salonData.resumen,
+          tieneAlumnos: Array.isArray(salonData.alumnos),
+          alumnosCount: salonData.alumnos.length,
+          tieneRecomendaciones: Array.isArray(salonData.recomendaciones),
+          recomendacionesCount: salonData.recomendaciones.length,
+        });
+
+        return salonData;
       })
     );
 
