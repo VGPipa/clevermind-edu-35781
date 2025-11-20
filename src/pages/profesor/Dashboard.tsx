@@ -649,6 +649,7 @@ export default function ProfesorDashboard() {
                       <TableHead className="text-center">N° Temas</TableHead>
                       <TableHead className="text-center">N° Estudiantes</TableHead>
                       <TableHead className="text-center">% Cobertura</TableHead>
+                      <TableHead className="text-right">Acciones</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -662,6 +663,15 @@ export default function ProfesorDashboard() {
                           <Badge variant={materia.cobertura >= 75 ? 'default' : materia.cobertura >= 50 ? 'secondary' : 'outline'}>
                             {materia.cobertura}%
                           </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => navigate(`/profesor/planificacion?materia=${materia.id_materia}&grupo=${materia.id_grupo}`)}
+                          >
+                            Ver detalle
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
