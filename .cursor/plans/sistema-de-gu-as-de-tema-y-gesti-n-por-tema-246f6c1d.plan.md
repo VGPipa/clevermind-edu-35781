@@ -369,9 +369,9 @@ Reorganizar la navegación del profesor para separar claramente:
 
 - [x] Restaurar Edge Functions: get-mis-salones, get-tema-detalle, get-temas-planificacion, get-sesiones-pendientes
 - [x] Restaurar componentes: SalonCard, SesionCard, TemaListCard, ProgramarSesionDialog, SeleccionarSesionDialog
-- [ ] Restaurar páginas: MisSalones.tsx, TemaDetalle.tsx
-- [ ] Actualizar Planificacion.tsx con sección Temas y tabs
-- [ ] Actualizar App.tsx con rutas de mis-salones y tema-detalle
-- [ ] Actualizar AppSidebar.tsx con Mis Salones
-- [ ] Actualizar GenerarClase.tsx con SeleccionarSesionDialog
-- [ ] Actualizar config.toml con las nuevas Edge Functions
+- [x] Restaurar páginas: MisSalones.tsx, TemaDetalle.tsx
+- [x] Actualizar Planificacion.tsx con sección Temas y tabs
+- [x] Actualizar App.tsx con rutas de mis-salones y tema-detalle
+- [x] Actualizar AppSidebar.tsx con Mis Salones
+- [x] Actualizar GenerarClase.tsx con SeleccionarSesionDialog
+- [x] Actualizar config.toml con las nuevas Edge Functions

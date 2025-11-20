@@ -61,6 +61,34 @@ export default function TemaDetalle() {
 
   const { tema, guia_maestra, salones, progreso_general, tiene_guia_maestra, grupos_disponibles } = data;
 
+  // Parse contenido si viene como string JSON
+  let contenidoParseado = null;
+  if (guia_maestra?.contenido) {
+    try {
+      contenidoParseado = typeof guia_maestra.contenido === 'string' 
+        ? JSON.parse(guia_maestra.contenido) 
+        : guia_maestra.contenido;
+    } catch (e) {
+      console.error('Error parseando contenido:', e);
+      contenidoParseado = guia_maestra.contenido;
+    }
+  }
+
+  const guiaMaestraConContenido = guia_maestra ? {
+    ...guia_maestra,
+    contenido: contenidoParseado || guia_maestra.contenido || {}
+  } : null;
+
+  // Debug temporal: verificar estructura de guía maestra
+  if (guiaMaestraConContenido) {
+    console.log('🔍 Guía maestra completa:', guiaMaestraConContenido);
+    console.log('📦 Contenido:', guiaMaestraConContenido.contenido);
+    console.log('📋 Estrategias:', guiaMaestraConContenido.contenido?.estrategias_evaluacion);
+    console.log('🎯 Actividades:', guiaMaestraConContenido.contenido?.actividades_transversales);
+    console.log('🏆 Competencias:', guiaMaestraConContenido.contenido?.competencias);
+    console.log('👥 Contexto:', guiaMaestraConContenido.contexto_grupo);
+  }
+
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -190,23 +218,23 @@ export default function TemaDetalle() {
                     Objetivos, estructura de sesiones y recursos
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="space-y-6 max-h-[80vh] overflow-y-auto">
                   {/* Objetivos Generales */}
-                  {guia_maestra.objetivos_generales && (
+                  {guiaMaestraConContenido?.objetivos_generales && (
                     <div>
                       <h3 className="font-semibold mb-2">Objetivos Generales</h3>
                       <p className="text-sm text-muted-foreground whitespace-pre-line">
-                        {guia_maestra.objetivos_generales}
+                        {guiaMaestraConContenido.objetivos_generales}
                       </p>
                     </div>
                   )}
 
                   {/* Estructura de Sesiones */}
-                  {guia_maestra.estructura_sesiones && Array.isArray(guia_maestra.estructura_sesiones) && (
+                  {guiaMaestraConContenido?.estructura_sesiones && Array.isArray(guiaMaestraConContenido.estructura_sesiones) && (
                     <div>
                       <h3 className="font-semibold mb-3">Estructura de Sesiones</h3>
                       <div className="space-y-2">
-                        {guia_maestra.estructura_sesiones.map((sesion: any, index: number) => (
+                        {guiaMaestraConContenido.estructura_sesiones.map((sesion: any, index: number) => (
                           <Card key={index} className="border-l-4 border-l-primary">
                             <CardContent className="p-4">
                               <div className="flex items-start justify-between">
@@ -233,11 +261,11 @@ export default function TemaDetalle() {
                   )}
 
                   {/* Recursos */}
-                  {guia_maestra.contenido?.recursos && Array.isArray(guia_maestra.contenido.recursos) && guia_maestra.contenido.recursos.length > 0 && (
+                  {guiaMaestraConContenido?.contenido?.recursos && Array.isArray(guiaMaestraConContenido.contenido.recursos) && guiaMaestraConContenido.contenido.recursos.length > 0 && (
                     <div>
                       <h3 className="font-semibold mb-2">Recursos Recomendados</h3>
                       <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
-                        {guia_maestra.contenido.recursos.map((recurso: string, i: number) => (
+                        {guiaMaestraConContenido.contenido.recursos.map((recurso: string, i: number) => (
                           <li key={i}>{recurso}</li>
                         ))}
                       </ul>
@@ -245,11 +273,11 @@ export default function TemaDetalle() {
                   )}
 
                   {/* Metodologías */}
-                  {guia_maestra.metodologias && Array.isArray(guia_maestra.metodologias) && guia_maestra.metodologias.length > 0 && (
+                  {guiaMaestraConContenido?.metodologias && Array.isArray(guiaMaestraConContenido.metodologias) && guiaMaestraConContenido.metodologias.length > 0 && (
                     <div>
                       <h3 className="font-semibold mb-2">Metodologías</h3>
                       <div className="flex flex-wrap gap-2">
-                        {guia_maestra.metodologias.map((metodologia: string, i: number) => (
+                        {guiaMaestraConContenido.metodologias.map((metodologia: string, i: number) => (
                           <Badge key={i} variant="outline">{metodologia}</Badge>
                         ))}
                       </div>
@@ -257,11 +285,11 @@ export default function TemaDetalle() {
                   )}
 
                   {/* Estrategias de Evaluación */}
-                  {guia_maestra.contenido?.estrategias_evaluacion && Array.isArray(guia_maestra.contenido.estrategias_evaluacion) && guia_maestra.contenido.estrategias_evaluacion.length > 0 && (
+                  {guiaMaestraConContenido?.contenido?.estrategias_evaluacion && Array.isArray(guiaMaestraConContenido.contenido.estrategias_evaluacion) && guiaMaestraConContenido.contenido.estrategias_evaluacion.length > 0 && (
                     <div>
                       <h3 className="font-semibold mb-2">Estrategias de Evaluación</h3>
                       <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
-                        {guia_maestra.contenido.estrategias_evaluacion.map((estrategia: string, i: number) => (
+                        {guiaMaestraConContenido.contenido.estrategias_evaluacion.map((estrategia: string, i: number) => (
                           <li key={i}>{estrategia}</li>
                         ))}
                       </ul>
@@ -269,11 +297,11 @@ export default function TemaDetalle() {
                   )}
 
                   {/* Actividades Transversales */}
-                  {guia_maestra.contenido?.actividades_transversales && Array.isArray(guia_maestra.contenido.actividades_transversales) && guia_maestra.contenido.actividades_transversales.length > 0 && (
+                  {guiaMaestraConContenido?.contenido?.actividades_transversales && Array.isArray(guiaMaestraConContenido.contenido.actividades_transversales) && guiaMaestraConContenido.contenido.actividades_transversales.length > 0 && (
                     <div>
                       <h3 className="font-semibold mb-2">Actividades Transversales</h3>
                       <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
-                        {guia_maestra.contenido.actividades_transversales.map((actividad: string, i: number) => (
+                        {guiaMaestraConContenido.contenido.actividades_transversales.map((actividad: string, i: number) => (
                           <li key={i}>{actividad}</li>
                         ))}
                       </ul>
@@ -281,11 +309,11 @@ export default function TemaDetalle() {
                   )}
 
                   {/* Competencias */}
-                  {guia_maestra.contenido?.competencias && Array.isArray(guia_maestra.contenido.competencias) && guia_maestra.contenido.competencias.length > 0 && (
+                  {guiaMaestraConContenido?.contenido?.competencias && Array.isArray(guiaMaestraConContenido.contenido.competencias) && guiaMaestraConContenido.contenido.competencias.length > 0 && (
                     <div>
                       <h3 className="font-semibold mb-2">Competencias</h3>
                       <div className="flex flex-wrap gap-2">
-                        {guia_maestra.contenido.competencias.map((competencia: string, i: number) => (
+                        {guiaMaestraConContenido.contenido.competencias.map((competencia: string, i: number) => (
                           <Badge key={i} variant="outline">{competencia}</Badge>
                         ))}
                       </div>
@@ -293,11 +321,11 @@ export default function TemaDetalle() {
                   )}
 
                   {/* Contexto del Grupo */}
-                  {guia_maestra.contexto_grupo && (
+                  {guiaMaestraConContenido?.contexto_grupo && (
                     <div>
                       <h3 className="font-semibold mb-2">Contexto del Grupo</h3>
                       <p className="text-sm text-muted-foreground whitespace-pre-line">
-                        {guia_maestra.contexto_grupo}
+                        {guiaMaestraConContenido.contexto_grupo}
                       </p>
                     </div>
                   )}

@@ -497,13 +497,13 @@ export default function Planificacion() {
 
             {/* Lista de Temas */}
             {isLoadingTemas ? (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-4 md:grid-cols-2">
                 {[1, 2, 3, 4, 5, 6].map((i) => (
                   <Skeleton key={i} className="h-48" />
                 ))}
               </div>
             ) : temasData?.temas && temasData.temas.length > 0 ? (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-4 md:grid-cols-2">
                 {temasData.temas
                   .filter((tema: any) => {
                     // Filtro por búsqueda
