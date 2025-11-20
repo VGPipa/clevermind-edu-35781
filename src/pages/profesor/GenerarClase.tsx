@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { ProgressBar } from "@/components/profesor/ProgressBar";
 import { useQuery } from "@tanstack/react-query";
-import { SeleccionarSesionDialog } from "@/components/profesor/SeleccionarSesionDialog";
+import { SeleccionarSesionSection } from "@/components/profesor/SeleccionarSesionSection";
 
 const STEPS = [
   { id: 1, label: "Contexto" },
@@ -39,8 +39,7 @@ export default function GenerarClase() {
   const temaId = searchParams.get('tema');
   const claseIdParam = searchParams.get('clase');
   const extraordinaria = searchParams.get('extraordinaria') === 'true';
-  
-  const [showSeleccionarDialog, setShowSeleccionarDialog] = useState(false);
+
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [isLoadingClase, setIsLoadingClase] = useState(false);
@@ -116,11 +115,9 @@ export default function GenerarClase() {
     },
   });
 
-  // Show selection dialog if no params or if tema doesn't have guía
+  // Verificar guía solo cuando viene un tema específico
   useEffect(() => {
-    if (!claseIdParam && !temaId && !extraordinaria) {
-      setShowSeleccionarDialog(true);
-    } else if (temaId && !extraordinaria) {
+    if (temaId && !extraordinaria) {
       // Check if tema has guía maestra
       checkTemaGuia();
     }
@@ -598,88 +595,87 @@ export default function GenerarClase() {
     </div>
   );
 
-  // Show selection dialog if needed
-  if (showSeleccionarDialog && !claseIdParam && !temaId && !extraordinaria) {
-    return (
-      <AppLayout>
-        <SeleccionarSesionDialog
-          open={showSeleccionarDialog}
-          onOpenChange={(open) => {
-            setShowSeleccionarDialog(open);
-            if (!open) {
-              navigate('/profesor/dashboard');
-            }
-          }}
-        />
-      </AppLayout>
-    );
-  }
+  const sinParametros = !claseIdParam && !temaId && !extraordinaria;
 
   return (
     <AppLayout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Brain className="h-8 w-8" />
-            Generar Clase con IA
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Crea clases centradas en el desarrollo del pensamiento crítico con ayuda de IA
-          </p>
-        </div>
+      {sinParametros ? (
+        <SeleccionarSesionSection
+          onSeleccionarSesion={(sesionId) => {
+            navigate(`/profesor/generar-clase?clase=${sesionId}`);
+          }}
+          onCrearExtraordinaria={() => {
+            navigate("/profesor/generar-clase?extraordinaria=true");
+          }}
+          onIrAPlanificacion={() => {
+            navigate("/profesor/planificacion");
+          }}
+        />
+      ) : (
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-3xl font-bold flex items-center gap-2">
+              <Brain className="h-8 w-8" />
+              Generar Clase con IA
+            </h1>
+            <p className="text-muted-foreground mt-2">
+              Crea clases centradas en el desarrollo del pensamiento crítico con ayuda de IA
+            </p>
+          </div>
 
-        <ProgressBar steps={STEPS} currentStep={currentStep} />
+          <ProgressBar steps={STEPS} currentStep={currentStep} />
 
-        <div className="grid lg:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>{STEPS[currentStep - 1].label}</CardTitle>
-              <CardDescription>
-                Completa la información para este paso
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {currentStep === 1 && renderStep1()}
-              {currentStep === 2 && renderStep2()}
-              {currentStep === 3 && renderStep3()}
-              {currentStep === 4 && renderStep4()}
-              {currentStep === 5 && renderStep5()}
+          <div className="grid lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>{STEPS[currentStep - 1].label}</CardTitle>
+                <CardDescription>
+                  Completa la información para este paso
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {currentStep === 1 && renderStep1()}
+                {currentStep === 2 && renderStep2()}
+                {currentStep === 3 && renderStep3()}
+                {currentStep === 4 && renderStep4()}
+                {currentStep === 5 && renderStep5()}
 
-              <div className="flex gap-2 mt-6">
-                {currentStep > 1 && (
+                <div className="flex gap-2 mt-6">
+                  {currentStep > 1 && (
+                    <Button
+                      variant="outline"
+                      onClick={() => setCurrentStep(currentStep - 1)}
+                      disabled={loading}
+                    >
+                      Anterior
+                    </Button>
+                  )}
                   <Button
-                    variant="outline"
-                    onClick={() => setCurrentStep(currentStep - 1)}
+                    onClick={handleNextStep}
                     disabled={loading}
+                    className="flex-1"
                   >
-                    Anterior
+                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {currentStep === 5 ? 'Confirmar y Programar' : 'Continuar'}
                   </Button>
-                )}
-                <Button
-                  onClick={handleNextStep}
-                  disabled={loading}
-                  className="flex-1"
-                >
-                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {currentStep === 5 ? 'Confirmar y Programar' : 'Continuar'}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+                </div>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Consejos para Mejores Resultados</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <p>• Sé específico en el contexto de tus estudiantes</p>
-              <p>• Selecciona las metodologías más apropiadas para tu grupo</p>
-              <p>• Revisa y ajusta el contenido generado según necesites</p>
-              <p>• Las evaluaciones pre y post están diseñadas para medir el progreso real</p>
-            </CardContent>
-          </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Consejos para Mejores Resultados</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                <p>• Sé específico en el contexto de tus estudiantes</p>
+                <p>• Selecciona las metodologías más apropiadas para tu grupo</p>
+                <p>• Revisa y ajusta el contenido generado según necesites</p>
+                <p>• Las evaluaciones pre y post están diseñadas para medir el progreso real</p>
+              </CardContent>
+            </Card>
+          </div>
         </div>
-      </div>
+      )}
     </AppLayout>
   );
 }
