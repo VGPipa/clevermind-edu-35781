@@ -17,31 +17,37 @@ export type Database = {
       alumnos: {
         Row: {
           activo: boolean | null
+          apellido: string | null
           caracteristicas: Json | null
           created_at: string | null
           edad: number | null
           grado: string
           id: string
+          nombre: string | null
           seccion: string
           user_id: string | null
         }
         Insert: {
           activo?: boolean | null
+          apellido?: string | null
           caracteristicas?: Json | null
           created_at?: string | null
           edad?: number | null
           grado: string
           id?: string
+          nombre?: string | null
           seccion: string
           user_id?: string | null
         }
         Update: {
           activo?: boolean | null
+          apellido?: string | null
           caracteristicas?: Json | null
           created_at?: string | null
           edad?: number | null
           grado?: string
           id?: string
+          nombre?: string | null
           seccion?: string
           user_id?: string | null
         }
