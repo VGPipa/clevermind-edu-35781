@@ -36,7 +36,6 @@ export function AppSidebar({ role, userName, userEmail }: AppSidebarProps) {
 
   const profesorItems = [
     { title: "Inicio", icon: <Home className="h-5 w-5 flex-shrink-0" />, url: "/profesor/dashboard" },
-    { title: "Mi Perfil", icon: <Users className="h-5 w-5 flex-shrink-0" />, url: "/profesor/perfil" },
     { title: "Planificación", icon: <Calendar className="h-5 w-5 flex-shrink-0" />, url: "/profesor/planificacion" },
     { title: "Mis Salones", icon: <School className="h-5 w-5 flex-shrink-0" />, url: "/profesor/mis-salones" },
     { title: "Generar Clase", icon: <FileText className="h-5 w-5 flex-shrink-0" />, url: "/profesor/generar-clase" },
@@ -97,7 +96,7 @@ export function AppSidebar({ role, userName, userEmail }: AppSidebarProps) {
     <AnimatedSidebar>
       <SidebarBody className="flex flex-col h-full">
         <SidebarContent menuItems={menuItems} Logo={Logo} LogoIcon={LogoIcon} />
-        <BottomSection userName={userName} userEmail={userEmail} handleLogout={handleLogout} />
+        <BottomSection userName={userName} userEmail={userEmail} handleLogout={handleLogout} navigate={navigate} role={role} />
       </SidebarBody>
     </AnimatedSidebar>
   );
@@ -133,15 +132,25 @@ function SidebarContent({ menuItems, Logo, LogoIcon }: { menuItems: any[]; Logo:
   );
 }
 
-function BottomSection({ userName, userEmail, handleLogout }: { userName?: string; userEmail?: string; handleLogout: () => void }) {
+function BottomSection({ userName, userEmail, handleLogout, navigate, role }: { userName?: string; userEmail?: string; handleLogout: () => void; navigate: any; role: string }) {
   const { open } = useSidebar();
+
+  const handleProfileClick = () => {
+    if (role === "profesor") {
+      navigate("/profesor/perfil");
+    }
+  };
 
   return (
     <div className="flex flex-col gap-2 pb-2 flex-shrink-0 border-t border-sidebar-border/50 pt-4 mt-4">
-      <div className={cn(
-        "flex gap-3",
-        open ? "flex-row items-center px-2" : "flex-col items-center px-0"
-      )}>
+      <div 
+        onClick={role === "profesor" ? handleProfileClick : undefined}
+        className={cn(
+          "flex gap-3",
+          open ? "flex-row items-center px-2" : "flex-col items-center px-0",
+          role === "profesor" && "cursor-pointer hover:bg-sidebar-accent/50 rounded-lg py-2 transition-all duration-150"
+        )}
+      >
         <Avatar className="h-9 w-9 flex-shrink-0">
           <AvatarImage src="" />
           <AvatarFallback className="bg-primary text-primary-foreground">
