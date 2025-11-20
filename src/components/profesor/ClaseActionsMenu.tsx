@@ -6,6 +6,7 @@ interface ClaseActionsMenuProps {
   clase: {
     id: string;
     estado: string;
+    tiene_guia?: boolean;
   };
 }
 
@@ -13,6 +14,15 @@ export const ClaseActionsMenu = ({ clase }: ClaseActionsMenuProps) => {
   const navigate = useNavigate();
 
   const getAction = () => {
+    if (!clase.tiene_guia) {
+      return {
+        label: 'Generar guía',
+        onClick: () => navigate(`/profesor/generar-clase?clase=${clase.id}`),
+        icon: FileText,
+        variant: 'action' as const,
+      };
+    }
+
     switch (clase.estado) {
       case 'borrador':
         return {

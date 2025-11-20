@@ -21,6 +21,7 @@ interface SesionCardProps {
       grado: string;
       seccion: string;
     };
+    tiene_guia?: boolean;
   };
   temaNombre?: string;
   onVerDetalle?: () => void;
@@ -38,6 +39,9 @@ export function SesionCard({
   onVerRetroalimentaciones
 }: SesionCardProps) {
   const getEstadoBadge = () => {
+    if (!sesion.tiene_guia) {
+      return <Badge variant="secondary">Por generar guía</Badge>;
+    }
     switch (sesion.estado) {
       case 'completada':
       case 'ejecutada':
@@ -130,7 +134,7 @@ export function SesionCard({
                 <Eye className="h-4 w-4" />
               </Button>
             )}
-            {onEditar && (
+            {onEditar && sesion.tiene_guia && (
               <Button
                 size="sm"
                 variant="ghost"

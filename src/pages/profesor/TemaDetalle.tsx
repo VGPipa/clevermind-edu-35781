@@ -374,17 +374,27 @@ export default function TemaDetalle() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      {salon.sesiones.map((sesion: any) => (
-                        <SesionCard
-                          key={sesion.id}
-                          sesion={sesion}
-                          temaNombre={tema.nombre}
-                          onVerDetalle={() => navigate(`/profesor/editar-guia/${sesion.id}`)}
-                          onEditar={() => navigate(`/profesor/editar-guia/${sesion.id}`)}
-                          onGestionarQuizzes={() => navigate(`/profesor/gestionar-quizzes/${sesion.id}`)}
-                          onVerRetroalimentaciones={() => navigate(`/profesor/retroalimentaciones/${sesion.id}`)}
-                        />
-                      ))}
+                      {salon.sesiones.map((sesion: any) => {
+                        const navigateToGestion = () => {
+                          if (sesion?.tiene_guia) {
+                            navigate(`/profesor/editar-guia/${sesion.id}`);
+                          } else {
+                            navigate(`/profesor/generar-clase?clase=${sesion.id}`);
+                          }
+                        };
+
+                        return (
+                          <SesionCard
+                            key={sesion.id}
+                            sesion={sesion}
+                            temaNombre={tema.nombre}
+                            onVerDetalle={navigateToGestion}
+                            onEditar={sesion.tiene_guia ? () => navigate(`/profesor/editar-guia/${sesion.id}`) : undefined}
+                            onGestionarQuizzes={sesion.tiene_guia ? () => navigate(`/profesor/gestionar-quizzes/${sesion.id}`) : undefined}
+                            onVerRetroalimentaciones={sesion.tiene_guia ? () => navigate(`/profesor/retroalimentaciones/${sesion.id}`) : undefined}
+                          />
+                        );
+                      })}
                     </div>
                   </CardContent>
                 </Card>

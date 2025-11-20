@@ -41,8 +41,12 @@ export default function MisSalones() {
     setShowProgramarSesion(true);
   };
 
-  const handleVerSesion = (sesionId: string) => {
-    navigate(`/profesor/editar-guia/${sesionId}`);
+  const handleGestionarSesion = (sesion: any) => {
+    if (sesion?.tiene_guia) {
+      navigate(`/profesor/editar-guia/${sesion.id}`);
+    } else {
+      navigate(`/profesor/generar-clase?clase=${sesion.id}`);
+    }
   };
 
   if (isLoading) {
@@ -186,7 +190,7 @@ export default function MisSalones() {
                 key={salon.grupo.id}
                 salon={salon}
                 onProgramarSesion={handleProgramarSesion}
-                onVerSesion={handleVerSesion}
+                onVerSesion={handleGestionarSesion}
               />
             ))}
           </div>

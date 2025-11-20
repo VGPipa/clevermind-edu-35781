@@ -70,7 +70,15 @@ export default function ProfesorDashboard() {
       locale: es
     });
   };
-  const getClaseStage = (estado: string) => {
+  const getClaseStage = (clase: any) => {
+    if (!clase?.tiene_guia) {
+      return {
+        label: "Por generar guía",
+        variant: "secondary" as const,
+      };
+    }
+
+    const estado = clase?.estado;
     const estadoMap: Record<string, {
       label: string;
       variant: "default" | "secondary" | "destructive" | "outline" | "neutral";
@@ -143,7 +151,11 @@ export default function ProfesorDashboard() {
   };
 
   // Función para categorizar estado de preparación (frontend)
-  const getPreparacionCategory = (estado: string): string => {
+  const getPreparacionCategory = (clase: any): string => {
+    if (!clase?.tiene_guia) {
+      return 'guia_pendiente';
+    }
+    const estado = clase?.estado;
     const guiaPendiente = ['borrador', 'generando_clase', 'editando_guia'];
     const evalPrePendiente = ['guia_aprobada', 'quiz_pre_generando'];
     const evalPostPendiente = ['quiz_pre_enviado', 'analizando_quiz_pre', 'modificando_guia', 'guia_final', 'quiz_post_generando'];
@@ -200,13 +212,13 @@ export default function ProfesorDashboard() {
 
     // Aplicar filtro de estatus
     if (statusFilter !== "todos") {
-      clases = clases.filter((clase: any) => getPreparacionCategory(clase.estado) === statusFilter);
+      clases = clases.filter((clase: any) => getPreparacionCategory(clase) === statusFilter);
     }
 
     return clases.map((clase: any) => ({
       ...clase,
-      estado_label: getClaseStage(clase.estado).label,
-      estado_variant: getClaseStage(clase.estado).variant
+      estado_label: getClaseStage(clase).label,
+      estado_variant: getClaseStage(clase).variant
     }));
   }, [dashboardData, cursoFilter, salonFilter, statusFilter]);
   const clasesCalendario = useMemo(() => {
@@ -257,8 +269,8 @@ export default function ProfesorDashboard() {
 
     return clases.map((clase: any) => ({
       ...clase,
-      estado_label: getClaseStage(clase.estado).label,
-      estado_variant: getClaseStage(clase.estado).variant
+      estado_label: getClaseStage(clase).label,
+      estado_variant: getClaseStage(clase).variant
     })).sort((a: any, b: any) => {
       if (!a.fecha_programada) return 1;
       if (!b.fecha_programada) return -1;

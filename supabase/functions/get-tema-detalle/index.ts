@@ -116,6 +116,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         duracion_minutos,
         id_grupo,
         id_guia_tema,
+        id_guia_version_actual,
         grupos (
           id,
           nombre,
@@ -133,7 +134,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     // Group sesiones by salón (grupo)
     const sesionesPorSalon = new Map<string, any[]>();
-    (clases || []).forEach((clase: any) => {
+    (clases || []).forEach((claseOriginal: any) => {
+      const clase = {
+        ...claseOriginal,
+        tiene_guia: Boolean(claseOriginal.id_guia_version_actual),
+      };
       const grupoId = clase.id_grupo;
       if (!sesionesPorSalon.has(grupoId)) {
         sesionesPorSalon.set(grupoId, []);

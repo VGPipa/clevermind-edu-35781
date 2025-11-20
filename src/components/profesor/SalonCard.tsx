@@ -43,7 +43,7 @@ interface SalonCardProps {
     };
   };
   onProgramarSesion?: (temaId: string, grupoId: string) => void;
-  onVerSesion?: (sesionId: string) => void;
+  onVerSesion?: (sesion: any) => void;
 }
 
 export function SalonCard({ salon, onProgramarSesion, onVerSesion }: SalonCardProps) {
@@ -152,7 +152,7 @@ export function SalonCard({ salon, onProgramarSesion, onVerSesion }: SalonCardPr
                         key={sesion.id}
                         sesion={sesion}
                         temaNombre={temaData.tema.nombre}
-                        onVerDetalle={() => onVerSesion?.(sesion.id)}
+                        onVerDetalle={() => onVerSesion?.(sesion)}
                       />
                     ))}
                   </div>

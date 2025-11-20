@@ -105,6 +105,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
             id,
             id_tema,
             id_guia_tema,
+            id_guia_version_actual,
             numero_sesion,
             fecha_programada,
             fecha_ejecutada,
@@ -126,7 +127,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
         // Group clases by tema and filter: only temas with at least one sesión
         const temasConSesiones = new Map<string, any[]>();
-        (clases || []).forEach((clase: any) => {
+        (clases || []).forEach((claseOriginal: any) => {
+          const clase = {
+            ...claseOriginal,
+            tiene_guia: Boolean(claseOriginal.id_guia_version_actual),
+          };
           if (clase.id_tema) {
             if (!temasConSesiones.has(clase.id_tema)) {
               temasConSesiones.set(clase.id_tema, []);
