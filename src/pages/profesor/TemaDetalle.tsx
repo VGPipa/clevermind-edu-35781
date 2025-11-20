@@ -255,6 +255,52 @@ export default function TemaDetalle() {
                       </div>
                     </div>
                   )}
+
+                  {/* Estrategias de Evaluación */}
+                  {guia_maestra.contenido?.estrategias_evaluacion && Array.isArray(guia_maestra.contenido.estrategias_evaluacion) && guia_maestra.contenido.estrategias_evaluacion.length > 0 && (
+                    <div>
+                      <h3 className="font-semibold mb-2">Estrategias de Evaluación</h3>
+                      <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+                        {guia_maestra.contenido.estrategias_evaluacion.map((estrategia: string, i: number) => (
+                          <li key={i}>{estrategia}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Actividades Transversales */}
+                  {guia_maestra.contenido?.actividades_transversales && Array.isArray(guia_maestra.contenido.actividades_transversales) && guia_maestra.contenido.actividades_transversales.length > 0 && (
+                    <div>
+                      <h3 className="font-semibold mb-2">Actividades Transversales</h3>
+                      <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+                        {guia_maestra.contenido.actividades_transversales.map((actividad: string, i: number) => (
+                          <li key={i}>{actividad}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Competencias */}
+                  {guia_maestra.contenido?.competencias && Array.isArray(guia_maestra.contenido.competencias) && guia_maestra.contenido.competencias.length > 0 && (
+                    <div>
+                      <h3 className="font-semibold mb-2">Competencias</h3>
+                      <div className="flex flex-wrap gap-2">
+                        {guia_maestra.contenido.competencias.map((competencia: string, i: number) => (
+                          <Badge key={i} variant="outline">{competencia}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Contexto del Grupo */}
+                  {guia_maestra.contexto_grupo && (
+                    <div>
+                      <h3 className="font-semibold mb-2">Contexto del Grupo</h3>
+                      <p className="text-sm text-muted-foreground whitespace-pre-line">
+                        {guia_maestra.contexto_grupo}
+                      </p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>

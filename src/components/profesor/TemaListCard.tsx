@@ -80,30 +80,30 @@ export function TemaListCard({
     >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <CardTitle className="text-base font-semibold">{tema.nombre}</CardTitle>
+              <CardTitle className="text-base font-semibold line-clamp-1 truncate">{tema.nombre}</CardTitle>
               {getBimestreBadge()}
             </div>
             <CardDescription className="text-sm line-clamp-2">
               {tema.descripcion || 'Sin descripción'}
             </CardDescription>
-            <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-              <span>{tema.materia.nombre}</span>
+            <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground flex-wrap">
+              <span className="truncate">{tema.materia.nombre}</span>
               {tema.materia.grado && (
                 <>
-                  <span>•</span>
-                  <span>{tema.materia.grado}°</span>
+                  <span className="flex-shrink-0">•</span>
+                  <span className="flex-shrink-0">{tema.materia.grado}°</span>
                 </>
               )}
-              <span>•</span>
-              <div className="flex items-center gap-1">
+              <span className="flex-shrink-0">•</span>
+              <div className="flex items-center gap-1 flex-shrink-0">
                 <Calendar className="h-3 w-3" />
                 <span>{tema.duracion_estimada} semanas</span>
               </div>
             </div>
           </div>
-          <div className="flex flex-col gap-1 items-end">
+          <div className="flex flex-col gap-1 items-end flex-shrink-0">
             {getEstatusBadge()}
             {tema.tiene_guia_maestra && tema.total_sesiones_guia && (
               <Badge variant="outline" className="text-xs bg-purple-500 text-white border-purple-500">
