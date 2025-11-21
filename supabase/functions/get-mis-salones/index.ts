@@ -83,7 +83,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
             },
             alumnos: [],
             recomendaciones: [],
-            retroalimentaciones: [],
           };
         }
 
@@ -109,7 +108,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
             },
             alumnos: [],
             recomendaciones: [],
-            retroalimentaciones: [],
           };
         }
 
@@ -322,45 +320,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
           return notasPost.reduce((sum, nota) => sum + nota, 0) / notasPost.length;
         })();
 
-        const { data: retroalimentacionesData, error: retroError } = await supabase
-          .from('retroalimentaciones')
-          .select(`
-            id,
-            id_alumno,
-            tipo,
-            contenido,
-            fecha_envio,
-            created_at,
-            clases!inner (
-              id,
-              id_grupo,
-              id_profesor
-            )
-          `)
-          .eq('clases.id_grupo', grupo.id)
-          .eq('clases.id_profesor', profesor.id)
-          .order('created_at', { ascending: false })
-          .limit(20);
-
-        if (retroError) {
-          console.error('Error obteniendo retroalimentaciones:', retroError);
-        }
-
-        const retroalimentacionesSalon = (retroalimentacionesData || []).map((retro: any) => ({
-          id: retro.id,
-          id_alumno: retro.id_alumno,
-          tipo: retro.tipo,
-          contenido: retro.contenido,
-          fecha_envio: retro.fecha_envio,
-          created_at: retro.created_at,
-        }));
-
+        // Retroalimentaciones feature removed - table doesn't exist
         const retroPorAlumno = new Map<string, any>();
-        retroalimentacionesSalon.forEach(retro => {
-          if (retro.id_alumno && !retroPorAlumno.has(retro.id_alumno)) {
-            retroPorAlumno.set(retro.id_alumno, retro);
-          }
-        });
 
         const { data: recomendacionesData, error: recomendacionesError } = await supabase
           .from('recomendaciones')
@@ -490,7 +451,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
           resumen: resumenSalon,
           alumnos: alumnosStats,
           recomendaciones: recomendacionesSalon,
-          retroalimentaciones: retroalimentacionesSalon,
         };
 
         // Debug: verificar estructura completa
