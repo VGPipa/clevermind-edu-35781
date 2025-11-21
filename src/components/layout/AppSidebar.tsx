@@ -38,7 +38,6 @@ export function AppSidebar({ role, userName, userEmail }: AppSidebarProps) {
     { title: "Inicio", icon: <Home className="h-5 w-5 flex-shrink-0" />, url: "/profesor/dashboard" },
     { title: "Planificación", icon: <Calendar className="h-5 w-5 flex-shrink-0" />, url: "/profesor/planificacion" },
     { title: "Mis Salones", icon: <School className="h-5 w-5 flex-shrink-0" />, url: "/profesor/mis-salones" },
-    { title: "Mis Clases", icon: <ClipboardList className="h-5 w-5 flex-shrink-0" />, url: "/profesor/mis-clases" },
     { title: "Generar Clase", icon: <FileText className="h-5 w-5 flex-shrink-0" />, url: "/profesor/generar-clase" },
     { title: "Métricas", icon: <BarChart3 className="h-5 w-5 flex-shrink-0" />, url: "/profesor/metricas" },
     { title: "Capacitación IA", icon: <Sparkles className="h-5 w-5 flex-shrink-0" />, url: "/profesor/capacitacion" },
@@ -46,7 +45,6 @@ export function AppSidebar({ role, userName, userEmail }: AppSidebarProps) {
 
   const alumnoItems = [
     { title: "Inicio", icon: <Home className="h-5 w-5 flex-shrink-0" />, url: "/alumno/dashboard" },
-    { title: "Mis Clases", icon: <GraduationCap className="h-5 w-5 flex-shrink-0" />, url: "/alumno/clases" },
   ];
 
   const apoderadoItems = [

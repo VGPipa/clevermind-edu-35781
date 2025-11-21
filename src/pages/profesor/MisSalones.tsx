@@ -10,13 +10,10 @@ import { Loader2, School, Users, BookOpen, Lightbulb, BarChart3 } from "lucide-r
 import { Skeleton } from "@/components/ui/skeleton";
 import { SalonDashboardCard } from "@/components/profesor/SalonDashboardCard";
 import { AlumnosResultadosTable } from "@/components/profesor/AlumnosResultadosTable";
-import { ClasesResultadosSection } from "@/components/profesor/ClasesResultadosSection";
 import { RecomendacionesSection } from "@/components/profesor/RecomendacionesSection";
-import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 
 export default function MisSalones() {
-  const navigate = useNavigate();
   const { toast } = useToast();
   const [filtroSalon, setFiltroSalon] = useState<string>("todos");
 
@@ -28,10 +25,6 @@ export default function MisSalones() {
       return data;
     },
   });
-
-  const handleVerClase = (claseId: string) => {
-    navigate(`/profesor/mis-clases?clase=${claseId}`);
-  };
 
   const handleVerDetalleAlumno = (alumnoId: string) => {
     // Navegar a detalle del alumno si existe esa página
@@ -188,7 +181,7 @@ export default function MisSalones() {
           </Card>
         ) : (
           <Tabs defaultValue="general" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="general" className="flex items-center gap-2">
                 <BarChart3 className="h-4 w-4" />
                 Vista General
@@ -196,10 +189,6 @@ export default function MisSalones() {
               <TabsTrigger value="alumnos" className="flex items-center gap-2">
                 <Users className="h-4 w-4" />
                 Alumnos
-              </TabsTrigger>
-              <TabsTrigger value="clases" className="flex items-center gap-2">
-                <BookOpen className="h-4 w-4" />
-                Clases
               </TabsTrigger>
               <TabsTrigger value="recomendaciones" className="flex items-center gap-2">
                 <Lightbulb className="h-4 w-4" />
@@ -290,30 +279,6 @@ export default function MisSalones() {
                         grupoNombre={salon.grupo.nombre}
                         onVerDetalle={handleVerDetalleAlumno}
                         onGenerarRetro={handleGenerarRetro}
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-
-            {/* Resultados de Clases */}
-            <TabsContent value="clases" className="space-y-6">
-              {salonSeleccionado ? (
-                <ClasesResultadosSection
-                  temas={salonSeleccionado.temas}
-                  onVerClase={handleVerClase}
-                />
-              ) : (
-                <div className="space-y-6">
-                  {salonesFiltrados.map((salon: any) => (
-                    <div key={salon.grupo.id}>
-                      <h3 className="text-lg font-semibold mb-4">
-                        {salon.grupo.nombre} - {salon.grupo.grado}° {salon.grupo.seccion}
-                      </h3>
-                      <ClasesResultadosSection
-                        temas={salon.temas}
-                        onVerClase={handleVerClase}
                       />
                     </div>
                   ))}

@@ -23,10 +23,8 @@ import ProfesorNodoAprendizaje from "./pages/profesor/NodoAprendizaje";
 import ProfesorPerfil from "./pages/profesor/Perfil";
 import ProfesorMisTemas from "./pages/profesor/MisTemas";
 import ProfesorMisSalones from "./pages/profesor/MisSalones";
-import ProfesorMisClases from "./pages/profesor/MisClases";
 import ProfesorTemaDetalle from "./pages/profesor/TemaDetalle";
 import AlumnoDashboard from "./pages/alumno/Dashboard";
-import AlumnoClases from "./pages/alumno/Clases";
 import ApoderadoDashboard from "./pages/apoderado/Dashboard";
 import NotFound from "./pages/NotFound";
 
@@ -54,7 +52,6 @@ const App = () => (
           <Route path="/profesor/planificacion/tema/:temaId" element={<ProfesorTemaDetalle />} />
           <Route path="/profesor/mis-temas" element={<ProfesorMisTemas />} />
           <Route path="/profesor/mis-salones" element={<ProfesorMisSalones />} />
-          <Route path="/profesor/mis-clases" element={<ProfesorMisClases />} />
           <Route path="/profesor/perfil" element={<ProfesorPerfil />} />
           <Route path="/profesor/generar-clase" element={<ProfesorGenerarClase />} />
           <Route path="/profesor/ver-guia/:claseId" element={<ProfesorVerGuiaClase />} />
@@ -69,7 +66,6 @@ const App = () => (
           
           {/* Alumno Routes */}
           <Route path="/alumno/dashboard" element={<AlumnoDashboard />} />
-          <Route path="/alumno/clases" element={<AlumnoClases />} />
           
           {/* Apoderado Routes */}
           <Route path="/apoderado/dashboard" element={<ApoderadoDashboard />} />
