@@ -1,142 +1,125 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BookOpen, Play, CheckCircle2, Clock, Calendar, Target, Award } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { formatPeruTime, formatPeruDateTime } from "@/lib/timezone";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { BookOpen, Calendar, Award, MessageSquare, TrendingUp, Target, Clock } from "lucide-react";
+import { useMisClasesAlumno } from "@/hooks/use-mis-clases-alumno";
+import { MateriaCard } from "@/components/alumno/MateriaCard";
+import { ClaseListItem } from "@/components/alumno/ClaseListItem";
+import { QuizCard } from "@/components/alumno/QuizCard";
+import { ResultadosTable } from "@/components/alumno/ResultadosTable";
+import { EvolucionNotasChart } from "@/components/alumno/EvolucionNotasChart";
+import { QuizDetalleModal } from "@/components/alumno/QuizDetalleModal";
+import type { ClaseData, QuizData } from "@/hooks/use-mis-clases-alumno";
 
 export default function Clases() {
+  const { data, isLoading, error } = useMisClasesAlumno();
   const [selectedMateria, setSelectedMateria] = useState<string | null>(null);
+  const [filtroEstado, setFiltroEstado] = useState<string>("todos");
+  const [filtroMateria, setFiltroMateria] = useState<string>("todas");
+  const [busqueda, setBusqueda] = useState("");
+  const [quizDetalle, setQuizDetalle] = useState<QuizData | null>(null);
+  const [modalAbierto, setModalAbierto] = useState(false);
 
-  const mockMaterias = [
-    {
-      id: "1",
-      nombre: "Matemáticas",
-      profesor: "Ana Martínez",
-      horario: "Lun, Mié, Vie 08:00-09:30",
-      progreso: 45,
-      proximaClase: "Mañana 08:00",
-      color: "primary"
-    },
-    {
-      id: "2",
-      nombre: "Lenguaje",
-      profesor: "Carlos López",
-      horario: "Mar, Jue 10:00-11:30",
-      progreso: 60,
-      proximaClase: "Hoy 10:00",
-      color: "secondary"
-    },
-    {
-      id: "3",
-      nombre: "Ciencias",
-      profesor: "María González",
-      horario: "Lun, Mié 14:00-15:30",
-      progreso: 38,
-      proximaClase: "Lun 14:00",
-      color: "accent"
-    },
-    {
-      id: "4",
-      nombre: "Historia",
-      profesor: "Roberto Silva",
-      horario: "Mar, Vie 13:00-14:30",
-      progreso: 52,
-      proximaClase: "Mar 13:00",
-      color: "success"
-    }
-  ];
+  if (isLoading) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Cargando tus clases...</p>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
 
-  const mockClasesRecientes = [
-    {
-      materia: "Matemáticas",
-      tema: "Suma y Resta hasta 100",
-      fecha: "Ayer",
-      estado: "completada",
-      calificacion: 8.5
-    },
-    {
-      materia: "Lenguaje",
-      tema: "Comprensión Lectora",
-      fecha: "Hace 2 días",
-      estado: "completada",
-      calificacion: 7.8
-    },
-    {
-      materia: "Ciencias",
-      tema: "Estados del Agua",
-      fecha: "Hace 3 días",
-      estado: "completada",
-      calificacion: 9.0
-    }
-  ];
+  if (error) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <p className="text-destructive mb-2">Error al cargar los datos</p>
+            <p className="text-sm text-muted-foreground">
+              {error instanceof Error ? error.message : "Error desconocido"}
+            </p>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
 
-  const mockQuizzes = [
-    {
-      id: "1",
-      materia: "Matemáticas",
-      titulo: "Evaluación: Geometría",
-      tipo: "evaluacion",
-      preguntas: 15,
-      duracion: 30,
-      fechaLimite: "Hoy 23:59",
-      estado: "disponible",
-      intentos: 0
-    },
-    {
-      id: "2",
-      materia: "Lenguaje",
-      titulo: "Quiz: Comprensión Lectora",
-      tipo: "quiz",
-      preguntas: 10,
-      duracion: 20,
-      fechaLimite: "Mañana",
-      estado: "disponible",
-      intentos: 0
-    },
-    {
-      id: "3",
-      materia: "Ciencias",
-      titulo: "Quiz: El Agua",
-      tipo: "quiz",
-      preguntas: 8,
-      duracion: 15,
-      fechaLimite: "Completado",
-      estado: "completado",
-      intentos: 1,
-      nota: 8.5
-    }
-  ];
+  if (!data) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <p className="text-muted-foreground">No hay datos disponibles</p>
+        </div>
+      </AppLayout>
+    );
+  }
 
-  const mockProximasClases = [
-    {
-      materia: "Lenguaje",
-      tema: "Poesía Chilena",
-      profesor: "Carlos López",
-      fecha: "Hoy",
-      hora: "10:00",
-      sala: "105"
-    },
-    {
-      materia: "Matemáticas",
-      tema: "Geometría: Triángulos",
-      profesor: "Ana Martínez",
-      fecha: "Mañana",
-      hora: "08:00",
-      sala: "201"
-    },
-    {
-      materia: "Ciencias",
-      tema: "El Ciclo del Agua",
-      profesor: "María González",
-      fecha: "Lunes",
-      hora: "14:00",
-      sala: "Lab 1"
+  // Filtrar clases
+  let clasesFiltradas = data.clases;
+  if (filtroMateria !== "todas") {
+    clasesFiltradas = clasesFiltradas.filter(
+      (c) => c.tema.materia.id === filtroMateria
+    );
+  }
+  if (filtroEstado !== "todos") {
+    if (filtroEstado === "programadas") {
+      clasesFiltradas = clasesFiltradas.filter(
+        (c) => c.estado === "programada" || c.estado === "clase_programada"
+      );
+    } else if (filtroEstado === "ejecutadas") {
+      clasesFiltradas = clasesFiltradas.filter(
+        (c) => c.estado === "completada" || c.estado === "ejecutada"
+      );
     }
-  ];
+  }
+  if (busqueda) {
+    const busquedaLower = busqueda.toLowerCase();
+    clasesFiltradas = clasesFiltradas.filter(
+      (c) =>
+        c.tema.nombre.toLowerCase().includes(busquedaLower) ||
+        c.tema.materia.nombre.toLowerCase().includes(busquedaLower)
+    );
+  }
+
+  // Filtrar quizzes
+  let quizzesFiltrados = data.quizzes;
+  if (filtroMateria !== "todas") {
+    const materiaSeleccionada = data.materias.find((m) => m.id === filtroMateria);
+    if (materiaSeleccionada) {
+      quizzesFiltrados = quizzesFiltrados.filter(
+        (q) => {
+          // Buscar la clase correspondiente al quiz
+          const clase = data.clases.find((c) => c.id === q.clase.id);
+          return clase?.tema.materia.id === filtroMateria;
+        }
+      );
+    }
+  }
+  if (filtroEstado !== "todos") {
+    if (filtroEstado === "disponibles") {
+      quizzesFiltrados = quizzesFiltrados.filter(
+        (q) => q.estado === "publicado" && !q.respuesta_alumno
+      );
+    } else if (filtroEstado === "completados") {
+      quizzesFiltrados = quizzesFiltrados.filter(
+        (q) => q.respuesta_alumno?.estado === "completado"
+      );
+    }
+  }
 
   return (
     <AppLayout>
@@ -150,189 +133,303 @@ export default function Clases() {
           </p>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          {mockMaterias.map((materia) => (
-            <Card 
-              key={materia.id} 
-              className="hover:shadow-elegant transition-all hover:-translate-y-1 cursor-pointer"
-              onClick={() => setSelectedMateria(materia.id)}
-            >
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <CardTitle className="text-base">{materia.nombre}</CardTitle>
-                    <CardDescription className="text-xs mt-1">
-                      {materia.profesor}
-                    </CardDescription>
-                  </div>
-                  <BookOpen className={`h-5 w-5 text-${materia.color}`} />
+        {/* KPIs */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-center">
+                <div className="text-3xl font-bold">
+                  {data.kpis.promedio_general !== null
+                    ? data.kpis.promedio_general.toFixed(1)
+                    : "-"}
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">Progreso</span>
-                    <span className="font-medium">{materia.progreso}%</span>
-                  </div>
-                  <Progress value={materia.progreso} className="h-1.5" />
+                <p className="text-sm text-muted-foreground mt-1">Promedio General</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-center">
+                <div className="text-3xl font-bold text-green-600">
+                  {data.kpis.quizzes_completados}
                 </div>
-
-                <div className="pt-2 space-y-2 text-xs">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Clock className="h-3 w-3" />
-                    {materia.horario}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-3 w-3 text-primary" />
-                    <span className="font-medium">{materia.proximaClase}</span>
-                  </div>
+                <p className="text-sm text-muted-foreground mt-1">Quizzes Completados</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-center">
+                <div className="text-3xl font-bold text-orange-600">
+                  {data.kpis.quizzes_pendientes}
                 </div>
-              </CardContent>
-            </Card>
-          ))}
+                <p className="text-sm text-muted-foreground mt-1">Quizzes Pendientes</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-center">
+                <div className="text-3xl font-bold text-blue-600">
+                  {data.kpis.tasa_participacion}%
+                </div>
+                <p className="text-sm text-muted-foreground mt-1">Tasa de Participación</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-center">
+                <div className="text-3xl font-bold text-purple-600">
+                  {data.kpis.progreso_general}%
+                </div>
+                <p className="text-sm text-muted-foreground mt-1">Progreso General</p>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
-        <Tabs defaultValue="proximas" className="space-y-4">
+        {/* Cards de Materias */}
+        {data.materias.length > 0 && (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+            {data.materias.map((materia) => (
+              <MateriaCard
+                key={materia.id}
+                materia={materia}
+                onClick={() => setSelectedMateria(selectedMateria === materia.id ? null : materia.id)}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Tabs */}
+        <Tabs defaultValue="clases" className="space-y-4">
           <TabsList>
-            <TabsTrigger value="proximas">Próximas Clases</TabsTrigger>
-            <TabsTrigger value="quizzes">Quizzes</TabsTrigger>
-            <TabsTrigger value="historial">Historial</TabsTrigger>
+            <TabsTrigger value="clases">Mis Clases</TabsTrigger>
+            <TabsTrigger value="quizzes">Quizzes y Evaluaciones</TabsTrigger>
+            <TabsTrigger value="resultados">Resultados y Progreso</TabsTrigger>
+            <TabsTrigger value="retroalimentaciones">Retroalimentaciones</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="proximas" className="space-y-4">
+          <TabsContent value="clases" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5 text-primary" />
-                  Próximas Clases
-                </CardTitle>
-                <CardDescription>Tu calendario de esta semana</CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Calendar className="h-5 w-5 text-primary" />
+                      Mis Clases
+                    </CardTitle>
+                    <CardDescription>Clases programadas y ejecutadas</CardDescription>
+                  </div>
+                  <div className="flex gap-2">
+                    <Select value={filtroMateria} onValueChange={setFiltroMateria}>
+                      <SelectTrigger className="w-[150px]">
+                        <SelectValue placeholder="Materia" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todas">Todas las materias</SelectItem>
+                        {data.materias.map((m) => (
+                          <SelectItem key={m.id} value={m.id}>
+                            {m.nombre}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={filtroEstado} onValueChange={setFiltroEstado}>
+                      <SelectTrigger className="w-[150px]">
+                        <SelectValue placeholder="Estado" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todos">Todos</SelectItem>
+                        <SelectItem value="programadas">Programadas</SelectItem>
+                        <SelectItem value="ejecutadas">Ejecutadas</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      placeholder="Buscar..."
+                      value={busqueda}
+                      onChange={(e) => setBusqueda(e.target.value)}
+                      className="w-[200px]"
+                    />
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {mockProximasClases.map((clase, idx) => (
-                    <div key={idx} className="flex items-start gap-3 p-4 rounded-lg border bg-card/50 hover:bg-accent/10 transition-colors">
-                      <div className="mt-1">
-                        <Badge 
-                          variant={clase.fecha === "Hoy" ? "default" : "outline"}
-                          className="mb-1"
-                        >
-                          {clase.fecha}
-                        </Badge>
-                        <div className="text-xs font-medium text-muted-foreground">
-                          {clase.hora}
-                        </div>
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-1">
-                          <h3 className="font-medium">{clase.materia}</h3>
-                          <Badge variant="outline">{clase.sala}</Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground mb-1">
-                          {clase.profesor}
-                        </p>
-                        <p className="text-sm">📚 {clase.tema}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                {clasesFiltradas.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No hay clases que coincidan con los filtros
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {clasesFiltradas.map((clase) => (
+                      <ClaseListItem
+                        key={clase.id}
+                        clase={clase}
+                        onVerDetalle={() => {
+                          // Navegar a detalle de clase si existe
+                          console.log("Ver detalle de clase:", clase.id);
+                        }}
+                        onVerRetroalimentaciones={() => {
+                          // Navegar a retroalimentaciones si existe
+                          console.log("Ver retroalimentaciones de clase:", clase.id);
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
 
           <TabsContent value="quizzes" className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              {mockQuizzes.map((quiz) => (
-                <Card key={quiz.id} className={quiz.estado === "completado" ? "opacity-75" : ""}>
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <CardTitle className="text-base">{quiz.titulo}</CardTitle>
-                          {quiz.estado === "completado" && (
-                            <CheckCircle2 className="h-4 w-4 text-success" />
-                          )}
-                        </div>
-                        <CardDescription>{quiz.materia}</CardDescription>
-                      </div>
-                      <Badge variant={quiz.tipo === "evaluacion" ? "destructive" : "secondary"}>
-                        {quiz.tipo === "evaluacion" ? "Evaluación" : "Quiz"}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {quiz.estado === "completado" ? (
-                      <div className="p-3 rounded-lg bg-success/10 border border-success/20">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium">Nota obtenida</span>
-                          <Badge className="bg-success text-success-foreground">
-                            ⭐ {quiz.nota}
-                          </Badge>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <div className="flex items-center gap-1">
-                            <Target className="h-3 w-3" />
-                            {quiz.preguntas} preguntas
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {quiz.duracion} min
-                          </div>
-                        </div>
-
-                        <div className="p-2 rounded bg-muted/50 text-xs text-center">
-                          <span className="text-muted-foreground">Disponible hasta: </span>
-                          <span className="font-medium">{quiz.fechaLimite}</span>
-                        </div>
-
-                        <Button className="w-full bg-gradient-primary" size="sm">
-                          <Play className="mr-2 h-3 w-3" />
-                          Comenzar Quiz
-                        </Button>
-                      </>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Target className="h-5 w-5 text-primary" />
+                      Quizzes y Evaluaciones
+                    </CardTitle>
+                    <CardDescription>Quizzes disponibles y completados</CardDescription>
+                  </div>
+                  <div className="flex gap-2">
+                    <Select value={filtroMateria} onValueChange={setFiltroMateria}>
+                      <SelectTrigger className="w-[150px]">
+                        <SelectValue placeholder="Materia" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todas">Todas las materias</SelectItem>
+                        {data.materias.map((m) => (
+                          <SelectItem key={m.id} value={m.id}>
+                            {m.nombre}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={filtroEstado} onValueChange={setFiltroEstado}>
+                      <SelectTrigger className="w-[150px]">
+                        <SelectValue placeholder="Estado" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todos">Todos</SelectItem>
+                        <SelectItem value="disponibles">Disponibles</SelectItem>
+                        <SelectItem value="completados">Completados</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {quizzesFiltrados.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No hay quizzes que coincidan con los filtros
+                  </div>
+                ) : (
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {quizzesFiltrados.map((quiz) => (
+                      <QuizCard
+                        key={quiz.id}
+                        quiz={quiz}
+                        onComenzar={() => {
+                          // Navegar a comenzar quiz
+                          console.log("Comenzar quiz:", quiz.id);
+                        }}
+                        onVerResultados={() => {
+                          setQuizDetalle(quiz);
+                          setModalAbierto(true);
+                        }}
+                        onVerDetalle={() => {
+                          setQuizDetalle(quiz);
+                          setModalAbierto(true);
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
-          <TabsContent value="historial" className="space-y-4">
+          <TabsContent value="resultados" className="space-y-4">
+            <EvolucionNotasChart quizzes={data.quizzes} />
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Award className="h-5 w-5 text-success" />
-                  Clases Recientes
+                  <TrendingUp className="h-5 w-5 text-success" />
+                  Resultados por Materia
                 </CardTitle>
-                <CardDescription>Tus últimas clases completadas</CardDescription>
+                <CardDescription>Desempeño detallado por materia</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {mockClasesRecientes.map((clase, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-3 rounded-lg border bg-card/50">
-                      <div>
-                        <h3 className="font-medium text-sm">{clase.tema}</h3>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {clase.materia} · {clase.fecha}
-                        </p>
+                <ResultadosTable resultados={data.resultados} />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="retroalimentaciones" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageSquare className="h-5 w-5 text-secondary" />
+                  Retroalimentaciones
+                </CardTitle>
+                <CardDescription>Feedback recibido de tus profesores</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {data.retroalimentaciones.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No hay retroalimentaciones disponibles
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {data.retroalimentaciones.map((retro) => (
+                      <div
+                        key={retro.id}
+                        className="p-4 rounded-lg border bg-card/50 hover:bg-accent/10 transition-colors"
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <Badge variant="outline" className="mb-2">
+                              {retro.tipo === "alumno"
+                                ? "Para ti"
+                                : retro.tipo === "profesor_individual"
+                                  ? "Profesor"
+                                  : retro.tipo}
+                            </Badge>
+                            {retro.clase && (
+                              <p className="text-sm font-medium">{retro.clase.tema.nombre}</p>
+                            )}
+                          </div>
+                          {retro.fecha_envio && (
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(retro.fecha_envio).toLocaleDateString("es-PE")}
+                            </span>
+                          )}
+                        </div>
+                        {retro.contenido && typeof retro.contenido === "object" && (
+                          <div className="text-sm text-muted-foreground">
+                            {retro.contenido.resumen || JSON.stringify(retro.contenido)}
+                          </div>
+                        )}
+                        {typeof retro.contenido === "string" && (
+                          <div className="text-sm text-muted-foreground">{retro.contenido}</div>
+                        )}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-success" />
-                        <Badge className="bg-success text-success-foreground">
-                          {clase.calificacion}
-                        </Badge>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
       </div>
+
+      <QuizDetalleModal
+        quiz={quizDetalle}
+        open={modalAbierto}
+        onOpenChange={setModalAbierto}
+      />
     </AppLayout>
   );
 }
