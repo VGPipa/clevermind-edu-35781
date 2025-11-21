@@ -144,7 +144,7 @@ export default function MisSalones() {
 
         {/* Estadísticas Generales */}
         {salonesConEstructura.length > 0 && (
-          <div className="grid gap-4 md:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-3">
             <Card>
               <CardContent className="pt-6">
                 <div className="text-center">
@@ -170,16 +170,6 @@ export default function MisSalones() {
                     {salonesConEstructura.reduce((sum: number, s: any) => sum + (s.progreso_general?.programadas || 0), 0)}
                   </div>
                   <p className="text-sm text-muted-foreground mt-1">Sesiones Programadas</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-orange-600">
-                    {salonesConEstructura.reduce((sum: number, s: any) => sum + (s.progreso_general?.pendientes || 0), 0)}
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-1">Sesiones Pendientes</p>
                 </div>
               </CardContent>
             </Card>
