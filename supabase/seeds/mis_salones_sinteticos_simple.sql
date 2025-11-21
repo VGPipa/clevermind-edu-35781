@@ -11,8 +11,8 @@ DECLARE
   v_quiz_post_id UUID;
   v_respuesta_pre_id UUID;
   v_respuesta_post_id UUID;
-  v_estado TEXT;
-  v_estado_post TEXT;
+  v_estado estado_respuesta;
+  v_estado_post estado_respuesta;
   v_seed_tag TEXT := '[DEMO]';
   v_clase_count INT := 0;
   
