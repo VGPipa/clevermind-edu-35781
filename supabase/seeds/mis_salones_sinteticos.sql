@@ -44,10 +44,7 @@ BEGIN
     AND q.titulo LIKE '[DEMO]%';
 
   DELETE FROM recomendaciones
-  WHERE contenido ->> 'seed_tag' = seed_tag;
-
-  DELETE FROM retroalimentaciones
-  WHERE contenido ->> 'seed_tag' = seed_tag;
+  WHERE contenido LIKE '%mis_salones_demo%';
 
   DELETE FROM quizzes
   WHERE titulo LIKE '[DEMO]%';
@@ -151,7 +148,7 @@ BEGIN
         uuid_generate_v4(),
         quiz_pre_id,
         alumno.id,
-        CASE WHEN completado THEN 'completado' ELSE 'en_progreso' END,
+        CASE WHEN completado THEN 'completado'::estado_respuesta ELSE 'en_progreso'::estado_respuesta END,
         NOW() - INTERVAL '4 days',
         CASE WHEN completado THEN NOW() - INTERVAL '4 days' + INTERVAL '10 minutes' ELSE NULL END,
         NOW() - INTERVAL '4 days'
@@ -193,7 +190,7 @@ BEGIN
         uuid_generate_v4(),
         quiz_post_id,
         alumno.id,
-        CASE WHEN completado THEN 'completado' ELSE 'en_progreso' END,
+        CASE WHEN completado THEN 'completado'::estado_respuesta ELSE 'en_progreso'::estado_respuesta END,
         NOW() - INTERVAL '1 days',
         CASE WHEN completado THEN NOW() - INTERVAL '1 days' + INTERVAL '12 minutes' ELSE NULL END,
         NOW() - INTERVAL '1 days'
@@ -227,8 +224,6 @@ BEGIN
       id,
       id_clase,
       id_clase_anterior,
-      id_quiz_pre,
-      tipo,
       aplicada,
       contenido,
       created_at
@@ -236,15 +231,8 @@ BEGIN
       uuid_generate_v4(),
       clase.id,
       NULL,
-      quiz_pre_id,
-      'quiz_pre',
       FALSE,
-      jsonb_build_object(
-        'seed_tag', seed_tag,
-        'resumen', 'Refuerza la activación de saberes previos con material visual',
-        'accion', 'Incorporar ejemplos de la vida cotidiana antes de iniciar la práctica',
-        'impacto', 'Mejora la participación inicial'
-      ),
+      '[mis_salones_demo] Refuerza la activación de saberes previos con material visual. Incorporar ejemplos de la vida cotidiana antes de iniciar la práctica para mejorar la participación inicial.',
       NOW()
     );
 
@@ -253,8 +241,6 @@ BEGIN
       id,
       id_clase,
       id_clase_anterior,
-      id_quiz_pre,
-      tipo,
       aplicada,
       contenido,
       created_at
@@ -262,78 +248,8 @@ BEGIN
       uuid_generate_v4(),
       clase.id,
       NULL,
-      NULL,
-      'clase_anterior',
       random() > 0.5,
-      jsonb_build_object(
-        'seed_tag', seed_tag,
-        'resumen', 'Planifica estaciones de trabajo para abordar diferentes ritmos',
-        'accion', 'Crear 3 estaciones (lectura guiada, desafío lógico, reflexión)',
-        'impacto', 'Permite acompañar a alumnos en riesgo'
-      ),
-      NOW()
-    );
-
-    -- Retroalimentaciones para los alumnos con menor nota en el quiz post
-    INSERT INTO retroalimentaciones (
-      id,
-      id_clase,
-      id_quiz,
-      tipo,
-      id_alumno,
-      contenido,
-      generada_ia,
-      enviada,
-      fecha_envio,
-      created_at
-    )
-    SELECT
-      uuid_generate_v4(),
-      clase.id,
-      quiz_post_id,
-      'alumno',
-      ra.id_alumno,
-      jsonb_build_object(
-        'seed_tag', seed_tag,
-        'resumen', 'Reforzar vocabulario clave y solicitar ejemplos propios',
-        'mensaje', 'Practica explicar el concepto con tus palabras y tráelo a la próxima sesión'
-      ),
-      TRUE,
-      TRUE,
-      NOW(),
-      NOW()
-    FROM respuestas_alumno ra
-    JOIN calificaciones c ON c.id_respuesta_alumno = ra.id
-    WHERE ra.id_quiz = quiz_post_id
-    ORDER BY c.nota_numerica ASC NULLS LAST
-    LIMIT 3;
-
-    -- Retroalimentación grupal
-    INSERT INTO retroalimentaciones (
-      id,
-      id_clase,
-      id_quiz,
-      tipo,
-      id_alumno,
-      contenido,
-      generada_ia,
-      enviada,
-      fecha_envio,
-      created_at
-    ) VALUES (
-      uuid_generate_v4(),
-      clase.id,
-      quiz_post_id,
-      'profesor_grupal',
-      NULL,
-      jsonb_build_object(
-        'seed_tag', seed_tag,
-        'fortalezas', 'Alta colaboración y escucha activa',
-        'oportunidades', 'Recordar evidenciar procedimientos por escrito'
-      ),
-      TRUE,
-      FALSE,
-      NULL,
+      '[mis_salones_demo] Planifica estaciones de trabajo para abordar diferentes ritmos. Crear 3 estaciones (lectura guiada, desafío lógico, reflexión) permite acompañar a alumnos en riesgo.',
       NOW()
     );
   END LOOP;
