@@ -129,10 +129,12 @@ BEGIN
         END
       ) RETURNING id INTO v_respuesta_id;
       
-      -- Calificación si completado
+      -- Calificación si completado (escala peruana 0-20)
       IF v_estado = 'completado' THEN
-        v_nota := 3.0 + (random() * 4.0); -- Entre 3.0 y 7.0
-        v_porcentaje := (v_nota / 7.0) * 100;
+        -- Generar porcentaje con distribución normal centrada en 60%
+        v_porcentaje := GREATEST(20, LEAST(100, 60 + (random() - 0.5) * 50));
+        -- Derivar nota en escala 0-20
+        v_nota := ROUND((v_porcentaje / 100.0) * 20, 2);
         
         INSERT INTO calificaciones (
           id_respuesta_alumno,
@@ -171,10 +173,12 @@ BEGIN
         END
       ) RETURNING id INTO v_respuesta_id;
       
-      -- Calificación si completado (notas ligeramente mejores que en quiz pre)
+      -- Calificación si completado (escala peruana 0-20, mejor que pre)
       IF v_estado = 'completado' THEN
-        v_nota := 4.0 + (random() * 3.0); -- Entre 4.0 y 7.0
-        v_porcentaje := (v_nota / 7.0) * 100;
+        -- Generar porcentaje con mejora: distribución centrada en 70%
+        v_porcentaje := GREATEST(30, LEAST(100, 70 + (random() - 0.5) * 40));
+        -- Derivar nota en escala 0-20
+        v_nota := ROUND((v_porcentaje / 100.0) * 20, 2);
         
         INSERT INTO calificaciones (
           id_respuesta_alumno,
