@@ -42,7 +42,6 @@ export default function GenerarClase() {
 
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [isLoadingClase, setIsLoadingClase] = useState(false);
   const [metodologiasSeleccionadas, setMetodologiasSeleccionadas] = useState<string[]>([]);
   const [edadSeleccionada, setEdadSeleccionada] = useState("");
   const [claseId, setClaseId] = useState<string | null>(claseIdParam);
@@ -54,6 +53,8 @@ export default function GenerarClase() {
     duracionClase: "90",
     contextoEspecifico: "",
   });
+
+  const esSesionPreprogramada = !!claseIdParam && !extraordinaria;
 
   // Fetch tema data if temaId is provided
   const { data: temaData, isLoading: loadingTema } = useQuery({
@@ -80,6 +81,45 @@ export default function GenerarClase() {
       return response.data;
     },
     enabled: !!temaId,
+  });
+
+  // Fetch clase data when viene ?clase=<id> para prellenar el formulario
+  const { data: claseData } = useQuery({
+    queryKey: ['clase', claseIdParam],
+    queryFn: async () => {
+      if (!claseIdParam) return null;
+
+      const response = await (supabase as any)
+        .from('clases')
+        .select(`
+          *,
+          temas!inner (
+            id,
+            nombre,
+            descripcion,
+            duracion_estimada,
+            materias!inner (
+              nombre,
+              plan_anual!inner (
+                grado,
+                id_institucion
+              )
+            )
+          ),
+          grupos!inner (
+            id,
+            nombre,
+            grado,
+            seccion
+          )
+        `)
+        .eq('id', claseIdParam)
+        .single();
+
+      if (response.error) throw response.error;
+      return response.data;
+    },
+    enabled: esSesionPreprogramada,
   });
 
   // Fetch grupos for the profesor
@@ -155,6 +195,40 @@ export default function GenerarClase() {
     }
   };
 
+  // Pre-fill form when clase data is loaded (sesión ya programada)
+  useEffect(() => {
+    if (claseData && esSesionPreprogramada) {
+      setClaseId(claseData.id);
+      setFormData(prev => ({
+        ...prev,
+        id_tema: claseData.id_tema,
+        id_grupo: claseData.id_grupo,
+        fecha_programada: claseData.fecha_programada
+          ? claseData.fecha_programada.split('T')[0]
+          : prev.fecha_programada,
+        duracionClase: String(claseData.duracion_minutos || prev.duracionClase),
+        contextoEspecifico: claseData.contexto || prev.contextoEspecifico,
+      }));
+
+      if (claseData.grupo_edad) {
+        setEdadSeleccionada(claseData.grupo_edad);
+      }
+
+      if (claseData.metodologia) {
+        setMetodologiasSeleccionadas(
+          claseData.metodologia
+            .split(',')
+            .map((m: string) => m.trim())
+            .filter(Boolean)
+        );
+      }
+
+      if (claseData.numero_sesion) {
+        setNumeroSesion(claseData.numero_sesion);
+      }
+    }
+  }, [claseData, esSesionPreprogramada]);
+
   // Pre-fill form when tema data is loaded
   useEffect(() => {
     if (temaData) {
@@ -204,34 +278,60 @@ export default function GenerarClase() {
 
       setLoading(true);
       try {
-        const { data, error } = await supabase.functions.invoke('crear-clase', {
-          body: {
-            id_tema: formData.id_tema,
-            id_grupo: formData.id_grupo,
-            fecha_programada: formData.fecha_programada,
-            duracion_minutos: parseInt(formData.duracionClase),
-            grupo_edad: edadSeleccionada,
-            metodologia: metodologiasSeleccionadas.join(', '),
-            contexto: formData.contextoEspecifico,
-            areas_transversales: null
-          }
-        });
+        // Si venimos desde una sesión ya programada, solo actualizamos la fila existente
+        if (claseId && esSesionPreprogramada) {
+          const { data, error } = await (supabase as any)
+            .from('clases')
+            .update({
+              id_tema: formData.id_tema,
+              id_grupo: formData.id_grupo,
+              fecha_programada: formData.fecha_programada,
+              duracion_minutos: parseInt(formData.duracionClase),
+              grupo_edad: edadSeleccionada,
+              metodologia: metodologiasSeleccionadas.join(', '),
+              contexto: formData.contextoEspecifico,
+              estado: 'generando_clase',
+            })
+            .eq('id', claseId)
+            .select('id, numero_sesion')
+            .single();
 
-        if (error) throw error;
+          if (error) throw error;
 
-        setClaseId(data.class.id);
-        setNumeroSesion(data.class.numero_sesion);
-        
-        // Show session recommendation if available
-        if (data.sesiones_recomendadas) {
-          toast.success(
-            `Clase creada (Sesión ${data.sesion_actual}/${data.sesiones_recomendadas}). ${data.sesiones_recomendadas > 1 ? `Se recomiendan ${data.sesiones_recomendadas} sesiones para este tema.` : ''}`,
-            { duration: 4000 }
-          );
+          setClaseId(data.id);
+          setNumeroSesion(data.numero_sesion ?? numeroSesion);
+          toast.success("Contexto actualizado para la sesión programada");
         } else {
-          toast.success("Contexto guardado exitosamente");
+          // Caso clase nueva / extraordinaria: crear clase desde cero
+          const { data, error } = await supabase.functions.invoke('crear-clase', {
+            body: {
+              id_tema: formData.id_tema,
+              id_grupo: formData.id_grupo,
+              fecha_programada: formData.fecha_programada,
+              duracion_minutos: parseInt(formData.duracionClase),
+              grupo_edad: edadSeleccionada,
+              metodologia: metodologiasSeleccionadas.join(', '),
+              contexto: formData.contextoEspecifico,
+              areas_transversales: null
+            }
+          });
+
+          if (error) throw error;
+
+          setClaseId(data.class.id);
+          setNumeroSesion(data.class.numero_sesion);
+          
+          // Show session recommendation if available
+          if (data.sesiones_recomendadas) {
+            toast.success(
+              `Clase creada (Sesión ${data.sesion_actual}/${data.sesiones_recomendadas}). ${data.sesiones_recomendadas > 1 ? `Se recomiendan ${data.sesiones_recomendadas} sesiones para este tema.` : ''}`,
+              { duration: 4000 }
+            );
+          } else {
+            toast.success("Contexto guardado exitosamente");
+          }
         }
-        
+
         setCurrentStep(2);
       } catch (error: any) {
         console.error('Error creating class:', error);
@@ -350,39 +450,70 @@ export default function GenerarClase() {
       <div className="grid gap-4">
         <div>
           <Label>Tema *</Label>
-          <Select value={formData.id_tema} onValueChange={(val) => setFormData({...formData, id_tema: val})}>
-            <SelectTrigger>
-              <SelectValue placeholder="Selecciona un tema" />
-            </SelectTrigger>
-            <SelectContent>
-              {temaData ? (
-                <SelectItem value={temaData.id}>{temaData.nombre}</SelectItem>
-              ) : (
-                <>
-                  <SelectItem value="tema-1">Álgebra Básica</SelectItem>
-                  <SelectItem value="tema-2">Comprensión Lectora</SelectItem>
-                </>
+          {esSesionPreprogramada && claseData ? (
+            <div className="p-3 rounded-md border bg-muted flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">{claseData.temas?.nombre}</p>
+                {claseData.temas?.descripcion && (
+                  <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                    {claseData.temas.descripcion}
+                  </p>
+                )}
+              </div>
+              <Badge variant="outline">Bloqueado</Badge>
+            </div>
+          ) : (
+            <>
+              <Select value={formData.id_tema} onValueChange={(val) => setFormData({...formData, id_tema: val})}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona un tema" />
+                </SelectTrigger>
+                <SelectContent>
+                  {temaData ? (
+                    <SelectItem value={temaData.id}>{temaData.nombre}</SelectItem>
+                  ) : (
+                    <>
+                      <SelectItem value="tema-1">Álgebra Básica</SelectItem>
+                      <SelectItem value="tema-2">Comprensión Lectora</SelectItem>
+                    </>
+                  )}
+                </SelectContent>
+              </Select>
+              {temaData && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {temaData.descripcion || 'Sin descripción'}
+                </p>
               )}
-            </SelectContent>
-          </Select>
-          {temaData && (
-            <p className="text-xs text-muted-foreground mt-1">
-              {temaData.descripcion || 'Sin descripción'}
-            </p>
+            </>
           )}
         </div>
 
         <div>
           <Label>Grupo *</Label>
-          <Select value={formData.id_grupo} onValueChange={(val) => setFormData({...formData, id_grupo: val})}>
-            <SelectTrigger>
-              <SelectValue placeholder="Selecciona un grupo" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="grupo-1">7mo A</SelectItem>
-              <SelectItem value="grupo-2">7mo B</SelectItem>
-            </SelectContent>
-          </Select>
+          {esSesionPreprogramada && claseData ? (
+            <div className="p-3 rounded-md border bg-muted flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">{claseData.grupos?.nombre}</p>
+                <p className="text-xs text-muted-foreground">
+                  {claseData.grupos?.grado}° • Sección {claseData.grupos?.seccion}
+                </p>
+              </div>
+              <Badge variant="outline">Bloqueado</Badge>
+            </div>
+          ) : (
+            <Select value={formData.id_grupo} onValueChange={(val) => setFormData({...formData, id_grupo: val})}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecciona un grupo" />
+              </SelectTrigger>
+              <SelectContent>
+                {(gruposData || []).map((grupo: any) => (
+                  <SelectItem key={grupo.id} value={grupo.id}>
+                    {grupo.nombre} - {grupo.grado}° {grupo.seccion}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
 
         <div>

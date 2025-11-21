@@ -35,23 +35,30 @@ serve(async (req) => {
       });
     }
 
-    const { 
-      id_tema, 
-      id_grupo, 
-      numero_sesion, 
-      fecha_programada, 
-      duracion_minutos, 
-      contexto_especifico 
+    const {
+      id_tema,
+      id_grupo,
+      numero_sesion,
+      fecha_programada,
+      duracion_minutos,
+      contexto_especifico
     } = await req.json();
 
     if (!id_tema || !id_grupo || !numero_sesion || !fecha_programada) {
-      return new Response(JSON.stringify({ error: 'Faltan datos requeridos' }), {
+      return new Response(JSON.stringify({
+        error: 'Faltan datos requeridos para programar la sesión (id_tema, id_grupo, numero_sesion, fecha_programada)'
+      }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    console.log('Programando sesión (solo contexto):', { id_tema, numero_sesion, fecha_programada });
+    console.log('Programando sesión (solo contexto de sesión, sin generar guía de clase):', {
+      id_tema,
+      id_grupo,
+      numero_sesion,
+      fecha_programada
+    });
 
     // Obtener datos del profesor
     const { data: profesor } = await supabase
@@ -76,15 +83,41 @@ serve(async (req) => {
       .single();
 
     if (!guiaTema) {
-      return new Response(JSON.stringify({ 
-        error: 'Guía maestra no encontrada. Primero debes crear la guía maestra del tema.' 
+      return new Response(JSON.stringify({
+        error: 'Guía maestra no encontrada. Primero debes crear la guía maestra del tema.'
       }), {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Crear registro de clase solo con el contexto inicial
+    // Verificar si ya existe una clase para este tema, grupo y número de sesión
+    const { data: claseExistente, error: claseExistenteError } = await supabase
+      .from('clases')
+      .select('id, fecha_programada')
+      .eq('id_tema', id_tema)
+      .eq('id_grupo', id_grupo)
+      .eq('id_profesor', profesor.id)
+      .eq('numero_sesion', numero_sesion)
+      .maybeSingle();
+
+    if (claseExistenteError) {
+      console.error('Error verificando sesión existente:', claseExistenteError);
+    }
+
+    if (claseExistente) {
+      return new Response(JSON.stringify({
+        success: false,
+        clase: claseExistente,
+        mensaje: `Ya existe una sesión ${numero_sesion} programada para este grupo y tema.`,
+        codigo: 'SESION_YA_PROGRAMADA'
+      }), {
+        status: 409,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Crear registro de clase solo con el contexto inicial (sin guía de clase aún)
     const { data: clase, error: claseError } = await supabase
       .from('clases')
       .insert({

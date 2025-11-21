@@ -14,12 +14,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const { supabase, profesor } = await authenticateProfesor(req, false);
 
     // Get clases (sesiones) with id_guia_tema (from temas with guía maestra)
-    // Filter by estados pendientes
+    // Filter by estados pendientes (incluye sesiones recién programadas)
     const estadosPendientes = [
+      'borrador',
+      'generando_clase',
+      'editando_guia',
       'guia_aprobada',
       'guia_final',
-      'editando_guia',
-      'generando_clase',
     ];
 
     const { data: clases, error: clasesError } = await supabase
