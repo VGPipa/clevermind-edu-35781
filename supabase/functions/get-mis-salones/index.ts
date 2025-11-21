@@ -149,7 +149,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
               tipo,
               estado,
               created_at,
-              fecha_envio,
               respuestas_alumno (
                 id,
                 id_alumno,
