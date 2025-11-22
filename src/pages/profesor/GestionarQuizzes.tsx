@@ -5,7 +5,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Send, Edit, Eye, Plus, Clock, FileText } from "lucide-react";
+import { ArrowLeft, Send, Edit, Eye, Plus, Clock, FileText, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -26,6 +26,7 @@ export default function GestionarQuizzes() {
 
   const [sendingQuiz, setSendingQuiz] = useState<string | null>(null);
   const [selectedQuiz, setSelectedQuiz] = useState<string | null>(null);
+  const [closingQuiz, setClosingQuiz] = useState<string | null>(null);
 
   // Fetch clase data
   const { data: clase, isLoading: claseLoading } = useQuery({
@@ -120,6 +121,30 @@ export default function GestionarQuizzes() {
     } catch (error: any) {
       console.error('Error generating quiz:', error);
       toast.error(error.message || "Error al generar el quiz");
+    }
+  };
+
+  const handleCloseQuiz = async (quizId: string, tipo: string) => {
+    if (!confirm(`¿Estás seguro de que deseas cerrar este quiz ${tipo === 'pre' ? 'PRE' : 'POST'}? Los alumnos ya no podrán enviar respuestas.`)) {
+      return;
+    }
+
+    setClosingQuiz(quizId);
+    try {
+      const { error } = await (supabase as any)
+        .from('quizzes')
+        .update({ estado: 'cerrado' })
+        .eq('id', quizId);
+
+      if (error) throw error;
+
+      toast.success(`Quiz ${tipo === 'pre' ? 'PRE' : 'POST'} cerrado exitosamente`);
+      queryClient.invalidateQueries({ queryKey: ['quizzes-clase'] });
+    } catch (error: any) {
+      console.error('Error closing quiz:', error);
+      toast.error(error.message || "Error al cerrar el quiz");
+    } finally {
+      setClosingQuiz(null);
     }
   };
 
@@ -271,11 +296,25 @@ export default function GestionarQuizzes() {
                           <Send className="mr-2 h-4 w-4" />
                           {sendingQuiz === quizPre.id ? 'Enviando...' : 'Enviar a Alumnos'}
                         </Button>
+                      ) : quizPre.estado === 'publicado' ? (
+                        <div className="flex gap-2">
+                          <Badge variant="default">
+                            {quizPre.fecha_envio
+                              ? `Enviado: ${new Date(quizPre.fecha_envio).toLocaleDateString('es-ES')}`
+                              : 'Enviado'}
+                          </Badge>
+                          <Button
+                            variant="outline"
+                            onClick={() => handleCloseQuiz(quizPre.id, 'pre')}
+                            disabled={closingQuiz === quizPre.id}
+                          >
+                            <Lock className="mr-2 h-4 w-4" />
+                            {closingQuiz === quizPre.id ? 'Cerrando...' : 'Cerrar Quiz'}
+                          </Button>
+                        </div>
                       ) : (
-                        <Badge variant="default">
-                          {quizPre.fecha_envio
-                            ? `Enviado: ${new Date(quizPre.fecha_envio).toLocaleDateString('es-ES')}`
-                            : 'Ya enviado'}
+                        <Badge variant="secondary">
+                          {quizPre.estado === 'cerrado' ? 'Cerrado' : 'Ya enviado'}
                         </Badge>
                       )}
                     </div>
@@ -389,11 +428,25 @@ export default function GestionarQuizzes() {
                           <Send className="mr-2 h-4 w-4" />
                           {sendingQuiz === quizPost.id ? 'Enviando...' : 'Enviar PAUSE'}
                         </Button>
+                      ) : quizPost.estado === 'publicado' ? (
+                        <div className="flex gap-2">
+                          <Badge variant="default">
+                            {quizPost.fecha_envio
+                              ? `Enviado: ${new Date(quizPost.fecha_envio).toLocaleDateString('es-ES')}`
+                              : 'Enviado'}
+                          </Badge>
+                          <Button
+                            variant="outline"
+                            onClick={() => handleCloseQuiz(quizPost.id, 'post')}
+                            disabled={closingQuiz === quizPost.id}
+                          >
+                            <Lock className="mr-2 h-4 w-4" />
+                            {closingQuiz === quizPost.id ? 'Cerrando...' : 'Cerrar Quiz'}
+                          </Button>
+                        </div>
                       ) : (
-                        <Badge variant="default">
-                          {quizPost.fecha_envio
-                            ? `Enviado: ${new Date(quizPost.fecha_envio).toLocaleDateString('es-ES')}`
-                            : 'Ya enviado'}
+                        <Badge variant="secondary">
+                          {quizPost.estado === 'cerrado' ? 'Cerrado' : 'Ya enviado'}
                         </Badge>
                       )}
                     </div>

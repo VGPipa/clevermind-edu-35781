@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Calendar, Clock } from "lucide-react";
@@ -18,8 +19,12 @@ interface ProgramarSesionDialogProps {
     total_sesiones: number;
     estructura_sesiones?: Array<{
       numero: number;
-      titulo: string;
-      contenido_clave: string;
+      titulo_preliminar?: string;
+      contexto_preliminar?: string;
+      duracion_sugerida?: number;
+      // Mantener compatibilidad con formato antiguo
+      titulo?: string;
+      contenido_clave?: string;
     }>;
   };
   gruposDisponibles?: Array<{ id: string; nombre?: string; grado?: string; seccion?: string }>;
@@ -129,7 +134,7 @@ export function ProgramarSesionDialog({
     }
   };
 
-  const loadSesionesProgramadas = async () => {
+  const loadSesionesProgramadas = async (): Promise<number[]> => {
     try {
       const { data: clases } = await supabase
         .from('clases')
@@ -148,10 +153,15 @@ export function ProgramarSesionDialog({
       if (sesionesPendientesCalculadas.length > 0 && sesionesPendientesCalculadas[0] !== formData.numero_sesion) {
         setFormData(prev => ({ ...prev, numero_sesion: sesionesPendientesCalculadas[0] }));
       }
+
+      return sesionesPendientesCalculadas;
     } catch (error) {
       console.error('Error cargando sesiones programadas:', error);
+      return [];
     }
   };
+
+  const [programarOtra, setProgramarOtra] = useState(false);
 
   const handleSubmit = async () => {
     if (!formData.id_grupo) {
@@ -202,8 +212,24 @@ export function ProgramarSesionDialog({
         description: `La sesión ${formData.numero_sesion} se ha programado exitosamente`,
       });
 
-      onOpenChange(false);
-      onSuccess?.();
+      // Si el usuario quiere programar otra sesión, resetear el formulario pero mantener el grupo
+      if (programarOtra) {
+        // Recargar sesiones programadas y obtener el valor calculado directamente
+        const sesionesPendientesActualizadas = await loadSesionesProgramadas();
+        
+        // Resetear formulario pero mantener grupo y actualizar número de sesión
+        const grupoActual = formData.id_grupo;
+        setFormData({
+          id_grupo: grupoActual,
+          numero_sesion: sesionesPendientesActualizadas.length > 0 ? sesionesPendientesActualizadas[0] : 1,
+          fecha_programada: new Date().toISOString().split('T')[0],
+          duracion_minutos: 90,
+          contexto_especifico: "",
+        });
+      } else {
+        onOpenChange(false);
+        onSuccess?.();
+      }
     } catch (error: any) {
       console.error('Error programando sesión:', error);
       toast({
@@ -282,8 +308,17 @@ export function ProgramarSesionDialog({
               </Select>
               {sesionSeleccionada && (
                 <div className="p-3 bg-muted rounded-md text-sm">
-                  <p className="font-medium">{sesionSeleccionada.titulo}</p>
-                  <p className="text-muted-foreground mt-1">{sesionSeleccionada.contenido_clave}</p>
+                  <p className="font-medium">
+                    {sesionSeleccionada.titulo_preliminar || sesionSeleccionada.titulo || 'Sin título'}
+                  </p>
+                  <p className="text-muted-foreground mt-1">
+                    {sesionSeleccionada.contexto_preliminar || sesionSeleccionada.contenido_clave || 'Sin contexto'}
+                  </p>
+                  {sesionSeleccionada.duracion_sugerida && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Duración sugerida: {sesionSeleccionada.duracion_sugerida} minutos
+                    </p>
+                  )}
                 </div>
               )}
             </div>
@@ -326,18 +361,34 @@ export function ProgramarSesionDialog({
             />
           </div>
 
-          <div className="flex gap-2 justify-end">
-            <Button
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={loading}
-            >
-              Cancelar
-            </Button>
-            <Button onClick={handleSubmit} disabled={loading}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {loading ? 'Programando...' : 'Programar Sesión'}
-            </Button>
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="programar-otra"
+                checked={programarOtra}
+                onCheckedChange={(checked) => setProgramarOtra(checked as boolean)}
+                disabled={loading}
+              />
+              <label
+                htmlFor="programar-otra"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
+                Programar otra sesión después de esta
+              </label>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={loading}
+              >
+                Cancelar
+              </Button>
+              <Button onClick={handleSubmit} disabled={loading}>
+                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {loading ? 'Programando...' : 'Programar Sesión'}
+              </Button>
+            </div>
           </div>
         </div>
       </DialogContent>

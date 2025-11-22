@@ -34,25 +34,28 @@ Deno.serve(async (req) => {
       .eq('id', id_clase)
       .single();
 
+    // Verificar que existe una versión de guía de clase (no importa el estado)
     const { data: guide } = await supabase
-      .from('guias_clase')
+      .from('guias_clase_versiones')
       .select('id')
       .eq('id_clase', id_clase)
-      .single();
+      .limit(1)
+      .maybeSingle();
 
+    // Verificar que existen los quizzes (no importa su estado de envío, solo que existan)
     const { data: preEval } = await supabase
       .from('quizzes')
       .select('id')
       .eq('id_clase', id_clase)
       .eq('tipo_evaluacion', 'pre')
-      .single();
+      .maybeSingle();
 
     const { data: postEval } = await supabase
       .from('quizzes')
       .select('id')
       .eq('id_clase', id_clase)
       .eq('tipo_evaluacion', 'post')
-      .single();
+      .maybeSingle();
 
     const validations = {
       has_context: !!clase?.contexto,

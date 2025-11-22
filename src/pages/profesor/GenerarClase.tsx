@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -111,6 +111,10 @@ export default function GenerarClase() {
             nombre,
             grado,
             seccion
+          ),
+          guias_tema!inner (
+            id,
+            estructura_sesiones
           )
         `)
         .eq('id', claseIdParam)
@@ -424,10 +428,60 @@ export default function GenerarClase() {
     }
   };
 
+  // Extraer datos preliminares de la sesión
+  const datosPreliminares = useMemo(() => {
+    if (!claseData || !claseData.guias_tema?.estructura_sesiones || !claseData.numero_sesion) {
+      return null;
+    }
+    
+    const estructuraSesiones = Array.isArray(claseData.guias_tema.estructura_sesiones)
+      ? claseData.guias_tema.estructura_sesiones
+      : [];
+    
+    return estructuraSesiones.find(
+      (sesion: any) => sesion.numero === claseData.numero_sesion
+    );
+  }, [claseData]);
+
   const renderStep1 = () => (
     <div className="space-y-6">
+      {/* Datos Preliminares de la Sesión */}
+      {esSesionPreprogramada && datosPreliminares && (
+        <Card className="bg-green-50 border-green-200">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-3">
+              <FileText className="h-5 w-5 text-green-600 mt-0.5" />
+              <div className="flex-1">
+                <h3 className="font-semibold text-green-900 mb-2">Datos Preliminares de la Sesión {claseData?.numero_sesion}</h3>
+                {datosPreliminares.titulo_preliminar && (
+                  <div className="mb-2">
+                    <p className="text-sm font-medium text-green-800">Título Preliminar:</p>
+                    <p className="text-sm text-green-700">{datosPreliminares.titulo_preliminar}</p>
+                  </div>
+                )}
+                {datosPreliminares.contexto_preliminar && (
+                  <div className="mb-2">
+                    <p className="text-sm font-medium text-green-800">Contexto Preliminar:</p>
+                    <p className="text-sm text-green-700">{datosPreliminares.contexto_preliminar}</p>
+                  </div>
+                )}
+                {datosPreliminares.duracion_sugerida && (
+                  <div>
+                    <p className="text-sm font-medium text-green-800">Duración Sugerida:</p>
+                    <p className="text-sm text-green-700">{datosPreliminares.duracion_sugerida} minutos</p>
+                  </div>
+                )}
+                <p className="text-xs text-green-600 mt-2 italic">
+                  Estos datos preliminares se usarán como referencia al generar la guía de clase específica.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Session Recommendation */}
-      {temaData && sesionesRecomendadas > 1 && (
+      {temaData && sesionesRecomendadas > 1 && !esSesionPreprogramada && (
         <Card className="bg-blue-50 border-blue-200">
           <CardContent className="pt-6">
             <div className="flex items-start gap-3">
@@ -545,6 +599,11 @@ export default function GenerarClase() {
             value={formData.duracionClase}
             onChange={(e) => setFormData({...formData, duracionClase: e.target.value})}
           />
+          {esSesionPreprogramada && datosPreliminares?.duracion_sugerida && (
+            <p className="text-xs text-muted-foreground mt-1">
+              Sugerido: {datosPreliminares.duracion_sugerida} minutos
+            </p>
+          )}
         </div>
 
         <div>

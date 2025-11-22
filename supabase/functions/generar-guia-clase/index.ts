@@ -34,7 +34,8 @@ Deno.serve(async (req) => {
       .select(`
         *,
         temas!inner(nombre, descripcion, objetivos),
-        grupos!inner(nombre, grado, perfil)
+        grupos!inner(nombre, grado, perfil),
+        guias_tema!inner(estructura_sesiones)
       `)
       .eq('id', id_clase)
       .eq('id_profesor', profesor.id)
@@ -76,8 +77,20 @@ Deno.serve(async (req) => {
       ? opciones_metodologia.join(', ')
       : clase.metodologia || 'No especificada';
 
+    // Obtener datos preliminares de la sesión desde estructura_sesiones
+    let datosPreliminares = null;
+    if (clase.guias_tema?.estructura_sesiones && clase.numero_sesion) {
+      const estructuraSesiones = Array.isArray(clase.guias_tema.estructura_sesiones)
+        ? clase.guias_tema.estructura_sesiones
+        : [];
+      datosPreliminares = estructuraSesiones.find(
+        (sesion: any) => sesion.numero === clase.numero_sesion
+      );
+    }
+
     // Combine contexto from class and additional contexto_especifico
     const contextoCompleto = [
+      datosPreliminares?.contexto_preliminar,
       clase.contexto,
       contexto_especifico
     ].filter(Boolean).join('\n\n') || 'No especificado';
@@ -86,7 +99,8 @@ Deno.serve(async (req) => {
     const systemPrompt = `Eres un asistente experto en educación y pensamiento crítico. 
 Tu tarea es generar guías de clase estructuradas y efectivas que desarrollen habilidades de pensamiento crítico en los estudiantes.
 Usa las metodologías especificadas y adapta el contenido al nivel del estudiante.
-Considera el contexto específico proporcionado por el profesor para personalizar la guía.`;
+Considera el contexto específico proporcionado por el profesor para personalizar la guía.
+Usa los datos preliminares de la sesión como referencia base para generar la guía completa.`;
 
     const userPrompt = `Genera una guía de clase con la siguiente información:
 
@@ -97,6 +111,7 @@ Grado: ${clase.grupos.grado}
 Grupo de edad: ${clase.grupo_edad}
 Duración de la clase: ${clase.duracion_minutos} minutos
 Metodologías seleccionadas: ${metodologiaTexto}
+${datosPreliminares ? `\nDatos preliminares de la sesión:\n- Título preliminar: ${datosPreliminares.titulo_preliminar || 'No especificado'}\n- Contexto preliminar: ${datosPreliminares.contexto_preliminar || 'No especificado'}\n- Duración sugerida: ${datosPreliminares.duracion_sugerida || clase.duracion_minutos} minutos` : ''}
 Contexto específico del profesor: ${contextoCompleto}
 ${recommendations && recommendations.length > 0 ? `\nRecomendaciones de clases anteriores:\n${recommendations.map(r => r.contenido).join('\n')}` : ''}
 

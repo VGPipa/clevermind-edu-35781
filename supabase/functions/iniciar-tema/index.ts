@@ -99,9 +99,9 @@ serve(async (req) => {
       });
     }
 
-    // Generar guía maestra con IA
+    // Generar datos preliminares con IA (solo estructura básica de sesiones)
     const grado = tema.materias?.plan_anual?.grado || 'No especificado';
-    const prompt = `Eres un asistente pedagógico experto. Genera una guía maestra completa para el siguiente tema:
+    const prompt = `Eres un asistente pedagógico experto. Genera datos preliminares para el siguiente tema:
 
 TEMA: ${tema.nombre}
 DESCRIPCIÓN: ${tema.descripcion || 'No especificada'}
@@ -114,29 +114,24 @@ DURACIÓN ESTIMADA: ${tema.duracion_estimada} semanas
 CONTEXTO DEL GRUPO: ${contexto_grupo || 'No especificado'}
 METODOLOGÍAS PREFERIDAS: ${metodologias.join(', ')}
 
-Genera una guía maestra que incluya:
-1. Objetivos generales del tema
-2. Competencias a desarrollar
-3. Estructura sugerida de sesiones (distribución del contenido en ${total_sesiones} sesiones)
-4. Recursos recomendados
-5. Estrategias de evaluación
-6. Actividades transversales sugeridas
+IMPORTANTE: Solo genera datos preliminares para cada sesión. NO generes la guía completa de clase.
+Estos datos preliminares se usarán como referencia al momento de generar la guía de clase específica.
+
+Para cada una de las ${total_sesiones} sesiones, genera:
+- Un título preliminar descriptivo
+- Un contexto preliminar básico (2-3 líneas sobre qué se abordará)
+- Duración sugerida en minutos
 
 Devuelve la respuesta en formato JSON con la siguiente estructura:
 {
-  "objetivos_generales": "...",
-  "competencias": ["...", "..."],
   "estructura_sesiones": [
     {
       "numero": 1,
-      "titulo": "...",
-      "contenido_clave": "...",
+      "titulo_preliminar": "Título descriptivo de la sesión",
+      "contexto_preliminar": "Contexto básico de 2-3 líneas sobre qué se abordará en esta sesión",
       "duracion_sugerida": 90
     }
-  ],
-  "recursos": ["...", "..."],
-  "estrategias_evaluacion": ["...", "..."],
-  "actividades_transversales": ["...", "..."]
+  ]
 }`;
 
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -148,7 +143,7 @@ Devuelve la respuesta en formato JSON con la siguiente estructura:
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
         messages: [
-          { role: 'system', content: 'Eres un asistente pedagógico experto que genera guías maestras para temas educativos. Siempre respondes en formato JSON válido.' },
+          { role: 'system', content: 'Eres un asistente pedagógico experto que genera datos preliminares de sesiones para temas educativos. Solo genera títulos preliminares, contexto básico y duración sugerida. NO generes guías completas. Siempre respondes en formato JSON válido.' },
           { role: 'user', content: prompt }
         ],
         response_format: { type: 'json_object' }
@@ -198,9 +193,9 @@ Devuelve la respuesta en formato JSON con la siguiente estructura:
     // Validar que cada sesión tenga los campos necesarios
     for (let i = 0; i < contenido.estructura_sesiones.length; i++) {
       const sesion = contenido.estructura_sesiones[i];
-      if (!sesion.numero || !sesion.titulo || !sesion.contenido_clave) {
+      if (!sesion.numero || !sesion.titulo_preliminar || !sesion.contexto_preliminar) {
         return new Response(JSON.stringify({ 
-          error: `La sesión ${i + 1} no tiene todos los campos requeridos (numero, titulo, contenido_clave). Por favor, intenta nuevamente.` 
+          error: `La sesión ${i + 1} no tiene todos los campos requeridos (numero, titulo_preliminar, contexto_preliminar). Por favor, intenta nuevamente.` 
         }), {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -208,18 +203,19 @@ Devuelve la respuesta en formato JSON con la siguiente estructura:
       }
     }
 
-    // Insertar guía maestra
+    // Insertar guía maestra con solo datos preliminares
+    // El contenido se guarda como objeto vacío o mínimo, ya que solo necesitamos estructura_sesiones
     const { data: guiaTema, error: insertError } = await supabase
       .from('guias_tema')
       .insert({
         id_tema,
         id_profesor: profesor.id,
-        contenido,
+        contenido: {}, // Contenido mínimo, solo estructura preliminar
         estructura_sesiones: contenido.estructura_sesiones,
         metodologias,
         contexto_grupo,
         total_sesiones,
-        objetivos_generales: contenido.objetivos_generales
+        objetivos_generales: null // No se generan objetivos generales en esta etapa
       })
       .select()
       .single();

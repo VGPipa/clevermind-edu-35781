@@ -101,8 +101,8 @@ export function IniciarTemaDialog({ open, onOpenChange, tema, onSuccess }: Inici
       // Si se creó exitosamente, mostrar preview/edición
       if (data.guia_tema) {
         toast({
-          title: "¡Guía maestra generada!",
-          description: `Se ha creado la guía maestra para "${tema.nombre}" con ${totalSesiones} sesiones programadas.`,
+          title: "¡Datos preliminares generados!",
+          description: `Se han generado los datos preliminares para "${tema.nombre}" con ${totalSesiones} sesiones.`,
         });
         setGuiaCreada(data.guia_tema);
         setMostrarEdicion(true);
@@ -131,7 +131,7 @@ export function IniciarTemaDialog({ open, onOpenChange, tema, onSuccess }: Inici
             Iniciar Tema: {tema.nombre}
           </DialogTitle>
           <DialogDescription>
-            Configura el tema para generar la guía maestra con IA
+            Configura el tema para generar datos preliminares de sesiones con IA. Estos datos se usarán como referencia al generar la guía de clase específica.
           </DialogDescription>
         </DialogHeader>
 
@@ -208,7 +208,7 @@ export function IniciarTemaDialog({ open, onOpenChange, tema, onSuccess }: Inici
             </Button>
             <Button onClick={handleSubmit} disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {loading ? 'Generando Guía Maestra...' : 'Generar Guía Maestra'}
+              {loading ? 'Generando Datos Preliminares...' : 'Generar Datos Preliminares'}
             </Button>
           </div>
         </div>
