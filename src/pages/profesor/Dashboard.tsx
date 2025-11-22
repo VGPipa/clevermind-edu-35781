@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import type { DateRange } from "react-day-picker";
+import { getPreparationCategory as computePreparationCategory } from "@/lib/classStateStages";
 export default function ProfesorDashboard() {
   const navigate = useNavigate();
   const [fechaReferencia, setFechaReferencia] = useState<string>(() => {
@@ -151,19 +152,19 @@ export default function ProfesorDashboard() {
   };
 
   // Función para categorizar estado de preparación (frontend)
-  const getPreparacionCategory = (clase: any): string => {
-    if (!clase?.tiene_guia) {
+  const getPreparacionCategory = (clase: any): 'guia_pendiente' | 'eval_pre_pendiente' | 'eval_post_pendiente' | 'otros' => {
+    const category = computePreparationCategory(clase?.estado);
+    if (category === 'otros' && !clase?.tiene_guia) {
       return 'guia_pendiente';
     }
-    const estado = clase?.estado;
-    const guiaPendiente = ['borrador', 'generando_clase', 'editando_guia'];
-    const evalPrePendiente = ['guia_aprobada', 'quiz_pre_generando'];
-    const evalPostPendiente = ['quiz_pre_enviado', 'analizando_quiz_pre', 'modificando_guia', 'guia_final', 'quiz_post_generando'];
-    
-    if (guiaPendiente.includes(estado)) return 'guia_pendiente';
-    if (evalPrePendiente.includes(estado)) return 'eval_pre_pendiente';
-    if (evalPostPendiente.includes(estado)) return 'eval_post_pendiente';
-    return 'otros';
+    return category;
+  };
+
+  const PREPARACION_CATEGORY_LABELS: Record<'guia_pendiente' | 'eval_pre_pendiente' | 'eval_post_pendiente' | 'otros', string> = {
+    guia_pendiente: 'Guía pendiente',
+    eval_pre_pendiente: 'Evaluación PRE',
+    eval_post_pendiente: 'Evaluación POST',
+    otros: 'Otros',
   };
 
   // Separar clases en 2 bloques principales
@@ -218,7 +219,8 @@ export default function ProfesorDashboard() {
     return clases.map((clase: any) => ({
       ...clase,
       estado_label: getClaseStage(clase).label,
-      estado_variant: getClaseStage(clase).variant
+      estado_variant: getClaseStage(clase).variant,
+      preparacion_category: getPreparacionCategory(clase),
     }));
   }, [dashboardData, cursoFilter, salonFilter, statusFilter]);
   const clasesCalendario = useMemo(() => {
@@ -421,7 +423,12 @@ export default function ProfesorDashboard() {
                           <p className="font-medium text-sm truncate">{clase.tema_nombre}</p>
                           <p className="text-xs text-muted-foreground">{clase.materia_nombre} • {clase.grupo_nombre}</p>
                         </div>
-                        <Badge variant={clase.estado_variant as any}>{clase.estado_label}</Badge>
+                        <div className="flex flex-col items-end gap-1">
+                          <Badge variant={clase.estado_variant as any}>{clase.estado_label}</Badge>
+                          <Badge variant="outline" className="text-[10px] uppercase tracking-wide">
+                            {PREPARACION_CATEGORY_LABELS[clase.preparacion_category]}
+                          </Badge>
+                        </div>
                       </div>
                       {clase.fecha_programada && <p className="text-xs text-muted-foreground flex items-center gap-1">
                           <Calendar className="h-3 w-3" />

@@ -203,6 +203,14 @@ export default function GenerarClase() {
   useEffect(() => {
     if (claseData && esSesionPreprogramada) {
       setClaseId(claseData.id);
+
+      let datosPrelim = null;
+      if (Array.isArray(claseData.guias_tema?.estructura_sesiones) && claseData.numero_sesion) {
+        datosPrelim = claseData.guias_tema.estructura_sesiones.find(
+          (sesion: any) => sesion.numero === claseData.numero_sesion
+        );
+      }
+
       setFormData(prev => ({
         ...prev,
         id_tema: claseData.id_tema,
@@ -210,8 +218,12 @@ export default function GenerarClase() {
         fecha_programada: claseData.fecha_programada
           ? claseData.fecha_programada.split('T')[0]
           : prev.fecha_programada,
-        duracionClase: String(claseData.duracion_minutos || prev.duracionClase),
-        contextoEspecifico: claseData.contexto || prev.contextoEspecifico,
+        duracionClase: String(
+          claseData.duracion_minutos ||
+          datosPrelim?.duracion_sugerida ||
+          prev.duracionClase
+        ),
+        contextoEspecifico: claseData.contexto || datosPrelim?.contexto_preliminar || prev.contextoEspecifico,
       }));
 
       if (claseData.grupo_edad) {
@@ -235,29 +247,29 @@ export default function GenerarClase() {
 
   // Pre-fill form when tema data is loaded
   useEffect(() => {
-    if (temaData) {
-      setFormData(prev => ({
-        ...prev,
-        id_tema: temaData.id,
-        duracionClase: temaData.duracion_estimada ? String(temaData.duracion_estimada * 60) : "90",
-        contextoEspecifico: temaData.descripcion || "",
-      }));
+    if (!temaData || esSesionPreprogramada) return;
 
-      // Set recommended sessions based on duracion_estimada (in weeks)
-      const sesiones = temaData.duracion_estimada || 1;
-      setSesionesRecomendadas(sesiones);
+    setFormData(prev => ({
+      ...prev,
+      id_tema: temaData.id,
+      duracionClase: temaData.duracion_estimada ? String(temaData.duracion_estimada * 60) : prev.duracionClase,
+      contextoEspecifico: prev.contextoEspecifico || temaData.descripcion || "",
+    }));
 
-      // Set default age group based on grade
-      const grado = temaData.materias?.plan_anual?.grado;
-      if (grado) {
-        const gradeNum = parseInt(grado);
-        if (gradeNum >= 1 && gradeNum <= 2) setEdadSeleccionada("5-6");
-        else if (gradeNum >= 3 && gradeNum <= 4) setEdadSeleccionada("7-8");
-        else if (gradeNum >= 5 && gradeNum <= 6) setEdadSeleccionada("9-10");
-        else setEdadSeleccionada("11-12");
-      }
+    // Set recommended sessions based on duracion_estimada (in weeks)
+    const sesiones = temaData.duracion_estimada || 1;
+    setSesionesRecomendadas(sesiones);
+
+    // Set default age group based on grade
+    const grado = temaData.materias?.plan_anual?.grado;
+    if (grado) {
+      const gradeNum = parseInt(grado);
+      if (gradeNum >= 1 && gradeNum <= 2) setEdadSeleccionada("5-6");
+      else if (gradeNum >= 3 && gradeNum <= 4) setEdadSeleccionada("7-8");
+      else if (gradeNum >= 5 && gradeNum <= 6) setEdadSeleccionada("9-10");
+      else setEdadSeleccionada("11-12");
     }
-  }, [temaData]);
+  }, [temaData, esSesionPreprogramada]);
 
   const [guiaGenerada, setGuiaGenerada] = useState<any>(null);
   const [preguntasPre, setPreguntasPre] = useState<any[]>([]);
@@ -568,6 +580,15 @@ export default function GenerarClase() {
               </SelectContent>
             </Select>
           )}
+        </div>
+
+        <div>
+          <Label>Fecha Programada *</Label>
+          <Input
+            type="date"
+            value={formData.fecha_programada}
+            onChange={(e) => setFormData({ ...formData, fecha_programada: e.target.value })}
+          />
         </div>
 
         <div>

@@ -4,6 +4,11 @@ import {
   createErrorResponse,
   createSuccessResponse,
 } from '../_shared/auth.ts';
+import {
+  getClassStage,
+  isEvaluationStage,
+  isPreparationStage,
+} from '../_shared/classStateStages.ts';
 
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
@@ -106,13 +111,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
           // Calculate progress for this tema
           const clasesDelTema = (clases || []).filter((c: any) => c.id_tema === tema.id);
           const clasesProgramadas = clasesDelTema.length;
-          const clasesEjecutadas = clasesDelTema.filter((c: any) => c.estado === 'ejecutada').length;
-          const clasesEnProgreso = clasesDelTema.filter((c: any) => c.estado === 'programada').length;
+          const clasesEjecutadas = clasesDelTema.filter((c: any) => ['ejecutada', 'completada'].includes(c.estado)).length;
+          const clasesEnFlujo = clasesDelTema.filter((c: any) => isPreparationStage(c.estado) || isEvaluationStage(c.estado)).length;
           
           let estado = 'pendiente';
           if (clasesEjecutadas > 0 && clasesEjecutadas === clasesProgramadas) {
             estado = 'completado';
-          } else if (clasesEnProgreso > 0 || clasesEjecutadas > 0) {
+          } else if (clasesEnFlujo > 0 || clasesEjecutadas > 0) {
             estado = 'en_progreso';
           }
 

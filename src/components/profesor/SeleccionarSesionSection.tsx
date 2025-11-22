@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Calendar, BookOpen, Sparkles } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { getPreparationCategory as computePreparationCategory } from "@/lib/classStateStages";
 
 interface SeleccionarSesionSectionProps {
   onSeleccionarSesion: (sesionId: string) => void;
@@ -43,6 +44,19 @@ export function SeleccionarSesionSection({
 
   const sesiones = sesionesData?.sesiones || [];
   const siguienteSesion = sesionesData?.siguiente_sesion;
+  const getStageLabel = (sesion: any) => {
+    const labels: Record<'guia_pendiente' | 'eval_pre_pendiente' | 'eval_post_pendiente' | 'otros', string> = {
+      guia_pendiente: 'Guía pendiente',
+      eval_pre_pendiente: 'Evaluación PRE',
+      eval_post_pendiente: 'Evaluación POST',
+      otros: 'En seguimiento',
+    };
+    const category = computePreparationCategory(sesion?.estado);
+    if (category === 'otros' && !sesion?.tiene_guia) {
+      return labels.guia_pendiente;
+    }
+    return labels[category];
+  };
 
   // Lista filtrada, excluyendo la siguiente sesión sugerida para evitar duplicados
   const sesionesFiltradas =
@@ -120,8 +134,11 @@ export function SeleccionarSesionSection({
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-primary">Siguiente Sesión Sugerida</p>
-              <p className="text-sm text-muted-foreground mt-1">
+              <p className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
                 {siguienteSesion.tema?.nombre} - Sesión {siguienteSesion.numero_sesion}
+                <Badge variant="outline" className="text-[10px] uppercase tracking-wide">
+                  {getStageLabel(siguienteSesion)}
+                </Badge>
               </p>
               {siguienteSesion.fecha_programada && (
                 <p className="text-xs text-muted-foreground mt-1">
@@ -154,6 +171,9 @@ export function SeleccionarSesionSection({
                   <div className="flex items-center gap-2">
                     <Badge variant="outline">Sesión {sesion.numero_sesion}</Badge>
                     <span className="font-medium">{sesion.tema?.nombre}</span>
+                    <Badge variant="secondary" className="text-[10px] uppercase tracking-wide">
+                      {getStageLabel(sesion)}
+                    </Badge>
                   </div>
                   <p className="text-sm text-muted-foreground mt-1">
                     {sesion.grupo?.nombre} - {sesion.grupo?.grado}° {sesion.grupo?.seccion}

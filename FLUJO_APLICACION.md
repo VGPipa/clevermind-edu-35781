@@ -93,6 +93,18 @@ La aplicación maneja 4 roles principales definidos en el enum `app_role`:
 
 El flujo del profesor es el más complejo y está dividido en varias etapas:
 
+#### Estados del ciclo de clase
+
+Para evitar interpretaciones distintas entre módulos, agrupamos el enum `estado_clase` en tres etapas:
+
+| Etapa | Estados incluidos | Significado |
+|-------|------------------|-------------|
+| **Guía** | `borrador`, `generando_clase`, `editando_guia`, `guia_aprobada`, `modificando_guia` | Estamos preparando o corrigiendo la guía específica. |
+| **Evaluaciones** | `guia_final`, `quiz_pre_generando`, `quiz_pre_enviado`, `analizando_quiz_pre`, `quiz_post_generando`, `quiz_post_enviado`, `analizando_resultados` | La guía ya está lista y estamos creando/enviando quizzes PRE/POST. |
+| **Cierre** | `clase_programada`, `preparada`, `en_clase`, `completada`, `ejecutada`, `programada` | La clase ya superó la validación (o está en ejecución) y solo queda seguimiento/cierre. |
+
+> **Definición unificada:** “Generar Clase” implica completar **todo** el flujo (guía + evaluación PRE + evaluación POST + validación). Generar la guía es el segundo paso del flujo, no el final.
+
 #### **A. Planificación Académica**
 
 **Ruta:** `/profesor/planificacion`

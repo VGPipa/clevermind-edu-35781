@@ -426,7 +426,7 @@ export default function GestionarQuizzes() {
                           disabled={sendingQuiz === quizPost.id}
                         >
                           <Send className="mr-2 h-4 w-4" />
-                          {sendingQuiz === quizPost.id ? 'Enviando...' : 'Enviar PAUSE'}
+                          {sendingQuiz === quizPost.id ? 'Enviando...' : 'Enviar a Alumnos'}
                         </Button>
                       ) : quizPost.estado === 'publicado' ? (
                         <div className="flex gap-2">

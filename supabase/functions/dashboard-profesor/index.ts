@@ -4,6 +4,12 @@ import {
   createErrorResponse,
   createSuccessResponse,
 } from '../_shared/auth.ts';
+import {
+  getClassStage,
+  isEvaluationStage,
+  isPreparationStage,
+  isClosureStage,
+} from '../_shared/classStateStages.ts';
 
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
@@ -189,6 +195,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
           nivelAlerta = 'lejana';
         }
         
+        const stage = getClassStage(clase.estado);
+
         return {
           ...clase,
           tema: tema ? { nombre: tema.nombre } : null,
@@ -204,13 +212,18 @@ Deno.serve(async (req: Request): Promise<Response> => {
           eval_post_estado: quizPost?.estado || null,
           dias_restantes: diasRestantes,
           nivel_alerta: nivelAlerta,
+          stage,
         };
       })
     );
 
-    // Separate into two sections
-    const clasesPendientes = classesWithStatus.filter(c => !c.tiene_guia || c.estado === 'borrador');
-    const clasesListas = classesWithStatus.filter(c => c.tiene_guia && c.estado !== 'borrador');
+    // Separate into two sections based on stage
+    const clasesPendientes = classesWithStatus.filter(
+      (c) => isPreparationStage(c.estado) || isEvaluationStage(c.estado)
+    );
+    const clasesListas = classesWithStatus.filter(
+      (c) => isClosureStage(c.estado)
+    );
     
     // Latest recommendations
     const { data: recommendations } = await supabase

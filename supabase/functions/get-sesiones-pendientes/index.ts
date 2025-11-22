@@ -35,6 +35,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         id_tema,
         id_grupo,
         id_guia_tema,
+        id_guia_version_actual,
         temas (
           id,
           nombre,
@@ -73,6 +74,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       fecha_programada: clase.fecha_programada,
       estado: clase.estado,
       duracion_minutos: clase.duracion_minutos,
+      tiene_guia: Boolean(clase.id_guia_version_actual),
       tema: {
         id: clase.temas?.id,
         nombre: clase.temas?.nombre,
