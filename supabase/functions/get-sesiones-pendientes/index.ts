@@ -17,6 +17,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     // Filter by estados pendientes (incluye sesiones recién programadas)
     const estadosPendientes = [
       'borrador',
+      'programada',
       'generando_clase',
       'editando_guia',
       'guia_aprobada',
@@ -55,7 +56,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         )
       `)
       .eq('id_profesor', profesor.id)
-      .not('id_guia_tema', 'is', null)
+      // .not('id_guia_tema', 'is', null) // Permitir clases sin guía maestra explícita (ej. migradas o extraordinarias)
       .in('estado', estadosPendientes)
       .order('fecha_programada', { ascending: true, nullsFirst: false })
       .order('numero_sesion', { ascending: true });
