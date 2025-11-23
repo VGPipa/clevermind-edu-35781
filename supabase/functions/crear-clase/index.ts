@@ -42,6 +42,26 @@ Deno.serve(async (req: Request): Promise<Response> => {
     // If duracion_estimada is 4 weeks, recommend 4 sessions
     const sesionesRecomendadas = tema.duracion_estimada || 1;
 
+    // Obtener guía maestra para asegurar relación obligatoria
+    const { data: guiaTema, error: guiaError } = await supabase
+      .from('guias_tema')
+      .select('id, total_sesiones')
+      .eq('id_tema', id_tema)
+      .eq('id_profesor', profesor.id)
+      .maybeSingle();
+
+    if (guiaError) {
+      console.error('Error obteniendo guía maestra:', guiaError);
+      return createErrorResponse('No se pudo obtener la guía maestra del tema', 500);
+    }
+
+    if (!guiaTema) {
+      return createErrorResponse(
+        'Debes crear la guía maestra del tema antes de generar una clase extraordinaria.',
+        400
+      );
+    }
+
     // Get existing sessions for this tema+grupo+profesor to determine next numero_sesion
     const { data: existingSessions, error: sessionsError } = await supabase
       .from('clases')
@@ -93,7 +113,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
         contexto,
         areas_transversales,
         numero_sesion: siguienteSesion,
-        estado: 'generando_clase'
+        estado: 'generando_clase',
+        id_guia_tema: guiaTema.id,
+        total_sesiones_tema: guiaTema.total_sesiones
       })
       .select()
       .single();
