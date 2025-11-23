@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, BookOpen } from "lucide-react";
 import { EditarGuiaTemaDialog } from "./EditarGuiaTemaDialog";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface IniciarTemaDialogProps {
   open: boolean;
@@ -37,6 +38,7 @@ const METODOLOGIAS = [
 
 export function IniciarTemaDialog({ open, onOpenChange, tema, onSuccess }: IniciarTemaDialogProps) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
   
   // Calcular sesiones sugeridas: duracion_estimada (semanas) × horas_semanales = total horas
@@ -86,6 +88,9 @@ export function IniciarTemaDialog({ open, onOpenChange, tema, onSuccess }: Inici
       });
 
       if (error) throw error;
+
+      // Invalidar caché de sesiones pendientes
+      await queryClient.invalidateQueries({ queryKey: ['sesiones-pendientes'] });
 
       // Si ya existe una guía, mostrar mensaje y abrir edición
       if (data.guia_existente) {
