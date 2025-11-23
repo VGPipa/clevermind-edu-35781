@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Calendar, Clock } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface ProgramarSesionDialogProps {
   open: boolean;
@@ -40,6 +41,7 @@ export function ProgramarSesionDialog({
   onSuccess
 }: ProgramarSesionDialogProps) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
   const [grupos, setGrupos] = useState<Array<{ id: string; nombre: string; grado: string; seccion: string }>>([]);
   const [sesionesPendientes, setSesionesPendientes] = useState<number[]>([]);
@@ -206,6 +208,9 @@ export function ProgramarSesionDialog({
       });
 
       if (error) throw error;
+
+      // Invalidar caché de sesiones pendientes
+      await queryClient.invalidateQueries({ queryKey: ['sesiones-pendientes'] });
 
       toast({
         title: "Sesión programada",

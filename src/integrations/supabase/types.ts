@@ -258,7 +258,7 @@ export type Database = {
           grupo_edad: string | null
           id: string
           id_grupo: string
-          id_guia_tema: string
+          id_guia_tema: string | null
           id_guia_version_actual: string | null
           id_profesor: string
           id_tema: string
@@ -278,7 +278,7 @@ export type Database = {
           grupo_edad?: string | null
           id?: string
           id_grupo: string
-          id_guia_tema: string
+          id_guia_tema?: string | null
           id_guia_version_actual?: string | null
           id_profesor: string
           id_tema: string
@@ -298,7 +298,7 @@ export type Database = {
           grupo_edad?: string | null
           id?: string
           id_grupo?: string
-          id_guia_tema?: string
+          id_guia_tema?: string | null
           id_guia_version_actual?: string | null
           id_profesor?: string
           id_tema?: string

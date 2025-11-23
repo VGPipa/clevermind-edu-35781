@@ -5,6 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { CheckCircle2, Clock, Circle, Calendar, Target, BookOpen } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface TemaDetailModalProps {
   isOpen: boolean;
@@ -25,10 +26,12 @@ interface TemaDetailModalProps {
 
 export function TemaDetailModal({ isOpen, onClose, tema }: TemaDetailModalProps) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   if (!tema) return null;
 
-  const handleProgramarClase = () => {
+  const handleProgramarClase = async () => {
+    await queryClient.invalidateQueries({ queryKey: ['sesiones-pendientes'] });
     navigate(`/profesor/generar-clase?temaId=${tema.id}`);
     onClose();
   };
