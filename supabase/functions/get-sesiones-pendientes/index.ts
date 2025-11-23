@@ -13,7 +13,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
   try {
     const { supabase, profesor } = await authenticateProfesor(req, false);
 
-    // Get clases (sesiones) with id_guia_tema (from temas with guía maestra)
+    console.log('[DEBUG] Profesor autenticado:', {
+      id: profesor.id,
+      user_id: profesor.user_id
+    });
+
+    // Get clases (sesiones) with id_guia_tema (from temas con guía maestra)
     // Filter by estados pendientes (incluye sesiones recién programadas)
     const estadosPendientes = [
       'borrador',
@@ -23,6 +28,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
       'guia_aprobada',
       'guia_final',
     ];
+
+    console.log('[DEBUG] Consultando clases con filtros:', {
+      id_profesor: profesor.id,
+      estados: estadosPendientes
+    });
 
     const { data: clases, error: clasesError } = await supabase
       .from('clases')
@@ -62,6 +72,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
       .order('fecha_programada', { ascending: true, nullsFirst: false })
       .order('numero_sesion', { ascending: true });
 
+    console.log('[DEBUG] Resultados de consulta:', {
+      total_clases: clases?.length || 0,
+      error: clasesError,
+      clases_ids: clases?.map(c => c.id) || [],
+      primera_clase: clases?.[0] || null
+    });
+
     if (clasesError) {
       console.error('Error obteniendo sesiones pendientes:', clasesError);
       throw clasesError;
@@ -96,6 +113,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
         } : null,
       }))
       .filter((s: any) => s.tema && s.grupo); // Filtrar sesiones sin tema o grupo válidos
+
+    console.log('[DEBUG] Después del mapeo y filtro:', {
+      total_sesiones: sesiones.length,
+      sesiones_ids: sesiones.map(s => s.id),
+      sesiones_completas: sesiones
+    });
 
     // Find siguiente sesión disponible (first by fecha, then by numero_sesion)
     const siguienteSesion = sesiones.length > 0 
