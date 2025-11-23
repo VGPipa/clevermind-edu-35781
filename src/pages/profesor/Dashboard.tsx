@@ -152,12 +152,14 @@ export default function ProfesorDashboard() {
   };
 
   // Función para categorizar estado de preparación (frontend)
+  // Si la clase no tiene guía, siempre debe ser 'guia_pendiente' independientemente del estado
   const getPreparacionCategory = (clase: any): 'guia_pendiente' | 'eval_pre_pendiente' | 'eval_post_pendiente' | 'otros' => {
-    const category = computePreparationCategory(clase?.estado);
-    if (category === 'otros' && !clase?.tiene_guia) {
+    // Si no tiene guía, siempre necesita generar guía primero
+    if (!clase?.tiene_guia) {
       return 'guia_pendiente';
     }
-    return category;
+    // Si tiene guía, usar la categoría basada en el estado
+    return computePreparationCategory(clase?.estado);
   };
 
   const PREPARACION_CATEGORY_LABELS: Record<'guia_pendiente' | 'eval_pre_pendiente' | 'eval_post_pendiente' | 'otros', string> = {

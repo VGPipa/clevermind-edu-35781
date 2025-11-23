@@ -65,14 +65,14 @@ export const ClaseActionsMenu = ({ clase }: ClaseActionsMenuProps) => {
       case 'clase_programada':
         return {
           label: 'Ver guía',
-          onClick: () => navigate(`/profesor/ver-guia-clase/${clase.id}`),
+          onClick: () => navigate(`/profesor/ver-guia/${clase.id}`),
           icon: FileText,
           variant: 'outline' as const,
         };
       case 'en_clase':
         return {
           label: 'En clase',
-          onClick: () => navigate(`/profesor/ver-guia-clase/${clase.id}`),
+          onClick: () => navigate(`/profesor/ver-guia/${clase.id}`),
           icon: Play,
           variant: 'default' as const,
         };
@@ -94,14 +94,14 @@ export const ClaseActionsMenu = ({ clase }: ClaseActionsMenuProps) => {
       case 'completada':
         return {
           label: 'Ver resumen',
-          onClick: () => navigate(`/profesor/ver-guia-clase/${clase.id}`),
+          onClick: () => navigate(`/profesor/ver-guia/${clase.id}`),
           icon: CheckCircle2,
           variant: 'outline' as const,
         };
       default:
         return {
           label: 'Ver detalles',
-          onClick: () => navigate(`/profesor/ver-guia-clase/${clase.id}`),
+          onClick: () => navigate(`/profesor/ver-guia/${clase.id}`),
           icon: Clock,
           variant: 'outline' as const,
         };

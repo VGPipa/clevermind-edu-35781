@@ -57,7 +57,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         )
       `)
       .eq('id_profesor', profesor.id)
-      // .not('id_guia_tema', 'is', null) // Permitir clases sin guía maestra explícita (ej. migradas o extraordinarias)
+      .not('id_guia_tema', 'is', null) // Solo clases con guía maestra (sesiones programadas desde temas)
       .in('estado', estadosPendientes)
       .order('fecha_programada', { ascending: true, nullsFirst: false })
       .order('numero_sesion', { ascending: true });
@@ -67,33 +67,35 @@ Deno.serve(async (req: Request): Promise<Response> => {
       throw clasesError;
     }
 
-    // Format response
-    const sesiones = (clases || []).map((clase: any) => ({
-      id: clase.id,
-      numero_sesion: clase.numero_sesion,
-      fecha_programada: clase.fecha_programada,
-      estado: clase.estado,
-      duracion_minutos: clase.duracion_minutos,
-      tiene_guia: Boolean(clase.id_guia_version_actual),
-      tema: {
-        id: clase.temas?.id,
-        nombre: clase.temas?.nombre,
-        materia: {
-          id: clase.temas?.materias?.id,
-          nombre: clase.temas?.materias?.nombre,
-        },
-      },
-      grupo: {
-        id: clase.grupos?.id,
-        nombre: clase.grupos?.nombre,
-        grado: clase.grupos?.grado,
-        seccion: clase.grupos?.seccion,
-      },
-      guia_tema: {
-        id: clase.guias_tema?.id,
-        total_sesiones: clase.guias_tema?.total_sesiones,
-      },
-    }));
+    // Format response - hacer mapeo robusto para manejar casos donde JOINs devuelven null
+    const sesiones = (clases || [])
+      .map((clase: any) => ({
+        id: clase.id,
+        numero_sesion: clase.numero_sesion,
+        fecha_programada: clase.fecha_programada,
+        estado: clase.estado,
+        duracion_minutos: clase.duracion_minutos,
+        tiene_guia: Boolean(clase.id_guia_version_actual),
+        tema: clase.temas ? {
+          id: clase.temas.id,
+          nombre: clase.temas.nombre,
+          materia: clase.temas.materias ? {
+            id: clase.temas.materias.id,
+            nombre: clase.temas.materias.nombre,
+          } : null,
+        } : null,
+        grupo: clase.grupos ? {
+          id: clase.grupos.id,
+          nombre: clase.grupos.nombre,
+          grado: clase.grupos.grado,
+          seccion: clase.grupos.seccion,
+        } : null,
+        guia_tema: clase.guias_tema ? {
+          id: clase.guias_tema.id,
+          total_sesiones: clase.guias_tema.total_sesiones,
+        } : null,
+      }))
+      .filter((s: any) => s.tema && s.grupo); // Filtrar sesiones sin tema o grupo válidos
 
     // Find siguiente sesión disponible (first by fecha, then by numero_sesion)
     const siguienteSesion = sesiones.length > 0 
