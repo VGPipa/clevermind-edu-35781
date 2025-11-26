@@ -226,7 +226,7 @@ export default function GenerarClase() {
             grado,
             seccion
           ),
-          guias_tema!inner (
+          guias_tema (
             id,
             estructura_sesiones
           )
@@ -273,7 +273,7 @@ export default function GenerarClase() {
             grado,
             seccion
           ),
-          guias_tema!inner (
+          guias_tema (
             id,
             estructura_sesiones
           )
