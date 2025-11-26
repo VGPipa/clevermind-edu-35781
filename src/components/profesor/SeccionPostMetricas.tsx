@@ -11,6 +11,11 @@ export function SeccionPostMetricas({
   datos,
   recomendaciones
 }: SeccionPostMetricasProps) {
+  const getProgressVariant = (porcentaje: number): "success" | "warning" | "danger" => {
+    if (porcentaje >= 70) return "success";
+    if (porcentaje >= 40) return "warning";
+    return "danger";
+  };
   return <div className="space-y-4">
       <div>
         <h2 className="text-2xl font-bold mb-2">Logro de la Clase (POST)</h2>
@@ -22,7 +27,7 @@ export function SeccionPostMetricas({
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <Users className="h-4 w-4" />
+              <Users className="h-4 w-4 text-[#ff5426]" />
               Participación
             </CardTitle>
           </CardHeader>
@@ -33,7 +38,7 @@ export function SeccionPostMetricas({
                   <span className="text-muted-foreground">Porcentaje de completación</span>
                   <span className="font-semibold">{datos.participacion.porcentaje}%</span>
                 </div>
-                <Progress value={datos.participacion.porcentaje} className="h-2" />
+                <Progress value={datos.participacion.porcentaje} />
               </div>
             </div>
           </CardContent>
@@ -43,7 +48,7 @@ export function SeccionPostMetricas({
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4" />
+              <CheckCircle2 className="h-4 w-4 text-[#ff5426]" />
               Nivel de Desempeño
             </CardTitle>
           </CardHeader>
@@ -54,29 +59,27 @@ export function SeccionPostMetricas({
                   <span className="text-muted-foreground">Promedio de logro</span>
                   <span className="font-semibold">{datos.nivel_logro.promedio}%</span>
                 </div>
-                <Progress value={datos.nivel_logro.promedio} className="h-2" />
-              </div>
-              <div className="grid grid-cols-3 gap-2 text-xs">
-                
-                
-                
+                <Progress 
+                  value={datos.nivel_logro.promedio} 
+                  variant={getProgressVariant(datos.nivel_logro.promedio)}
+                />
               </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Alumnos que Requieren Apoyo */}
-        <Card className="border-amber-200 bg-amber-50/30">
+        <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <AlertTriangle className="h-4 w-4 text-[#ff5426]" />
               Alumnos que requieren refuerzo
             </CardTitle>
             <CardDescription>Alumnos con bajo desempeño</CardDescription>
           </CardHeader>
           <CardContent>
             {datos.alumnos_apoyo.length > 0 ? <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                {datos.alumnos_apoyo.map(alumno => <div key={alumno.id} className="flex items-center justify-between p-2 rounded-lg bg-white/60">
+                {datos.alumnos_apoyo.map(alumno => <div key={alumno.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/30 border border-border">
                     <div>
                       <p className="text-sm font-medium">
                         {alumno.nombre} {alumno.apellido}
@@ -93,10 +96,10 @@ export function SeccionPostMetricas({
         </Card>
 
         {/* Recomendaciones POST CLASE */}
-        <Card className="border-blue-200 bg-blue-50/30">
+        <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <Lightbulb className="h-4 w-4 text-blue-600" />
+              <Lightbulb className="h-4 w-4 text-[#ff5426]" />
               Recomendaciones
             </CardTitle>
             <CardDescription>
@@ -105,13 +108,13 @@ export function SeccionPostMetricas({
           </CardHeader>
           <CardContent>
             {recomendaciones && recomendaciones.length > 0 ? <div className="space-y-3 max-h-[300px] overflow-y-auto">
-                {recomendaciones.map((rec, idx) => <div key={idx} className="p-3 rounded-lg bg-white/60 border border-blue-100">
+                {recomendaciones.map((rec, idx) => <div key={idx} className="p-3 rounded-lg bg-muted/30 border border-border">
                     <div className="flex items-start gap-2 mb-1">
                       <Badge variant={rec.tipo === 'refuerzo' ? 'destructive' : 'secondary'} className="text-xs">
                         {rec.tipo === 'refuerzo' ? 'Refuerzo' : 'Evaluación'}
                       </Badge>
                     </div>
-                    <p className="text-sm font-medium text-blue-900 mb-1">
+                    <p className="text-sm font-medium mb-1">
                       {rec.recomendacion}
                     </p>
                     <p className="text-xs text-muted-foreground">
