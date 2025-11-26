@@ -229,8 +229,7 @@ if (tipo === 'pre') {
         tipo: 'diagnostica',
         tipo_evaluacion: tipo,
         estado: 'borrador',
-        tiempo_limite_minutos: tiempoLimite,
-        max_preguntas: maxPreguntas,
+        tiempo_limite: tiempoLimite,
         instrucciones: readingText
       })
       .select()
