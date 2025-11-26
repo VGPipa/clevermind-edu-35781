@@ -12,6 +12,16 @@ export function RecomendacionesMetricas({ recomendaciones }: RecomendacionesMetr
   const [preExpandido, setPreExpandido] = useState(true);
   const [postExpandido, setPostExpandido] = useState(true);
 
+  if (!recomendaciones) {
+    return (
+      <Card>
+        <CardContent className="py-8 text-center">
+          <p className="text-muted-foreground">No hay recomendaciones disponibles</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div>
@@ -44,7 +54,7 @@ export function RecomendacionesMetricas({ recomendaciones }: RecomendacionesMetr
         </CardHeader>
         {preExpandido && (
           <CardContent>
-            {recomendaciones.pre.length > 0 ? (
+            {recomendaciones.pre?.length > 0 ? (
               <div className="space-y-4">
                 {recomendaciones.pre.map((rec, idx) => (
                   <div
@@ -102,7 +112,7 @@ export function RecomendacionesMetricas({ recomendaciones }: RecomendacionesMetr
         </CardHeader>
         {postExpandido && (
           <CardContent>
-            {recomendaciones.post.length > 0 ? (
+            {recomendaciones.post?.length > 0 ? (
               <div className="space-y-6">
                 {/* Refuerzo para próxima sesión */}
                 <div>

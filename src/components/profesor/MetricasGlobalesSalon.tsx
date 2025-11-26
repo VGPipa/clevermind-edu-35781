@@ -9,6 +9,16 @@ interface MetricasGlobalesSalonProps {
 }
 
 export function MetricasGlobalesSalon({ metricas, nombreSalon }: MetricasGlobalesSalonProps) {
+  if (!metricas) {
+    return (
+      <Card>
+        <CardContent className="py-8 text-center">
+          <p className="text-muted-foreground">No hay métricas globales disponibles</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div>
