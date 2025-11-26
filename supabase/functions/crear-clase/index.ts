@@ -3,6 +3,7 @@ import {
   handleCors,
   createErrorResponse,
   createSuccessResponse,
+  createSupabaseClient,
 } from '../_shared/auth.ts';
 
 Deno.serve(async (req: Request): Promise<Response> => {
@@ -37,7 +38,19 @@ Deno.serve(async (req: Request): Promise<Response> => {
     // Si tema_libre está presente, crear un tema temporal
     if (tema_libre && tema_libre.trim() && id_materia) {
       console.log('Creating temporary theme:', tema_libre);
-      const { data: temaTemporal, error: temaError } = await supabase
+      
+      // Crear un cliente con service role sin headers de auth para bypassear RLS
+      const supabaseServiceRole = createSupabaseClient(null, true);
+      
+      console.log('Insert data:', {
+        id_materia,
+        nombre: tema_libre.trim(),
+        es_tema_temporal: true,
+        descripcion: '',
+        duracion_estimada: 1
+      });
+      
+      const { data: temaTemporal, error: temaError } = await supabaseServiceRole
         .from('temas')
         .insert({
           id_materia,
@@ -50,8 +63,17 @@ Deno.serve(async (req: Request): Promise<Response> => {
         .single();
       
       if (temaError) {
-        console.error('Error creating temporary theme:', temaError);
-        return createErrorResponse('No se pudo crear el tema temporal', 500);
+        console.error('Error creating temporary theme:', JSON.stringify(temaError, null, 2));
+        console.error('Error details:', {
+          message: temaError.message,
+          details: temaError.details,
+          hint: temaError.hint,
+          code: temaError.code
+        });
+        return createErrorResponse(
+          `No se pudo crear el tema temporal: ${temaError.message || 'Error desconocido'}`,
+          500
+        );
       }
       
       idTemaFinal = temaTemporal.id;
