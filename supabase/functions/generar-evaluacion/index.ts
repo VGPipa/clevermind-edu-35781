@@ -197,16 +197,9 @@ ${tipo === 'pre' ? '- Tiempo estimado: 5 minutos total' : '- Tiempo estimado: 15
 
 Mantén el formato JSON descrito anteriormente sin texto adicional.`;
 
-    // Call AI using helper
-    const aiResponse = await callAI({
-      systemPrompt,
-      userPrompt,
-      responseFormat: 'json_object',
-      temperature: 0.7,
-      maxTokens: 2000,
-      });
-
-    const quizContent = parseAIJSON<{
+    // Call AI using helper with retry on JSON parse failures
+    let aiResponse;
+    let quizContent: {
       lectura?: string;
       preguntas: Array<{
         texto_pregunta: string;
@@ -217,9 +210,51 @@ Mantén el formato JSON descrito anteriormente sin texto adicional.`;
         indice_correcto?: number;
         tipo_respuesta?: 'multiple_choice' | 'texto_abierto';
       }>;
-    }>(aiResponse.content);
+    } | undefined;
+    let retries = 0;
+    const maxRetries = 3;
+    
+    while (retries < maxRetries) {
+      try {
+        aiResponse = await callAI({
+          systemPrompt,
+          userPrompt,
+          responseFormat: 'json_object',
+          temperature: 0.5,
+          maxTokens: 2000,
+        });
 
-    console.log('Parsed AI response:', JSON.stringify(quizContent, null, 2));
+        quizContent = parseAIJSON<{
+          lectura?: string;
+          preguntas: Array<{
+            texto_pregunta: string;
+            tipo?: string;
+            puntos: number;
+            retroalimentacion: string;
+            opciones?: string[];
+            indice_correcto?: number;
+            tipo_respuesta?: 'multiple_choice' | 'texto_abierto';
+          }>;
+        }>(aiResponse.content);
+
+        console.log('Parsed AI response:', JSON.stringify(quizContent, null, 2));
+        break; // Success, exit retry loop
+      } catch (error) {
+        retries++;
+        console.error(`JSON parse attempt ${retries} failed:`, error);
+        
+        if (retries >= maxRetries) {
+          throw error;
+        }
+        
+        // Wait before retry
+        await new Promise(resolve => setTimeout(resolve, 1000 * retries));
+      }
+    }
+
+    if (!quizContent) {
+      return createErrorResponse('Failed to generate quiz after retries', 500);
+    }
 
     const readingText = wantsReadingBlock
       ? quizContent.lectura?.trim() || `Lectura introductoria para el tema ${temaNombre}.`

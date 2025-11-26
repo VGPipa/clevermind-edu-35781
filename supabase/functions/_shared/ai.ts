@@ -183,12 +183,24 @@ export function parseAIJSON<T = any>(content: string): T {
   try {
     // Try parsing as JSON string
     if (typeof content === 'string') {
-      return JSON.parse(content) as T;
+      // Try to extract JSON from markdown code blocks if present
+      let jsonStr = content.trim();
+      
+      // Remove markdown code fences if present
+      if (jsonStr.startsWith('```json')) {
+        jsonStr = jsonStr.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+      } else if (jsonStr.startsWith('```')) {
+        jsonStr = jsonStr.replace(/^```\s*/, '').replace(/\s*```$/, '');
+      }
+      
+      return JSON.parse(jsonStr) as T;
     }
     // If already an object, return as is
     return content as unknown as T;
   } catch (error) {
     console.error('Error parsing AI JSON response:', error);
+    console.error('Failed content (first 500 chars):', content.substring(0, 500));
+    console.error('Failed content (last 500 chars):', content.substring(Math.max(0, content.length - 500)));
     throw new Error('Invalid JSON response from AI');
   }
 }
