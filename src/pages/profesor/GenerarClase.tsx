@@ -476,7 +476,9 @@ export default function GenerarClase() {
         `)
         .eq('id_clase', claseId)
         .eq('tipo_evaluacion', 'post')
-        .maybeSingle();
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
 
       if (error) throw error;
       return data;
