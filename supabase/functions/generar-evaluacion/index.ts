@@ -249,8 +249,7 @@ Mantén el formato JSON descrito anteriormente sin texto adicional.`;
         tipo: tipo === 'pre' ? 'previo' : 'post',
         tipo_evaluacion: tipo,
         estado: 'borrador',
-        tiempo_limite_minutos: tiempoLimite,
-        max_preguntas: tipo === 'pre' ? maxPreguntas : 10,
+        tiempo_limite: tiempoLimite,
         instrucciones: readingText
       })
       .select()
@@ -304,7 +303,6 @@ Mantén el formato JSON descrito anteriormente sin texto adicional.`;
       lectura: readingText,
       preguntas: quizContent.preguntas,
       tiempo_limite: tiempoLimite,
-      max_preguntas: maxPreguntas,
       tipo: tipo
     });
   } catch (error) {
