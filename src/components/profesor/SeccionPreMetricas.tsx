@@ -111,9 +111,9 @@ export function SeccionPreMetricas({ datos }: SeccionPreMetricasProps) {
                   {getClasificacionLabel(datos.nivel_preparacion.clasificacion)}
                 </Badge>
                 <span className="text-xs text-muted-foreground">
-                  {datos.nivel_preparacion.clasificacion === "baja" && "Preparación baja (<40%)"}
-                  {datos.nivel_preparacion.clasificacion === "media" && "Preparación media (40-70%)"}
-                  {datos.nivel_preparacion.clasificacion === "alta" && "Preparación alta (>70%)"}
+                  {datos.nivel_preparacion.clasificacion === "baja" && "Preparación baja (<50%)"}
+                  {datos.nivel_preparacion.clasificacion === "media" && "Preparación media (50-75%)"}
+                  {datos.nivel_preparacion.clasificacion === "alta" && "Preparación alta (≥75%)"}
                 </span>
               </div>
             </div>

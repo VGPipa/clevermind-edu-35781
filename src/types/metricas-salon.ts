@@ -56,10 +56,9 @@ export interface DatosPost {
   nivel_logro: {
     promedio: number;
     distribucion: {
-      riesgo: number;
-      suficiente: number;
-      bueno: number;
-      destacado: number;
+      bajo: number;
+      intermedio: number;
+      alto: number;
     };
   };
   conceptos_logrados: Array<{
