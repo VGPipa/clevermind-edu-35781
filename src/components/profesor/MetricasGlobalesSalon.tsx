@@ -2,27 +2,24 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Users, TrendingUp, TrendingDown, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { MetricasGlobales } from "@/types/metricas-salon";
-
 interface MetricasGlobalesSalonProps {
   metricas: MetricasGlobales;
   nombreSalon: string;
 }
-
-export function MetricasGlobalesSalon({ metricas, nombreSalon }: MetricasGlobalesSalonProps) {
+export function MetricasGlobalesSalon({
+  metricas,
+  nombreSalon
+}: MetricasGlobalesSalonProps) {
   if (!metricas) {
-    return (
-      <Card>
+    return <Card>
         <CardContent className="py-8 text-center">
           <p className="text-muted-foreground">No hay métricas globales disponibles</p>
         </CardContent>
-      </Card>
-    );
+      </Card>;
   }
-
-  return (
-    <div className="space-y-4">
+  return <div className="space-y-4">
       <div>
-        <h2 className="text-2xl font-bold mb-2">Métricas Globales del Salón</h2>
+        <h2 className="text-2xl font-bold mb-2">Resumen del salón</h2>
         <p className="text-muted-foreground text-sm">
           Vista general del desempeño del grupo {nombreSalon} durante el año escolar
         </p>
@@ -32,8 +29,7 @@ export function MetricasGlobalesSalon({ metricas, nombreSalon }: MetricasGlobale
         {/* Participación Promedio */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Users className="h-4 w-4 text-primary" />
+            <CardTitle className="text-sm font-medium flex items-center gap-2">Participación<Users className="h-4 w-4 text-primary" />
               Participación Promedio
             </CardTitle>
           </CardHeader>
@@ -42,20 +38,17 @@ export function MetricasGlobalesSalon({ metricas, nombreSalon }: MetricasGlobale
             <p className="text-xs text-muted-foreground mt-1">
               Alumnos que completan quizzes
             </p>
-            {metricas.participacion_promedio < 65 && (
-              <Badge variant="destructive" className="mt-2 text-xs">
+            {metricas.participacion_promedio < 65 && <Badge variant="destructive" className="mt-2 text-xs">
                 <AlertTriangle className="h-3 w-3 mr-1" />
                 Requiere atención
-              </Badge>
-            )}
+              </Badge>}
           </CardContent>
         </Card>
 
         {/* Alumnos en Riesgo */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-600" />
+            <CardTitle className="text-sm font-medium flex items-center gap-2">Alumnos que requieren refuerzo<AlertTriangle className="h-4 w-4 text-amber-600" />
               Alumnos en Riesgo
             </CardTitle>
           </CardHeader>
@@ -66,19 +59,14 @@ export function MetricasGlobalesSalon({ metricas, nombreSalon }: MetricasGlobale
             <p className="text-xs text-muted-foreground mt-1">
               {metricas.alumnos_riesgo.porcentaje}% del grupo
             </p>
-            {metricas.alumnos_riesgo.cantidad > 0 && (
-              <Badge variant="destructive" className="mt-2 text-xs">
-                Requieren atención
-              </Badge>
-            )}
+            {metricas.alumnos_riesgo.cantidad > 0}
           </CardContent>
         </Card>
 
         {/* Porcentaje Promedio */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-primary" />
+            <CardTitle className="text-sm font-medium flex items-center gap-2">Desempeño<CheckCircle2 className="h-4 w-4 text-primary" />
               Porcentaje Promedio
             </CardTitle>
           </CardHeader>
@@ -92,7 +80,5 @@ export function MetricasGlobalesSalon({ metricas, nombreSalon }: MetricasGlobale
           </CardContent>
         </Card>
       </div>
-    </div>
-  );
+    </div>;
 }
-

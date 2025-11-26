@@ -11,26 +11,29 @@ import { SeccionPostMetricas } from "@/components/profesor/SeccionPostMetricas";
 import { ResponseMisSalones } from "@/types/metricas-salon";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-
 export default function MisSalones() {
   const queryClient = useQueryClient();
   const [filtroSalon, setFiltroSalon] = useState<string>("todos");
   const [materiaSeleccionada, setMateriaSeleccionada] = useState<string | null>(null);
   const [temaSeleccionado, setTemaSeleccionado] = useState<string | null>(null);
   const [claseSeleccionada, setClaseSeleccionada] = useState<string | null>(null);
-
-  const { data, isLoading, error } = useQuery<ResponseMisSalones>({
+  const {
+    data,
+    isLoading,
+    error
+  } = useQuery<ResponseMisSalones>({
     queryKey: ["mis-salones"],
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke("get-mis-salones");
+      const {
+        data,
+        error
+      } = await supabase.functions.invoke("get-mis-salones");
       if (error) throw error;
       return data;
-    },
+    }
   });
-
   if (isLoading) {
-    return (
-      <AppLayout>
+    return <AppLayout>
         <div className="space-y-6">
           <Skeleton className="h-10 w-64" />
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -39,13 +42,10 @@ export default function MisSalones() {
             <Skeleton className="h-32" />
           </div>
         </div>
-      </AppLayout>
-    );
+      </AppLayout>;
   }
-
   if (error) {
-    return (
-      <AppLayout>
+    return <AppLayout>
         <Card className="border-destructive">
           <CardContent className="pt-6">
             <div className="text-center py-8">
@@ -56,28 +56,15 @@ export default function MisSalones() {
             </div>
           </CardContent>
         </Card>
-      </AppLayout>
-    );
+      </AppLayout>;
   }
-
   const salones = data?.salones || [];
-
-  const salonesFiltrados =
-    filtroSalon === "todos"
-      ? salones
-      : salones.filter((s) => s.grupo.id === filtroSalon);
-
-  const salonSeleccionado =
-    filtroSalon !== "todos"
-      ? salonesFiltrados[0]
-      : salonesFiltrados.length === 1
-        ? salonesFiltrados[0]
-        : null;
+  const salonesFiltrados = filtroSalon === "todos" ? salones : salones.filter(s => s.grupo.id === filtroSalon);
+  const salonSeleccionado = filtroSalon !== "todos" ? salonesFiltrados[0] : salonesFiltrados.length === 1 ? salonesFiltrados[0] : null;
 
   // Si hay múltiples salones, mostrar selector
   if (salones.length > 1 && !salonSeleccionado) {
-    return (
-      <AppLayout>
+    return <AppLayout>
         <div className="space-y-6">
           <div>
             <h1 className="text-3xl font-bold text-black dark:text-white">
@@ -89,12 +76,7 @@ export default function MisSalones() {
           </div>
 
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {salones.map((salon) => (
-              <Card
-                key={salon.grupo.id}
-                className="hover:shadow-md transition-all cursor-pointer"
-                onClick={() => setFiltroSalon(salon.grupo.id)}
-              >
+            {salones.map(salon => <Card key={salon.grupo.id} className="hover:shadow-md transition-all cursor-pointer" onClick={() => setFiltroSalon(salon.grupo.id)}>
                 <CardContent className="pt-6">
                   <div className="space-y-2">
                     <h3 className="font-semibold text-lg">{salon.grupo.nombre}</h3>
@@ -107,18 +89,15 @@ export default function MisSalones() {
                     <p className="text-sm text-primary mt-4">Ver métricas →</p>
                   </div>
                 </CardContent>
-              </Card>
-            ))}
+              </Card>)}
           </div>
         </div>
-      </AppLayout>
-    );
+      </AppLayout>;
   }
 
   // Si no hay salones
   if (salones.length === 0) {
-    return (
-      <AppLayout>
+    return <AppLayout>
         <Card>
           <CardContent className="py-12 text-center">
             <School className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
@@ -130,70 +109,52 @@ export default function MisSalones() {
             </p>
           </CardContent>
         </Card>
-      </AppLayout>
-    );
+      </AppLayout>;
   }
 
   // Vista principal con métricas
-  return (
-    <AppLayout>
+  return <AppLayout>
       <div className="space-y-6 pb-8">
         {/* Header */}
         <div>
           <h1 className="text-3xl font-bold text-black dark:text-white">
             Mis Salones
           </h1>
-          <p className="text-muted-foreground mt-2">
-            Métricas y análisis del desempeño del grupo
-          </p>
+          <p className="text-muted-foreground mt-2">Métricas del desempeño del grupo</p>
         </div>
 
         {/* Selector de Salón y Filtros */}
-        {salonSeleccionado && (
-          <Card>
+        {salonSeleccionado && <Card>
             <CardContent className="pt-6 space-y-4">
               {/* Filtro Salón (si hay múltiples) */}
-              {salones.length > 1 && (
-                <div className="flex items-center gap-4">
+              {salones.length > 1 && <div className="flex items-center gap-4">
                   <label className="text-sm font-medium">Salón:</label>
-                  <select
-                    value={filtroSalon}
-                    onChange={(e) => setFiltroSalon(e.target.value)}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
+                  <select value={filtroSalon} onChange={e => setFiltroSalon(e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                     <option value="todos">Todos los salones</option>
-                    {salones.map((salon) => (
-                      <option key={salon.grupo.id} value={salon.grupo.id}>
+                    {salones.map(salon => <option key={salon.grupo.id} value={salon.grupo.id}>
                         {salon.grupo.nombre} - {salon.grupo.grado}° {salon.grupo.seccion}
-                      </option>
-                    ))}
+                      </option>)}
                   </select>
-                </div>
-              )}
+                </div>}
 
               {/* Filtros de Materia, Tema, Clase */}
               <div className="grid gap-4 md:grid-cols-3">
                 {/* Filtro Materia */}
                 <div className="space-y-2">
                   <Label>Materia</Label>
-                  <Select
-                    value={materiaSeleccionada || "todos"}
-                    onValueChange={(value) => {
-                      setMateriaSeleccionada(value === "todos" ? null : value);
-                      setTemaSeleccionado(null);
-                      setClaseSeleccionada(null);
-                    }}
-                  >
+                  <Select value={materiaSeleccionada || "todos"} onValueChange={value => {
+                setMateriaSeleccionada(value === "todos" ? null : value);
+                setTemaSeleccionado(null);
+                setClaseSeleccionada(null);
+              }}>
                     <SelectTrigger>
                       <SelectValue placeholder="Todas las materias" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="todos">Todas las materias</SelectItem>
-                      {salonSeleccionado.filtros.materias?.map((materia) => (
-                        <SelectItem key={materia.id} value={materia.id}>
+                      {salonSeleccionado.filtros.materias?.map(materia => <SelectItem key={materia.id} value={materia.id}>
                           {materia.nombre}
-                        </SelectItem>
-                      )) || []}
+                        </SelectItem>) || []}
                     </SelectContent>
                   </Select>
                 </div>
@@ -201,27 +162,18 @@ export default function MisSalones() {
                 {/* Filtro Tema */}
                 <div className="space-y-2">
                   <Label>Tema</Label>
-                  <Select
-                    value={temaSeleccionado || "todos"}
-                    onValueChange={(value) => {
-                      setTemaSeleccionado(value === "todos" ? null : value);
-                      setClaseSeleccionada(null);
-                    }}
-                    disabled={!materiaSeleccionada && (salonSeleccionado.filtros.materias?.length || 0) > 0}
-                  >
+                  <Select value={temaSeleccionado || "todos"} onValueChange={value => {
+                setTemaSeleccionado(value === "todos" ? null : value);
+                setClaseSeleccionada(null);
+              }} disabled={!materiaSeleccionada && (salonSeleccionado.filtros.materias?.length || 0) > 0}>
                     <SelectTrigger>
                       <SelectValue placeholder="Todos los temas" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="todos">Todos los temas</SelectItem>
-                      {(materiaSeleccionada
-                        ? salonSeleccionado.filtros.temas?.filter((t) => t.id_materia === materiaSeleccionada) || []
-                        : salonSeleccionado.filtros.temas || []
-                      ).map((tema) => (
-                        <SelectItem key={tema.id} value={tema.id}>
+                      {(materiaSeleccionada ? salonSeleccionado.filtros.temas?.filter(t => t.id_materia === materiaSeleccionada) || [] : salonSeleccionado.filtros.temas || []).map(tema => <SelectItem key={tema.id} value={tema.id}>
                           {tema.nombre}
-                        </SelectItem>
-                      ))}
+                        </SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -229,57 +181,36 @@ export default function MisSalones() {
                 {/* Filtro Clase */}
                 <div className="space-y-2">
                   <Label>Clase / Sesión</Label>
-                  <Select
-                    value={claseSeleccionada || "todos"}
-                    onValueChange={(value) => {
-                      setClaseSeleccionada(value === "todos" ? null : value);
-                    }}
-                    disabled={!temaSeleccionado && (salonSeleccionado.filtros.temas?.length || 0) > 0}
-                  >
+                  <Select value={claseSeleccionada || "todos"} onValueChange={value => {
+                setClaseSeleccionada(value === "todos" ? null : value);
+              }} disabled={!temaSeleccionado && (salonSeleccionado.filtros.temas?.length || 0) > 0}>
                     <SelectTrigger>
                       <SelectValue placeholder="Todas las clases" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="todos">Todas las clases</SelectItem>
-                      {(temaSeleccionado
-                        ? salonSeleccionado.filtros.clases?.filter((c) => c.id_tema === temaSeleccionado) || []
-                        : salonSeleccionado.filtros.clases || []
-                      ).map((clase) => (
-                        <SelectItem key={clase.id} value={clase.id}>
+                      {(temaSeleccionado ? salonSeleccionado.filtros.clases?.filter(c => c.id_tema === temaSeleccionado) || [] : salonSeleccionado.filtros.clases || []).map(clase => <SelectItem key={clase.id} value={clase.id}>
                           Sesión {clase.numero_sesion || "N/A"}
-                          {clase.fecha_programada &&
-                            ` - ${new Date(clase.fecha_programada).toLocaleDateString("es-ES", {
-                              month: "short",
-                              day: "numeric",
-                            })}`}
-                        </SelectItem>
-                      ))}
+                          {clase.fecha_programada && ` - ${new Date(clase.fecha_programada).toLocaleDateString("es-ES", {
+                      month: "short",
+                      day: "numeric"
+                    })}`}
+                        </SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
             </CardContent>
-          </Card>
-        )}
+          </Card>}
 
         {/* Contenido Principal */}
-        {salonSeleccionado && (
-          <>
+        {salonSeleccionado && <>
 
             {/* Métricas Globales */}
-            <MetricasGlobalesSalon
-              metricas={salonSeleccionado.metricas_globales}
-              nombreSalon={salonSeleccionado.grupo.nombre}
-            />
+            <MetricasGlobalesSalon metricas={salonSeleccionado.metricas_globales} nombreSalon={salonSeleccionado.grupo.nombre} />
 
             {/* Sección PRE */}
-            {salonSeleccionado.datos_pre ? (
-              <SeccionPreMetricas 
-                datos={salonSeleccionado.datos_pre} 
-                recomendaciones={salonSeleccionado.recomendaciones.pre}
-              />
-            ) : (
-              <Card>
+            {salonSeleccionado.datos_pre ? <SeccionPreMetricas datos={salonSeleccionado.datos_pre} recomendaciones={salonSeleccionado.recomendaciones.pre} /> : <Card>
                 <CardContent className="py-8 text-center">
                   <p className="text-muted-foreground">
                     No hay datos PRE disponibles aún
@@ -288,17 +219,10 @@ export default function MisSalones() {
                     Los datos aparecerán aquí una vez que se completen evaluaciones PRE
                   </p>
                 </CardContent>
-              </Card>
-            )}
+              </Card>}
 
             {/* Sección POST */}
-            {salonSeleccionado.datos_post ? (
-              <SeccionPostMetricas 
-                datos={salonSeleccionado.datos_post}
-                recomendaciones={salonSeleccionado.recomendaciones.post}
-              />
-            ) : (
-              <Card>
+            {salonSeleccionado.datos_post ? <SeccionPostMetricas datos={salonSeleccionado.datos_post} recomendaciones={salonSeleccionado.recomendaciones.post} /> : <Card>
                 <CardContent className="py-8 text-center">
                   <p className="text-muted-foreground">
                     No hay datos POST disponibles aún
@@ -307,12 +231,9 @@ export default function MisSalones() {
                     Los datos aparecerán aquí una vez que se completen evaluaciones POST
                   </p>
                 </CardContent>
-              </Card>
-            )}
+              </Card>}
 
-          </>
-        )}
+          </>}
       </div>
-    </AppLayout>
-  );
+    </AppLayout>;
 }
