@@ -13,16 +13,17 @@ export function SeccionPostMetricas({
 }: SeccionPostMetricasProps) {
   return <div className="space-y-4">
       <div>
-        <h2 className="text-2xl font-bold mb-2">POST - Logro de la Clase</h2>
-        <p className="text-muted-foreground text-sm">Evaluación de lo que se logró después de la clase</p>
+        <h2 className="text-2xl font-bold mb-2">Logro de la Clase (POST)</h2>
+        <p className="text-muted-foreground text-sm">Conocimientos después de la clase</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
         {/* Participación del POST */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">Participación<Users className="h-4 w-4" />
-              Participación del POST
+            <CardTitle className="text-base flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Participación
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -41,8 +42,9 @@ export function SeccionPostMetricas({
         {/* Nivel de Logro del Salón */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">Nivel de Desempeño<CheckCircle2 className="h-4 w-4" />
-              Nivel de Logro del Salón
+            <CardTitle className="text-base flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4" />
+              Nivel de Desempeño
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -66,8 +68,9 @@ export function SeccionPostMetricas({
         {/* Alumnos que Requieren Apoyo */}
         <Card className="border-amber-200 bg-amber-50/30">
           <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">Alumnos que requieren refuerzo<AlertTriangle className="h-4 w-4 text-amber-600" />
-              Alumnos que Requieren Apoyo
+            <CardTitle className="text-base flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              Alumnos que requieren refuerzo
             </CardTitle>
             <CardDescription>Alumnos con bajo desempeño</CardDescription>
           </CardHeader>
@@ -92,8 +95,9 @@ export function SeccionPostMetricas({
         {/* Recomendaciones POST CLASE */}
         <Card className="border-blue-200 bg-blue-50/30">
           <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">Recomendaciones<Lightbulb className="h-4 w-4 text-blue-600" />
-              Recomendaciones POST CLASE
+            <CardTitle className="text-base flex items-center gap-2">
+              <Lightbulb className="h-4 w-4 text-blue-600" />
+              Recomendaciones
             </CardTitle>
             <CardDescription>
               Acciones sugeridas después de la clase
