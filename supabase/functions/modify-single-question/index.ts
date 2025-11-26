@@ -209,7 +209,7 @@ Devuelve JSON con la forma:
         texto_pregunta: parsed.texto_pregunta,
         tipo: 'opcion_multiple',
         opciones: opcionesMap,
-        respuesta_correcta: isMultipleChoice ? correcta.id : parsed.respuesta_modelo || pregunta.respuesta_correcta,
+        respuesta_correcta: isMultipleChoice && correcta ? correcta.id : parsed.respuesta_modelo || pregunta.respuesta_correcta,
         justificacion: parsed.retroalimentacion || pregunta.justificacion,
         texto_contexto: isPre ? lecturaBase : null,
       })
