@@ -113,8 +113,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
         return createErrorResponse('La guía debe estar aprobada antes de generar el quiz previo', 400);
       }
     } else {
-      // Quiz post requires final version
-      if (!guideVersion.es_version_final) {
+      console.log('Post-quiz validation:', {
+        esTemaTemporalOExtraordinario,
+        es_version_final: guideVersion.es_version_final,
+        shouldSkipFinalVersion: esTemaTemporalOExtraordinario,
+        needsFinalVersion: !esTemaTemporalOExtraordinario && !guideVersion.es_version_final
+      });
+      
+      // Quiz post requires final version (except for temporary/extraordinary themes)
+      if (!esTemaTemporalOExtraordinario && !guideVersion.es_version_final) {
         return createErrorResponse('Se requiere la versión final de la guía para generar el quiz post', 400);
       }
     }

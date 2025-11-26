@@ -906,7 +906,6 @@ export default function GenerarClase() {
     (options?: { initialTemaId?: string; clearInProgress?: boolean }) => {
       setClaseId(null);
       setGuiaGenerada(null);
-      setPreguntasPost([]);
       setNumeroSesion(null);
       setPreQuizState(null);
       setPreQuizDirty(false);
