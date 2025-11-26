@@ -10,16 +10,30 @@ import { Loader2, Calendar, BookOpen, Sparkles } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { getPreparationCategory as computePreparationCategory } from "@/lib/classStateStages";
 
+interface ClaseEnProcesoResumen {
+  id: string;
+  tema?: string;
+  grupo?: string;
+  estado?: string | null;
+  esExtraordinaria?: boolean;
+}
+
 interface SeleccionarSesionSectionProps {
   onSeleccionarSesion: (sesionId: string) => void;
   onCrearExtraordinaria: () => void;
   onIrAPlanificacion: () => void;
+  claseEnProceso?: ClaseEnProcesoResumen | null;
+  onContinuarClase?: () => void;
+  onDescartarClase?: () => void;
 }
 
 export function SeleccionarSesionSection({
   onSeleccionarSesion,
   onCrearExtraordinaria,
   onIrAPlanificacion,
+  claseEnProceso,
+  onContinuarClase,
+  onDescartarClase,
 }: SeleccionarSesionSectionProps) {
   const { toast } = useToast();
   const [filtroTema, setFiltroTema] = useState<string>("todos");
@@ -80,6 +94,41 @@ export function SeleccionarSesionSection({
           Elige una sesión programada o crea una clase extraordinaria.
         </p>
       </div>
+
+      {claseEnProceso && (
+        <div className="p-4 border border-primary/30 rounded-lg bg-primary/5 space-y-2">
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-sm font-medium text-primary flex items-center gap-2">
+                <Sparkles className="h-4 w-4" />
+                Clase en proceso
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {claseEnProceso.tema || "Tema sin nombre"}
+                {claseEnProceso.grupo ? ` • ${claseEnProceso.grupo}` : ""}
+              </p>
+              {claseEnProceso.estado && (
+                <Badge variant="outline" className="mt-1">
+                  {claseEnProceso.estado.replace(/_/g, " ")}
+                </Badge>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onDescartarClase}
+                disabled={!onDescartarClase}
+              >
+                Descartar
+              </Button>
+              <Button size="sm" onClick={onContinuarClase} disabled={!onContinuarClase}>
+                Continuar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {sesiones && sesiones.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

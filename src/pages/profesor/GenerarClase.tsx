@@ -24,7 +24,7 @@ import {
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { ProgressBar } from "@/components/profesor/ProgressBar";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { SeleccionarSesionSection } from "@/components/profesor/SeleccionarSesionSection";
 
 const STEPS = [
@@ -120,6 +120,29 @@ const ADAPTACIONES_OPTIONS = [
   { value: "otro", label: "Otro" },
 ] as const;
 
+type ClaseEnProcesoResumen = {
+  id: string;
+  tema?: string;
+  grupo?: string;
+  estado?: string | null;
+  esExtraordinaria?: boolean;
+};
+
+const IN_PROGRESS_STORAGE_KEY = 'generarClaseEnProceso';
+
+const buildInitialFormData = (initialTemaId?: string) => ({
+  id_tema: initialTemaId || "",
+  id_grupo: "",
+  fecha_programada: new Date().toISOString().split('T')[0],
+  duracionClase: "90",
+  contextoEspecifico: "",
+  objetivoEspecifico: "",
+  recursosSeleccionados: [] as string[],
+  recursoOtro: "",
+  adaptacionesSeleccionadas: [] as string[],
+  adaptacionOtra: "",
+});
+
 export default function GenerarClase() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -136,20 +159,12 @@ export default function GenerarClase() {
   const [idMateria, setIdMateria] = useState<string>("");
   const [temaLibre, setTemaLibre] = useState<string>("");
   
-  const [formData, setFormData] = useState({
-    id_tema: temaId || "",
-    id_grupo: "",
-    fecha_programada: new Date().toISOString().split('T')[0],
-    duracionClase: "90",
-    contextoEspecifico: "",
-    objetivoEspecifico: "",
-    recursosSeleccionados: [] as string[],
-    recursoOtro: "",
-    adaptacionesSeleccionadas: [] as string[],
-    adaptacionOtra: "",
-  });
+  const [formData, setFormData] = useState(() => buildInitialFormData(temaId || ""));
 
   const esSesionPreprogramada = !!claseIdParam && !extraordinaria;
+  const queryClient = useQueryClient();
+  const [claseEnProceso, setClaseEnProceso] = useState<ClaseEnProcesoResumen | null>(null);
+  const selectionResetRef = useRef(false);
 
   // Fetch tema data if temaId is provided
   const { data: temaData, isLoading: loadingTema } = useQuery({
@@ -572,6 +587,32 @@ export default function GenerarClase() {
     }
   }, [claseData, guiaExistente, claseId]);
 
+  useEffect(() => {
+    if (!claseData || !claseId) return;
+    const finalStates = new Set(['clase_programada', 'en_clase', 'validada', 'finalizada']);
+
+    if (finalStates.has(claseData.estado)) {
+      if (typeof window !== 'undefined') {
+        window.localStorage.removeItem(IN_PROGRESS_STORAGE_KEY);
+      }
+      setClaseEnProceso(null);
+      return;
+    }
+
+    const resumen: ClaseEnProcesoResumen = {
+      id: claseData.id,
+      tema: (claseData.temas as any)?.nombre || 'Tema sin nombre',
+      grupo: (claseData.grupos as any)?.nombre || (extraordinaria ? 'Clase extraordinaria' : undefined),
+      estado: claseData.estado,
+      esExtraordinaria: extraordinaria,
+    };
+
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(IN_PROGRESS_STORAGE_KEY, JSON.stringify(resumen));
+    }
+    setClaseEnProceso(resumen);
+  }, [claseData, claseId, extraordinaria]);
+
   // Pre-fill form when tema data is loaded
   useEffect(() => {
     if (!temaData || esSesionPreprogramada) return;
@@ -643,6 +684,21 @@ export default function GenerarClase() {
   const [customInstructionText, setCustomInstructionText] = useState("");
   const customInstructionAnchorRef = useRef<HTMLButtonElement | null>(null);
   const isGeneratingPreQuizRef = useRef(false);
+  const hasLoadedInProgressRef = useRef(false);
+  useEffect(() => {
+    if (hasLoadedInProgressRef.current) return;
+    if (typeof window === 'undefined') return;
+    const stored = window.localStorage.getItem(IN_PROGRESS_STORAGE_KEY);
+    if (stored) {
+      try {
+        setClaseEnProceso(JSON.parse(stored));
+      } catch (error) {
+        console.error('Error parsing clase en proceso:', error);
+        window.localStorage.removeItem(IN_PROGRESS_STORAGE_KEY);
+      }
+    }
+    hasLoadedInProgressRef.current = true;
+  }, []);
 
   const mapValuesToLabels = (values: string[], options: readonly { value: string; label: string }[]) =>
     values.map((value) => options.find((option) => option.value === value)?.label || value);
@@ -750,6 +806,37 @@ export default function GenerarClase() {
       return { ...question, opciones: nextOptions };
     });
   };
+
+  const resetWorkflowState = useCallback(
+    (options?: { initialTemaId?: string; clearInProgress?: boolean }) => {
+      setClaseId(null);
+      setGuiaGenerada(null);
+      setPreguntasPost([]);
+      setNumeroSesion(null);
+      setPreQuizState(null);
+      setPreQuizDirty(false);
+      setPreQuizLoading(false);
+      setPreQuizActionLoading({ reading: false, regenerateAll: false, perQuestion: {} });
+      isGeneratingPreQuizRef.current = false;
+      setCurrentStep(1);
+      setTemaLibre("");
+      setMetodologiasSeleccionadas([]);
+      setEdadSeleccionada("");
+      setIdMateria("");
+      setFormData(buildInitialFormData(options?.initialTemaId ?? (temaId || "")));
+      queryClient.removeQueries({ queryKey: ['clase'], exact: false });
+      queryClient.removeQueries({ queryKey: ['pre-quiz'], exact: false });
+      queryClient.removeQueries({ queryKey: ['guia-version'], exact: false });
+
+      if (options?.clearInProgress) {
+        if (typeof window !== 'undefined') {
+          window.localStorage.removeItem(IN_PROGRESS_STORAGE_KEY);
+        }
+        setClaseEnProceso(null);
+      }
+    },
+    [queryClient, temaId]
+  );
 
   const setQuestionCorrectOption = (questionId: string, optionId: string) => {
     updateQuestion(questionId, question => ({
@@ -2331,16 +2418,46 @@ export default function GenerarClase() {
 
   const sinParametros = !claseIdParam && !temaId && !extraordinaria;
 
+  useEffect(() => {
+    if (sinParametros) {
+      if (!selectionResetRef.current) {
+        resetWorkflowState();
+        selectionResetRef.current = true;
+      }
+    } else {
+      selectionResetRef.current = false;
+    }
+  }, [sinParametros, resetWorkflowState]);
+
+  const handleContinuarClaseEnProceso = () => {
+    if (!claseEnProceso) return;
+    const extraParam = claseEnProceso.esExtraordinaria ? '&extraordinaria=true' : '';
+    navigate(`/profesor/generar-clase?clase=${claseEnProceso.id}${extraParam}`);
+  };
+
+  const handleDescartarClaseEnProceso = () => {
+    resetWorkflowState({ clearInProgress: true });
+  };
+
+  const handleSeleccionarSesion = (sesionId: string) => {
+    resetWorkflowState();
+    navigate(`/profesor/generar-clase?clase=${sesionId}`);
+  };
+
+  const handleCrearExtraordinaria = () => {
+    resetWorkflowState();
+    navigate("/profesor/generar-clase?extraordinaria=true");
+  };
+
   return (
     <AppLayout>
       {sinParametros ? (
         <SeleccionarSesionSection
-          onSeleccionarSesion={(sesionId) => {
-            navigate(`/profesor/generar-clase?clase=${sesionId}`);
-          }}
-          onCrearExtraordinaria={() => {
-            navigate("/profesor/generar-clase?extraordinaria=true");
-          }}
+          claseEnProceso={claseEnProceso}
+          onContinuarClase={handleContinuarClaseEnProceso}
+          onDescartarClase={handleDescartarClaseEnProceso}
+          onSeleccionarSesion={handleSeleccionarSesion}
+          onCrearExtraordinaria={handleCrearExtraordinaria}
           onIrAPlanificacion={() => {
             navigate("/profesor/planificacion");
           }}
