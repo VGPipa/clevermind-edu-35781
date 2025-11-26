@@ -121,7 +121,7 @@ Para quiz POST: incluye análisis, aplicación y razonamiento (5-10 preguntas, 1
 
     const complexity = tipo === 'pre' ? 'básico' : 'avanzado';
     const guideContext = buildGuideContext(guideVersion);
-    const userPrompt = `Necesito preparar un quiz ${tipo === 'pre' ? 'PRE (diagnóstico)' : 'POST (sumativo)'} para una clase.
+const userPrompt = `Necesito preparar un quiz ${tipo === 'pre' ? 'PRE (diagnóstico)' : 'POST (sumativo)'} para una clase.
 Debes producir un JSON con dos partes:
 {
   "lectura": "Párrafo de máximo 120 palabras que introduzca el tema al estudiante en un tono amigable",
@@ -130,7 +130,9 @@ Debes producir un JSON con dos partes:
       "texto_pregunta": "...",
       "tipo": "analisis|razonamiento|aplicacion|conocimiento",
       "puntos": ${tipo === 'pre' ? '1-2' : '2-4'},
-      "retroalimentacion": "mensaje específico y constructivo"
+      "retroalimentacion": "mensaje específico y constructivo",
+      "opciones": ["Opción A", "Opción B", "Opción C", "Opción D"],
+      "indice_correcto": 0
     }
   ]
 }
@@ -173,25 +175,31 @@ Mantén el formato JSON descrito anteriormente sin texto adicional.`;
       maxTokens: 2000,
       });
 
-    const quizContent = parseAIJSON<{
-      lectura?: string;
-      preguntas: Array<{
-        texto_pregunta: string;
-        tipo: string;
-        puntos: number;
-        retroalimentacion: string;
-      }>;
-    }>(aiResponse.content);
+const quizContent = parseAIJSON<{
+  lectura?: string;
+  preguntas: Array<{
+    texto_pregunta: string;
+    tipo: string;
+    puntos: number;
+    retroalimentacion: string;
+    opciones: string[];
+    indice_correcto: number;
+  }>;
+}>(aiResponse.content);
 
     const readingText = quizContent.lectura?.trim() || `Lectura introductoria para el tema ${temaNombre}.`;
     quizContent.preguntas = Array.isArray(quizContent.preguntas) ? quizContent.preguntas : [];
 
     // Validate number of questions
-    const numPreguntas = quizContent.preguntas.length;
-    if (tipo === 'pre' && numPreguntas > 3) {
-      // Limit to 3 for pre
-      quizContent.preguntas = quizContent.preguntas.slice(0, 3);
-    } else if (tipo === 'post' && (numPreguntas < 5 || numPreguntas > 10)) {
+const numPreguntas = quizContent.preguntas.length;
+if (tipo === 'pre') {
+  if (numPreguntas === 0) {
+    return createErrorResponse('El quiz pre debe tener al menos 1 pregunta', 400);
+  }
+  if (numPreguntas > 3) {
+    quizContent.preguntas = quizContent.preguntas.slice(0, 3);
+  }
+} else if (tipo === 'post' && (numPreguntas < 5 || numPreguntas > 10)) {
       // Adjust to valid range for post
       if (quizContent.preguntas.length < 5) {
         return createErrorResponse('El quiz post debe tener al menos 5 preguntas', 400);
@@ -221,16 +229,31 @@ Mantén el formato JSON descrito anteriormente sin texto adicional.`;
     }
 
     // Create questions
-    const preguntasToInsert = quizContent.preguntas.map((q, index: number) => ({
-      id_quiz: quiz.id,
-      texto_pregunta: q.texto_pregunta,
-      tipo: q.tipo as any,
-      orden: index + 1,
-      justificacion: q.retroalimentacion,
-      texto_contexto: readingText,
-      respuesta_correcta: '', // Will be set by professor or AI
-      opciones: []
-    }));
+const buildOpciones = (opciones: string[]): Array<{ id: string; label: string }> => {
+  const items = Array.isArray(opciones) ? opciones : [];
+  return items.map((texto, idx) => ({
+    id: `option-${idx + 1}`,
+    label: texto,
+  }));
+};
+
+const preguntasToInsert = quizContent.preguntas.map((q, index: number) => {
+  const opciones = buildOpciones(q.opciones);
+  const correctOption =
+    opciones?.[q.indice_correcto] ||
+    opciones?.[0] || { id: 'option-1', label: '' };
+
+  return {
+    id_quiz: quiz.id,
+    texto_pregunta: q.texto_pregunta,
+    tipo: q.tipo as any,
+    orden: index + 1,
+    justificacion: q.retroalimentacion,
+    texto_contexto: readingText,
+    respuesta_correcta: correctOption.id,
+    opciones,
+  };
+});
 
     const { error: preguntasError } = await supabase
       .from('preguntas')
