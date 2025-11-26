@@ -309,6 +309,7 @@ function crearSalonVacio(grupo: any) {
     },
     metricas_globales: {
       participacion_promedio: 0,
+      porcentaje_promedio: 0,
       dominio_por_conceptos: [],
       areas_fuertes: [],
       areas_dificultad: [],
@@ -333,6 +334,7 @@ function calcularMetricasGlobales(
   if (todosLosQuizzes.length === 0 || alumnosSalon.length === 0) {
     return {
       participacion_promedio: 0,
+      porcentaje_promedio: 0,
       dominio_por_conceptos: [],
       areas_fuertes: [],
       areas_dificultad: [],
@@ -347,6 +349,29 @@ function calcularMetricasGlobales(
   }, 0);
   const participacionPromedio = totalEsperadoRespuestas > 0
     ? Math.round((respuestasCompletadas / totalEsperadoRespuestas) * 100)
+    : 0;
+
+  // Calcular porcentaje promedio de calificaciones
+  let totalPorcentajes = 0;
+  let cantidadCalificaciones = 0;
+
+  todosLosQuizzes.forEach((quiz: any) => {
+    (quiz.respuestas_alumno || []).forEach((respuesta: any) => {
+      if (respuesta.estado === 'completado' && respuesta.calificaciones) {
+        const calificacion = Array.isArray(respuesta.calificaciones)
+          ? respuesta.calificaciones[0]
+          : respuesta.calificaciones;
+        
+        if (calificacion?.porcentaje_aciertos != null) {
+          totalPorcentajes += Number(calificacion.porcentaje_aciertos);
+          cantidadCalificaciones++;
+        }
+      }
+    });
+  });
+
+  const porcentajePromedio = cantidadCalificaciones > 0
+    ? Math.round(totalPorcentajes / cantidadCalificaciones)
     : 0;
 
   // Calcular dominio por conceptos (solo POST)
@@ -375,6 +400,7 @@ function calcularMetricasGlobales(
 
   return {
     participacion_promedio: participacionPromedio,
+    porcentaje_promedio: porcentajePromedio,
     dominio_por_conceptos: dominioPorConceptos,
     areas_fuertes: areasFuertes,
     areas_dificultad: areasDificultad,
