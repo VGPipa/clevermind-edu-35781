@@ -28,7 +28,7 @@ export function MetricasGlobalesSalon({ metricas, nombreSalon }: MetricasGlobale
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-3">
         {/* Participación Promedio */}
         <Card>
           <CardHeader className="pb-3">
@@ -74,95 +74,21 @@ export function MetricasGlobalesSalon({ metricas, nombreSalon }: MetricasGlobale
           </CardContent>
         </Card>
 
-        {/* Dominio por Conceptos */}
-        <Card className="md:col-span-2 lg:col-span-1">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Dominio por Conceptos</CardTitle>
-            <CardDescription className="text-xs">
-              {metricas.dominio_por_conceptos.length} conceptos evaluados
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {metricas.dominio_por_conceptos.length > 0 ? (
-              <div className="space-y-2">
-                {metricas.dominio_por_conceptos.slice(0, 3).map((concepto, idx) => (
-                  <div key={idx} className="flex items-center justify-between text-sm">
-                    <span className="truncate flex-1">{concepto.concepto}</span>
-                    <Badge
-                      variant={
-                        concepto.nivel_logro === 'alto'
-                          ? 'default'
-                          : concepto.nivel_logro === 'intermedio'
-                          ? 'secondary'
-                          : 'destructive'
-                      }
-                      className="ml-2 text-xs"
-                    >
-                      {concepto.porcentaje_logro}%
-                    </Badge>
-                  </div>
-                ))}
-                {metricas.dominio_por_conceptos.length > 3 && (
-                  <p className="text-xs text-muted-foreground mt-2">
-                    +{metricas.dominio_por_conceptos.length - 3} conceptos más
-                  </p>
-                )}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">No hay datos disponibles</p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Áreas Más Fuertes */}
+        {/* Porcentaje Promedio */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-green-600" />
-              Áreas Más Fuertes
+              <CheckCircle2 className="h-4 w-4 text-primary" />
+              Porcentaje Promedio
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {metricas.areas_fuertes.length > 0 ? (
-              <div className="space-y-2">
-                {metricas.areas_fuertes.map((area, idx) => (
-                  <div key={idx} className="flex items-center justify-between text-sm">
-                    <span className="truncate flex-1">{area.concepto}</span>
-                    <Badge variant="default" className="ml-2 text-xs bg-green-600">
-                      {area.porcentaje}%
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">No hay datos disponibles</p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Áreas de Mayor Dificultad */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <TrendingDown className="h-4 w-4 text-red-600" />
-              Áreas de Mayor Dificultad
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {metricas.areas_dificultad.length > 0 ? (
-              <div className="space-y-2">
-                {metricas.areas_dificultad.map((area, idx) => (
-                  <div key={idx} className="flex items-center justify-between text-sm">
-                    <span className="truncate flex-1">{area.concepto}</span>
-                    <Badge variant="destructive" className="ml-2 text-xs">
-                      {area.porcentaje}%
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">No hay datos disponibles</p>
-            )}
+            <div className="text-3xl font-bold">
+              {metricas.porcentaje_promedio || 0}%
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Promedio general del salón
+            </p>
           </CardContent>
         </Card>
       </div>

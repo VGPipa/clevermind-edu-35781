@@ -16,6 +16,7 @@ export interface AlumnoRiesgo {
 
 export interface MetricasGlobales {
   participacion_promedio: number;
+  porcentaje_promedio?: number; // Promedio general de calificaciones del salón
   dominio_por_conceptos: ConceptoMetrica[];
   areas_fuertes: Array<{ concepto: string; porcentaje: number }>;
   areas_dificultad: Array<{ concepto: string; porcentaje: number }>;

@@ -1,14 +1,15 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Users, AlertTriangle, TrendingDown, CheckCircle2 } from "lucide-react";
-import { DatosPre } from "@/types/metricas-salon";
+import { Users, TrendingDown, CheckCircle2, Lightbulb } from "lucide-react";
+import { DatosPre, RecomendacionPre } from "@/types/metricas-salon";
 
 interface SeccionPreMetricasProps {
   datos: DatosPre;
+  recomendaciones: RecomendacionPre[];
 }
 
-export function SeccionPreMetricas({ datos }: SeccionPreMetricasProps) {
+export function SeccionPreMetricas({ datos, recomendaciones }: SeccionPreMetricasProps) {
   const getClasificacionColor = (clasificacion: string) => {
     switch (clasificacion) {
       case "alta":
@@ -154,39 +155,37 @@ export function SeccionPreMetricas({ datos }: SeccionPreMetricasProps) {
           </CardContent>
         </Card>
 
-        {/* Alumnos en Riesgo */}
-        <Card className="border-amber-200 bg-amber-50/30">
+        {/* Recomendaciones PREVIO A LA CLASE */}
+        <Card className="border-blue-200 bg-blue-50/30">
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-600" />
-              Alumnos en Riesgo para Esta Clase
+              <Lightbulb className="h-4 w-4 text-blue-600" />
+              Recomendaciones PREVIO A LA CLASE
             </CardTitle>
             <CardDescription>
-              Alumnos con bajo diagnóstico previo
+              Sugerencias para preparar mejor la clase
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {datos.alumnos_riesgo.length > 0 ? (
-              <div className="space-y-2">
-                {datos.alumnos_riesgo.map((alumno) => (
+            {recomendaciones && recomendaciones.length > 0 ? (
+              <div className="space-y-3">
+                {recomendaciones.map((rec, idx) => (
                   <div
-                    key={alumno.id}
-                    className="flex items-center justify-between p-2 rounded-lg bg-white/60"
+                    key={idx}
+                    className="p-3 rounded-lg bg-white/60 border border-blue-100"
                   >
-                    <div>
-                      <p className="text-sm font-medium">
-                        {alumno.nombre} {alumno.apellido}
-                      </p>
-                    </div>
-                    <Badge variant="destructive" className="text-xs">
-                      {alumno.porcentaje}%
-                    </Badge>
+                    <p className="text-sm font-medium text-blue-900 mb-1">
+                      {rec.recomendacion}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {rec.sugerencia}
+                    </p>
                   </div>
                 ))}
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">
-                No hay alumnos en riesgo identificados
+                No hay recomendaciones disponibles aún
               </p>
             )}
           </CardContent>
