@@ -6,10 +6,11 @@ import { Loader2, School } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { MetricasGlobalesSalon } from "@/components/profesor/MetricasGlobalesSalon";
-import { FiltrosMetricasSalon } from "@/components/profesor/FiltrosMetricasSalon";
 import { SeccionPreMetricas } from "@/components/profesor/SeccionPreMetricas";
 import { SeccionPostMetricas } from "@/components/profesor/SeccionPostMetricas";
 import { ResponseMisSalones } from "@/types/metricas-salon";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 
 export default function MisSalones() {
   const queryClient = useQueryClient();
@@ -147,24 +148,115 @@ export default function MisSalones() {
           </p>
         </div>
 
-        {/* Selector de Salón (si hay múltiples) */}
-        {salones.length > 1 && (
+        {/* Selector de Salón y Filtros */}
+        {salonSeleccionado && (
           <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <label className="text-sm font-medium">Salón:</label>
-                <select
-                  value={filtroSalon}
-                  onChange={(e) => setFiltroSalon(e.target.value)}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <option value="todos">Todos los salones</option>
-                  {salones.map((salon) => (
-                    <option key={salon.grupo.id} value={salon.grupo.id}>
-                      {salon.grupo.nombre} - {salon.grupo.grado}° {salon.grupo.seccion}
-                    </option>
-                  ))}
-                </select>
+            <CardContent className="pt-6 space-y-4">
+              {/* Filtro Salón (si hay múltiples) */}
+              {salones.length > 1 && (
+                <div className="flex items-center gap-4">
+                  <label className="text-sm font-medium">Salón:</label>
+                  <select
+                    value={filtroSalon}
+                    onChange={(e) => setFiltroSalon(e.target.value)}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <option value="todos">Todos los salones</option>
+                    {salones.map((salon) => (
+                      <option key={salon.grupo.id} value={salon.grupo.id}>
+                        {salon.grupo.nombre} - {salon.grupo.grado}° {salon.grupo.seccion}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Filtros de Materia, Tema, Clase */}
+              <div className="grid gap-4 md:grid-cols-3">
+                {/* Filtro Materia */}
+                <div className="space-y-2">
+                  <Label>Materia</Label>
+                  <Select
+                    value={materiaSeleccionada || "todos"}
+                    onValueChange={(value) => {
+                      setMateriaSeleccionada(value === "todos" ? null : value);
+                      setTemaSeleccionado(null);
+                      setClaseSeleccionada(null);
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Todas las materias" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todas las materias</SelectItem>
+                      {salonSeleccionado.filtros.materias?.map((materia) => (
+                        <SelectItem key={materia.id} value={materia.id}>
+                          {materia.nombre}
+                        </SelectItem>
+                      )) || []}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Filtro Tema */}
+                <div className="space-y-2">
+                  <Label>Tema</Label>
+                  <Select
+                    value={temaSeleccionado || "todos"}
+                    onValueChange={(value) => {
+                      setTemaSeleccionado(value === "todos" ? null : value);
+                      setClaseSeleccionada(null);
+                    }}
+                    disabled={!materiaSeleccionada && (salonSeleccionado.filtros.materias?.length || 0) > 0}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Todos los temas" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todos los temas</SelectItem>
+                      {(materiaSeleccionada
+                        ? salonSeleccionado.filtros.temas?.filter((t) => t.id_materia === materiaSeleccionada) || []
+                        : salonSeleccionado.filtros.temas || []
+                      ).map((tema) => (
+                        <SelectItem key={tema.id} value={tema.id}>
+                          {tema.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Filtro Clase */}
+                <div className="space-y-2">
+                  <Label>Clase / Sesión</Label>
+                  <Select
+                    value={claseSeleccionada || "todos"}
+                    onValueChange={(value) => {
+                      setClaseSeleccionada(value === "todos" ? null : value);
+                    }}
+                    disabled={!temaSeleccionado && (salonSeleccionado.filtros.temas?.length || 0) > 0}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Todas las clases" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todas las clases</SelectItem>
+                      {(temaSeleccionado
+                        ? salonSeleccionado.filtros.clases?.filter((c) => c.id_tema === temaSeleccionado) || []
+                        : salonSeleccionado.filtros.clases || []
+                      ).map((clase) => (
+                        <SelectItem key={clase.id} value={clase.id}>
+                          Sesión {clase.numero_sesion || "N/A"}
+                          {clase.fecha_programada &&
+                            ` - ${new Date(clase.fecha_programada).toLocaleDateString("es-ES", {
+                              month: "short",
+                              day: "numeric",
+                            })}`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -173,16 +265,6 @@ export default function MisSalones() {
         {/* Contenido Principal */}
         {salonSeleccionado && (
           <>
-            {/* Filtros */}
-            <FiltrosMetricasSalon
-              filtros={salonSeleccionado.filtros}
-              materiaSeleccionada={materiaSeleccionada}
-              temaSeleccionado={temaSeleccionado}
-              claseSeleccionada={claseSeleccionada}
-              onMateriaChange={setMateriaSeleccionada}
-              onTemaChange={setTemaSeleccionado}
-              onClaseChange={setClaseSeleccionada}
-            />
 
             {/* Métricas Globales */}
             <MetricasGlobalesSalon
