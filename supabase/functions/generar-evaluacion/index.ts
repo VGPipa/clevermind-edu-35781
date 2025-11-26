@@ -86,7 +86,21 @@ Para quiz PRE: enfócate en conocimientos teóricos básicos (máximo 3 pregunta
 Para quiz POST: incluye análisis, aplicación y razonamiento (5-10 preguntas, 15 minutos).`;
 
     const complexity = tipo === 'pre' ? 'básico' : 'avanzado';
-    const userPrompt = `Genera ${minPreguntas === maxPreguntas ? maxPreguntas : `${minPreguntas}-${maxPreguntas}`} preguntas de evaluación ${tipo === 'pre' ? 'diagnóstica PRE' : 'sumativa POST'} para:
+    const userPrompt = `Necesito preparar un quiz ${tipo === 'pre' ? 'PRE (diagnóstico)' : 'POST (sumativo)'} para una clase.
+Debes producir un JSON con dos partes:
+{
+  "lectura": "Párrafo de máximo 120 palabras que introduzca el tema al estudiante en un tono amigable",
+  "preguntas": [
+    {
+      "texto_pregunta": "...",
+      "tipo": "analisis|razonamiento|aplicacion|conocimiento",
+      "puntos": ${tipo === 'pre' ? '1-2' : '2-4'},
+      "retroalimentacion": "mensaje específico y constructivo"
+    }
+  ]
+}
+
+Genera ${minPreguntas === maxPreguntas ? maxPreguntas : `${minPreguntas}-${maxPreguntas}`} preguntas de evaluación ${tipo === 'pre' ? 'diagnóstica PRE' : 'sumativa POST'} para:
 
 Tema: ${temaNombre}
 Descripción del tema: ${(clase.temas as any)?.descripcion || 'No especificada'}
@@ -95,6 +109,10 @@ Grupo de edad: ${clase.grupo_edad || 'General'}
 Enfoque: ${enfoque}
 Objetivos de aprendizaje:
 ${guideVersion.objetivos}
+
+La lectura debe:
+- Preparar cognitivamente al estudiante para el quiz
+- Mencionar al menos un ejemplo concreto relacionado al tema
 
 Las preguntas deben:
 - Evaluar pensamiento crítico (análisis, razonamiento, aplicación)
@@ -105,18 +123,7 @@ ${tipo === 'pre'
 - Incluir retroalimentación automática específica para cada respuesta
 ${tipo === 'pre' ? '- Tiempo estimado: 5 minutos total' : '- Tiempo estimado: 15 minutos total'}
 
-Responde en formato JSON:
-{
-  "preguntas": [
-    {
-      "texto_pregunta": "...",
-      "tipo": "analisis|razonamiento|aplicacion|conocimiento",
-      "puntos": ${tipo === 'pre' ? '1-2' : '2-4'},
-      "retroalimentacion": "mensaje específico y constructivo"
-    },
-    ...
-  ]
-}`;
+Mantén el formato JSON descrito anteriormente sin texto adicional.`;
 
     // Call AI using helper
     const aiResponse = await callAI({
@@ -127,7 +134,8 @@ Responde en formato JSON:
       maxTokens: 2000,
       });
 
-    const questionsData = parseAIJSON<{
+    const quizContent = parseAIJSON<{
+      lectura?: string;
       preguntas: Array<{
         texto_pregunta: string;
         tipo: string;
@@ -136,17 +144,20 @@ Responde en formato JSON:
       }>;
     }>(aiResponse.content);
 
+    const readingText = quizContent.lectura?.trim() || `Lectura introductoria para el tema ${temaNombre}.`;
+    quizContent.preguntas = Array.isArray(quizContent.preguntas) ? quizContent.preguntas : [];
+
     // Validate number of questions
-    const numPreguntas = questionsData.preguntas.length;
+    const numPreguntas = quizContent.preguntas.length;
     if (tipo === 'pre' && numPreguntas > 3) {
       // Limit to 3 for pre
-      questionsData.preguntas = questionsData.preguntas.slice(0, 3);
+      quizContent.preguntas = quizContent.preguntas.slice(0, 3);
     } else if (tipo === 'post' && (numPreguntas < 5 || numPreguntas > 10)) {
       // Adjust to valid range for post
-      if (numPreguntas < 5) {
+      if (quizContent.preguntas.length < 5) {
         return createErrorResponse('El quiz post debe tener al menos 5 preguntas', 400);
-    }
-      questionsData.preguntas = questionsData.preguntas.slice(0, 10);
+      }
+      quizContent.preguntas = quizContent.preguntas.slice(0, 10);
     }
 
     // Create quiz with specific parameters
@@ -160,7 +171,7 @@ Responde en formato JSON:
         estado: 'borrador',
         tiempo_limite_minutos: tiempoLimite,
         max_preguntas: maxPreguntas,
-        instrucciones: `Evaluación ${tipo === 'pre' ? 'inicial (PRE)' : 'final (POST)'} de pensamiento crítico. ${tipo === 'pre' ? 'Tiempo: 5 minutos. Máximo 3 preguntas.' : 'Tiempo: 15 minutos. 5-10 preguntas.'}`
+        instrucciones: readingText
       })
       .select()
       .single();
@@ -171,12 +182,13 @@ Responde en formato JSON:
     }
 
     // Create questions
-    const preguntasToInsert = questionsData.preguntas.map((q, index: number) => ({
+    const preguntasToInsert = quizContent.preguntas.map((q, index: number) => ({
       id_quiz: quiz.id,
       texto_pregunta: q.texto_pregunta,
       tipo: q.tipo as any,
       orden: index + 1,
       justificacion: q.retroalimentacion,
+      texto_contexto: readingText,
       respuesta_correcta: '', // Will be set by professor or AI
       opciones: []
     }));
@@ -191,8 +203,9 @@ Responde en formato JSON:
     }
 
     return createSuccessResponse({ 
-        quiz_id: quiz.id,
-      preguntas: questionsData.preguntas,
+      quiz_id: quiz.id,
+      lectura: readingText,
+      preguntas: quizContent.preguntas,
       tiempo_limite: tiempoLimite,
       max_preguntas: maxPreguntas,
       tipo: tipo

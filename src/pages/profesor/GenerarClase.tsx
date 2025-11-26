@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Brain, Loader2, FileText, CheckCircle2, AlertCircle, Target, Clock, Plus, X, ChevronDown, Lock, Monitor, Clipboard, Globe, Smartphone, Blocks, Book, Lightbulb } from "lucide-react";
+import { Brain, Loader2, FileText, CheckCircle2, AlertCircle, Target, Clock, Plus, X, ChevronDown, Lock, Monitor, Clipboard, Globe, Smartphone, Blocks, Book, Lightbulb, Sparkles, MoreHorizontal, RefreshCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,13 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Progress } from "@/components/ui/progress";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { ProgressBar } from "@/components/profesor/ProgressBar";
@@ -71,6 +78,28 @@ const RECURSOS_OPTIONS = [
   { value: "libros", label: "Libros", icon: Book },
   { value: "otro", label: "Otro", icon: Plus },
 ] as const;
+
+type QuizOptionState = {
+  id: string;
+  label: string;
+};
+
+type QuizQuestionState = {
+  id: string;
+  texto: string;
+  tipo: string;
+  orden: number;
+  opciones: QuizOptionState[];
+  respuestaCorrecta: string;
+  justificacion?: string | null;
+  loadingAction?: 'swap' | 'easier' | 'harder' | null;
+};
+
+type PreQuizState = {
+  quizId: string;
+  lectura: string;
+  questions: QuizQuestionState[];
+};
 
 const DESCRIPCIONES_METODOLOGIAS: Record<string, string> = {
   "Aprendizaje Basado en Casos": "Análisis de situaciones reales para desarrollar habilidades de resolución de problemas.",
@@ -150,7 +179,7 @@ export default function GenerarClase() {
   });
 
   // Fetch clase data when viene ?clase=<id> para prellenar el formulario
-  const { data: claseData } = useQuery({
+  const { data: claseDataFromUrl } = useQuery({
     queryKey: ['clase', claseIdParam],
     queryFn: async () => {
       if (!claseIdParam) return null;
@@ -159,6 +188,8 @@ export default function GenerarClase() {
         .from('clases')
         .select(`
           *,
+          id_guia_version_actual,
+          estado,
           temas!inner (
             id,
             nombre,
@@ -191,8 +222,58 @@ export default function GenerarClase() {
       if (response.error) throw response.error;
       return response.data;
     },
-    enabled: esSesionPreprogramada,
+    enabled: esSesionPreprogramada || !!claseIdParam,
   });
+
+  // Fetch clase data cuando se crea una clase (extraordinaria o nueva) y se guarda el ID en estado
+  const { data: claseDataFromState } = useQuery({
+    queryKey: ['clase', claseId],
+    queryFn: async () => {
+      if (!claseId || claseId === claseIdParam) return null; // Evitar duplicado si ya viene de URL
+
+      const response = await (supabase as any)
+        .from('clases')
+        .select(`
+          *,
+          id_guia_version_actual,
+          estado,
+          temas!inner (
+            id,
+            nombre,
+            descripcion,
+            duracion_estimada,
+            id_materia,
+            materias!inner (
+              id,
+              nombre,
+              plan_anual!inner (
+                grado,
+                id_institucion
+              )
+            )
+          ),
+          grupos!inner (
+            id,
+            nombre,
+            grado,
+            seccion
+          ),
+          guias_tema!inner (
+            id,
+            estructura_sesiones
+          )
+        `)
+        .eq('id', claseId)
+        .single();
+
+      if (response.error) throw response.error;
+      return response.data;
+    },
+    enabled: !!claseId && claseId !== claseIdParam,
+  });
+
+  // Usar datos de URL si existen, sino usar datos del estado
+  const claseData = claseDataFromUrl || claseDataFromState;
 
   // Fetch materias for the profesor
   const { data: materiasData } = useQuery({
@@ -280,6 +361,61 @@ export default function GenerarClase() {
       if (asignacionesResponse.error) throw asignacionesResponse.error;
       return asignacionesResponse.data?.map((a: any) => a.grupos).filter(Boolean) || [];
     },
+  });
+
+  // Fetch guía existente si la clase ya tiene una versión
+  const { data: guiaExistente } = useQuery({
+    queryKey: ['guia-version', claseData?.id_guia_version_actual],
+    queryFn: async () => {
+      if (!claseData?.id_guia_version_actual) return null;
+
+      const { data, error } = await (supabase as any)
+        .from('guias_clase_versiones')
+        .select('*')
+        .eq('id', claseData.id_guia_version_actual)
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!claseData?.id_guia_version_actual,
+  });
+
+  // Fetch quiz pre junto con sus preguntas para el editor híbrido
+  const {
+    data: preQuizData,
+    isLoading: preQuizFetching,
+    refetch: refetchPreQuiz,
+  } = useQuery({
+    queryKey: ['pre-quiz', claseId],
+    queryFn: async () => {
+      if (!claseId) return null;
+
+      const { data, error } = await (supabase as any)
+        .from('quizzes')
+        .select(`
+          id,
+          instrucciones,
+          estado,
+          tipo_evaluacion,
+          preguntas:preguntas (
+            id,
+            texto_pregunta,
+            tipo,
+            orden,
+            opciones,
+            respuesta_correcta,
+            justificacion
+          )
+        `)
+        .eq('id_clase', claseId)
+        .eq('tipo_evaluacion', 'pre')
+        .maybeSingle();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!claseId,
   });
 
   // Verificar guía solo cuando viene un tema específico
@@ -392,6 +528,50 @@ export default function GenerarClase() {
     }
   }, [claseData, esSesionPreprogramada]);
 
+  // Detectar estado de la clase y cargar datos existentes cuando el usuario vuelve
+  useEffect(() => {
+    if (!claseData || !claseId) return;
+
+    if (guiaExistente) {
+      const guiaData = {
+        objetivos: guiaExistente.objetivos ? guiaExistente.objetivos.split('\n').filter(Boolean) : [],
+        estructura: Array.isArray(guiaExistente.estructura) ? guiaExistente.estructura : [],
+        preguntas_socraticas: Array.isArray(guiaExistente.preguntas_socraticas) 
+          ? guiaExistente.preguntas_socraticas 
+          : [],
+        contenido: guiaExistente.contenido || {},
+        version_numero: guiaExistente.version_numero,
+      };
+      setGuiaGenerada(guiaData);
+    }
+
+    const estado = claseData.estado;
+    if (!estado) return;
+
+    if (estado === 'generando_clase') {
+      setCurrentStep(2);
+      return;
+    }
+
+    if (['editando_guia', 'guia_aprobada'].includes(estado)) {
+      setCurrentStep(3);
+      return;
+    }
+
+    if ([
+      'quiz_pre_generando',
+      'quiz_pre_enviado',
+      'analizando_quiz_pre',
+      'modificando_guia',
+      'guia_final',
+      'clase_programada',
+      'en_clase',
+    ].includes(estado)) {
+      setCurrentStep(4);
+      return;
+    }
+  }, [claseData, guiaExistente, claseId]);
+
   // Pre-fill form when tema data is loaded
   useEffect(() => {
     if (!temaData || esSesionPreprogramada) return;
@@ -420,13 +600,49 @@ export default function GenerarClase() {
     }
   }, [temaData, esSesionPreprogramada]);
 
+  useEffect(() => {
+    if (!preQuizData) {
+      setPreQuizState(null);
+      setPreQuizDirty(false);
+      return;
+    }
+
+    const preguntasOrdenadas = Array.isArray(preQuizData.preguntas)
+      ? [...preQuizData.preguntas].sort((a: any, b: any) => (a.orden || 0) - (b.orden || 0))
+      : [];
+
+    setPreQuizState({
+      quizId: preQuizData.id,
+      lectura: preQuizData.instrucciones || "",
+      questions: preguntasOrdenadas.map((pregunta: any, index: number) =>
+        mapPreguntaToState(pregunta, index)
+      ),
+    });
+    setPreQuizDirty(false);
+  }, [preQuizData]);
+
   const [guiaGenerada, setGuiaGenerada] = useState<any>(null);
-  const [preguntasPre, setPreguntasPre] = useState<any[]>([]);
   const [preguntasPost, setPreguntasPost] = useState<any[]>([]);
   const [sesionesRecomendadas, setSesionesRecomendadas] = useState<number>(1);
   const [numeroSesion, setNumeroSesion] = useState<number | null>(null);
   const [mostrarInputMetodologia, setMostrarInputMetodologia] = useState(false);
   const [metodologiaPersonalizada, setMetodologiaPersonalizada] = useState("");
+  const [preQuizState, setPreQuizState] = useState<PreQuizState | null>(null);
+  const [preQuizDirty, setPreQuizDirty] = useState(false);
+  const [preQuizLoading, setPreQuizLoading] = useState(false);
+  const [preQuizActionLoading, setPreQuizActionLoading] = useState<{
+    reading: boolean;
+    regenerateAll: boolean;
+    perQuestion: Record<string, boolean>;
+  }>({
+    reading: false,
+    regenerateAll: false,
+    perQuestion: {},
+  });
+  const [customInstructionOpen, setCustomInstructionOpen] = useState(false);
+  const [customInstructionText, setCustomInstructionText] = useState("");
+  const customInstructionAnchorRef = useRef<HTMLButtonElement | null>(null);
+  const isGeneratingPreQuizRef = useRef(false);
 
   const mapValuesToLabels = (values: string[], options: readonly { value: string; label: string }[]) =>
     values.map((value) => options.find((option) => option.value === value)?.label || value);
@@ -449,6 +665,111 @@ export default function GenerarClase() {
       return `${gradeNum - 6}S`;
     }
     return null;
+  };
+
+  const normalizeOptions = (raw: any): QuizOptionState[] => {
+    if (!raw) return [];
+
+    const buildOption = (label: any, index: number, id?: string): QuizOptionState => ({
+      id: id || `option-${index + 1}`,
+      label: typeof label === 'string' ? label : typeof label === 'number' ? String(label) : JSON.stringify(label),
+    });
+
+    if (Array.isArray(raw)) {
+      if (raw.length === 1 && typeof raw[0] === 'object' && !Array.isArray(raw[0])) {
+        return Object.entries(raw[0]).map(([key, value], idx) => buildOption(value, idx, key));
+      }
+      return raw.map((value, idx) => {
+        if (value && typeof value === 'object' && 'label' in value) {
+          return {
+            id: (value as any).id || `option-${idx + 1}`,
+            label: String((value as any).label),
+          };
+        }
+        return buildOption(value, idx);
+      });
+    }
+
+    if (typeof raw === 'object') {
+      return Object.entries(raw).map(([key, value], idx) => buildOption(value, idx, key));
+    }
+
+    return [];
+  };
+
+  const ensureMinimumOptions = (options: QuizOptionState[]): QuizOptionState[] => {
+    const next = [...options];
+    while (next.length < 4) {
+      const index = next.length;
+      next.push({ id: `option-${index + 1}`, label: '' });
+    }
+    return next;
+  };
+
+  const mapPreguntaToState = (pregunta: any, index: number): QuizQuestionState => ({
+    id: pregunta.id,
+    texto: pregunta.texto_pregunta,
+    tipo: pregunta.tipo,
+    orden: pregunta.orden || index + 1,
+    opciones: ensureMinimumOptions(normalizeOptions(pregunta.opciones)),
+    respuestaCorrecta: pregunta.respuesta_correcta || '',
+    justificacion: pregunta.justificacion,
+  });
+
+  const updateReadingText = (texto: string) => {
+    setPreQuizState(prev => prev ? { ...prev, lectura: texto } : prev);
+    setPreQuizDirty(true);
+  };
+
+  const updateQuestion = (questionId: string, updater: (question: QuizQuestionState) => QuizQuestionState) => {
+    setPreQuizState(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        questions: prev.questions.map(q => (q.id === questionId ? updater(q) : q)),
+      };
+    });
+    setPreQuizDirty(true);
+  };
+
+  const updateQuestionOption = (questionId: string, optionId: string, value: string) => {
+    updateQuestion(questionId, question => ({
+      ...question,
+      opciones: question.opciones.map(opt =>
+        opt.id === optionId ? { ...opt, label: value } : opt
+      ),
+    }));
+  };
+
+  const addQuestionOption = (questionId: string) => {
+    updateQuestion(questionId, question => {
+      const nextOptions = [
+        ...question.opciones,
+        { id: `option-${question.opciones.length + 1}`, label: '' },
+      ];
+      return { ...question, opciones: nextOptions };
+    });
+  };
+
+  const setQuestionCorrectOption = (questionId: string, optionId: string) => {
+    updateQuestion(questionId, question => ({
+      ...question,
+      respuestaCorrecta: optionId,
+    }));
+  };
+
+  const handleQuestionTextChange = (questionId: string, value: string) => {
+    updateQuestion(questionId, question => ({
+      ...question,
+      texto: value,
+    }));
+  };
+
+  const handleJustificacionChange = (questionId: string, value: string) => {
+    updateQuestion(questionId, question => ({
+      ...question,
+      justificacion: value,
+    }));
   };
 
   const buildExtendedContext = () => ({
@@ -545,6 +866,195 @@ export default function GenerarClase() {
     
     setMetodologiasSeleccionadas(nuevasMetodologias);
     validarCampo('metodologias', nuevasMetodologias);
+  };
+
+  const setQuestionLoader = (questionId: string, value: boolean) => {
+    setPreQuizActionLoading(prev => ({
+      ...prev,
+      perQuestion: { ...prev.perQuestion, [questionId]: value },
+    }));
+  };
+
+  const generatePreQuiz = async () => {
+    if (!claseId || isGeneratingPreQuizRef.current) return;
+    isGeneratingPreQuizRef.current = true;
+
+    setPreQuizLoading(true);
+    try {
+      const { error } = await supabase.functions.invoke('generar-evaluacion', {
+        body: { id_clase: claseId, tipo: 'pre' },
+      });
+
+      if (error) throw error;
+
+      await refetchPreQuiz();
+      toast.success("Evaluación pre generada. Ahora puedes personalizarla.");
+    } catch (error: any) {
+      console.error('Error generating pre-quiz:', error);
+      toast.error(error.message || "No se pudo generar la evaluación PRE");
+    } finally {
+      setPreQuizLoading(false);
+      isGeneratingPreQuizRef.current = false;
+    }
+  };
+
+  const persistPreQuizChanges = async () => {
+    if (!preQuizState) return;
+
+    setPreQuizLoading(true);
+    try {
+      const quizUpdate = supabase
+        .from('quizzes')
+        .update({
+          instrucciones: preQuizState.lectura,
+        })
+        .eq('id', preQuizState.quizId);
+
+      const questionsUpdate = Promise.all(
+        preQuizState.questions.map((question) =>
+          supabase
+            .from('preguntas')
+            .update({
+              texto_pregunta: question.texto,
+              respuesta_correcta: question.respuestaCorrecta,
+              opciones: question.opciones,
+              justificacion: question.justificacion,
+              orden: question.orden,
+              texto_contexto: preQuizState.lectura,
+            })
+            .eq('id', question.id)
+        )
+      );
+
+      const [{ error: quizError }, questionsResult] = await Promise.all([quizUpdate, questionsUpdate]);
+
+      if (quizError) throw quizError;
+
+      for (const result of questionsResult) {
+        if (result.error) throw result.error;
+      }
+
+      setPreQuizDirty(false);
+      toast.success("Cambios del quiz PRE guardados");
+    } catch (error: any) {
+      console.error('Error saving pre-quiz:', error);
+      toast.error(error.message || "No se pudieron guardar los cambios del quiz PRE");
+      throw error;
+    } finally {
+      setPreQuizLoading(false);
+    }
+  };
+
+  const handleReadingAIAction = async (intent: 'regenerate' | 'custom', instruction?: string) => {
+    if (!preQuizState?.quizId) return;
+    setPreQuizActionLoading(prev => ({ ...prev, reading: true }));
+
+    try {
+      const { data, error } = await supabase.functions.invoke('refine-quiz-text', {
+        body: {
+          quiz_id: preQuizState.quizId,
+          currentText: preQuizState.lectura,
+          instruction: instruction || '',
+          userIntent: intent,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.texto) {
+        setPreQuizState(prev => (prev ? { ...prev, lectura: data.texto } : prev));
+        setPreQuizDirty(true);
+        toast.success("Texto actualizado con IA");
+      }
+    } catch (error: any) {
+      console.error('Error refining quiz text:', error);
+      toast.error(error.message || "No se pudo actualizar el texto");
+    } finally {
+      setPreQuizActionLoading(prev => ({ ...prev, reading: false }));
+    }
+  };
+
+  const handleRegenerateAllQuestions = async () => {
+    if (!preQuizState?.quizId) return;
+    setPreQuizActionLoading(prev => ({ ...prev, regenerateAll: true }));
+
+    try {
+      const { error } = await supabase.functions.invoke('regenerate-quiz-questions', {
+        body: {
+          quiz_id: preQuizState.quizId,
+          clase_id: claseId,
+        },
+      });
+
+      if (error) throw error;
+
+      await refetchPreQuiz();
+      toast.success("Se regeneraron todas las preguntas");
+    } catch (error: any) {
+      console.error('Error regenerating questions:', error);
+      toast.error(error.message || "No se pudieron regenerar las preguntas");
+    } finally {
+      setPreQuizActionLoading(prev => ({ ...prev, regenerateAll: false }));
+    }
+  };
+
+  const handleSwapQuestion = async (questionId: string) => {
+    if (!preQuizState?.quizId) return;
+    setQuestionLoader(questionId, true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('modify-single-question', {
+        body: {
+          quiz_id: preQuizState.quizId,
+          question_id: questionId,
+          action: 'swap',
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.pregunta) {
+        updateQuestion(questionId, () => mapPreguntaToState(data.pregunta, data.pregunta.orden || 0));
+        toast.success("Pregunta reemplazada");
+      } else {
+        await refetchPreQuiz();
+      }
+    } catch (error: any) {
+      console.error('Error swapping question:', error);
+      toast.error(error.message || "No se pudo cambiar la pregunta");
+    } finally {
+      setQuestionLoader(questionId, false);
+    }
+  };
+
+  const handleAdjustQuestionDifficulty = async (questionId: string, difficulty: 'easier' | 'harder') => {
+    if (!preQuizState?.quizId) return;
+    setQuestionLoader(questionId, true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('modify-single-question', {
+        body: {
+          quiz_id: preQuizState.quizId,
+          question_id: questionId,
+          action: 'adjust_difficulty',
+          difficulty,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.pregunta) {
+        updateQuestion(questionId, () => mapPreguntaToState(data.pregunta, data.pregunta.orden || 0));
+        toast.success(`Pregunta ajustada a dificultad ${difficulty === 'easier' ? 'más fácil' : 'más difícil'}`);
+      } else {
+        await refetchPreQuiz();
+      }
+    } catch (error: any) {
+      console.error('Error adjusting difficulty:', error);
+      toast.error(error.message || "No se pudo ajustar la dificultad");
+    } finally {
+      setQuestionLoader(questionId, false);
+    }
   };
 
   const handleNextStep = async () => {
@@ -682,17 +1192,19 @@ export default function GenerarClase() {
 
       setLoading(true);
       try {
-        const { data, error } = await supabase.functions.invoke('generar-evaluacion', {
-          body: { id_clase: claseId, tipo: 'pre' }
-        });
+        // Evitar múltiples disparos mientras se genera el quiz por primera vez
+        if (!preQuizState?.quizId) {
+          if (preQuizLoading || isGeneratingPreQuizRef.current) {
+            return;
+          }
+          await generatePreQuiz();
+          return;
+        }
 
-        if (error) throw error;
-
-        setPreguntasPre(data.preguntas);
+        await persistPreQuizChanges();
         setCurrentStep(4);
-        toast.success("Evaluación pre generada exitosamente");
-      } catch (error: any) {
-        toast.error(error.message || "Error al generar evaluación");
+      } catch {
+        // persistPreQuizChanges ya muestra el error
       } finally {
         setLoading(false);
       }
@@ -1483,24 +1995,266 @@ export default function GenerarClase() {
     </div>
   );
 
-  const renderStep3 = () => (
-    <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">Evaluación diagnóstica generada automáticamente</p>
-      {preguntasPre.map((preg, i) => (
-        <Card key={i}>
-          <CardHeader>
-            <div className="flex justify-between items-start">
-              <CardTitle className="text-base">Pregunta {i + 1}</CardTitle>
-              <Badge>{preg.tipo}</Badge>
+  const renderStep3 = () => {
+    if (preQuizFetching || preQuizLoading) {
+      return (
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Procesando evaluación PRE...
+        </div>
+      );
+    }
+
+    if (!preQuizState) {
+      return (
+        <div className="border border-dashed rounded-lg p-6 text-center space-y-4">
+          <FileText className="mx-auto h-10 w-10 text-muted-foreground" />
+          <div>
+            <p className="font-medium">Aún no has generado el diagnóstico PRE</p>
+            <p className="text-sm text-muted-foreground">
+              Usa el botón para crear una propuesta inicial y luego personalízala.
+            </p>
+          </div>
+          <Button onClick={generatePreQuiz} disabled={preQuizLoading} className="inline-flex items-center gap-2">
+            <Sparkles className="h-4 w-4" />
+            Generar evaluación PRE
+          </Button>
+        </div>
+      );
+    }
+
+    const perQuestionLoading = preQuizActionLoading.perQuestion;
+
+    const handleCustomInstructionSelect = (event: Event) => {
+      event.preventDefault();
+      setCustomInstructionText("");
+      setCustomInstructionOpen(true);
+      requestAnimationFrame(() => customInstructionAnchorRef.current?.focus());
+    };
+
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardHeader className="flex flex-row items-start justify-between">
+            <div>
+              <CardTitle>Bloque de lectura (Teoría)</CardTitle>
+              <CardDescription>Este texto será visible para el estudiante antes del diagnóstico.</CardDescription>
+            </div>
+            <div className="relative">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    disabled={preQuizActionLoading.reading}
+                  >
+                    {preQuizActionLoading.reading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-4 w-4" />
+                    )}
+                    Acciones IA
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onSelect={(event) => {
+                      event.preventDefault();
+                      handleReadingAIAction('regenerate');
+                    }}
+                    disabled={preQuizActionLoading.reading}
+                  >
+                    <RefreshCcw className="mr-2 h-4 w-4" />
+                    Regenerar texto
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={handleCustomInstructionSelect}>
+                    ✍️ Instrucción personalizada
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <Popover open={customInstructionOpen} onOpenChange={setCustomInstructionOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    ref={customInstructionAnchorRef}
+                    className="absolute right-0 top-0 h-0 w-0 opacity-0 pointer-events-none"
+                    aria-hidden
+                  />
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-80 space-y-3">
+                  <div>
+                    <p className="text-sm font-medium">Describe el ajuste</p>
+                    <p className="text-xs text-muted-foreground">
+                      Ejemplo: “Hazlo más corto y usa una analogía de fútbol”.
+                    </p>
+                  </div>
+                  <Textarea
+                    value={customInstructionText}
+                    onChange={(e) => setCustomInstructionText(e.target.value)}
+                    placeholder="Indicación para la IA"
+                    className="min-h-[100px]"
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setCustomInstructionOpen(false)}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={async () => {
+                        await handleReadingAIAction('custom', customInstructionText);
+                        setCustomInstructionOpen(false);
+                      }}
+                      disabled={!customInstructionText.trim()}
+                    >
+                      Aplicar
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
           </CardHeader>
           <CardContent>
-            <p>{preg.texto_pregunta}</p>
+            <Textarea
+              value={preQuizState.lectura}
+              onChange={(e) => updateReadingText(e.target.value)}
+              className="min-h-[180px]"
+            />
+            {preQuizDirty && (
+              <p className="text-xs text-muted-foreground mt-2">Cambios pendientes de guardado.</p>
+            )}
           </CardContent>
         </Card>
-      ))}
-    </div>
-  );
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>Preguntas generadas</CardTitle>
+              <CardDescription>Edita manualmente o usa acciones asistidas.</CardDescription>
+            </div>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="gap-2"
+              onClick={handleRegenerateAllQuestions}
+              disabled={preQuizActionLoading.regenerateAll}
+            >
+              {preQuizActionLoading.regenerateAll ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCcw className="h-4 w-4" />
+              )}
+              Regenerar todas
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {preQuizState.questions.map((question, index) => (
+              <div key={question.id} className="border rounded-lg p-4 space-y-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="font-semibold">Pregunta {index + 1}</p>
+                    <p className="text-xs text-muted-foreground capitalize">{question.tipo || 'sin tipo'}</p>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        disabled={!!perQuestionLoading[question.id]}
+                        onSelect={(event) => {
+                          event.preventDefault();
+                          handleSwapQuestion(question.id);
+                        }}
+                      >
+                        🔀 Cambiar pregunta
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        disabled={!!perQuestionLoading[question.id]}
+                        onSelect={(event) => {
+                          event.preventDefault();
+                          handleAdjustQuestionDifficulty(question.id, 'easier');
+                        }}
+                      >
+                        🧠 Hacer más fácil
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        disabled={!!perQuestionLoading[question.id]}
+                        onSelect={(event) => {
+                          event.preventDefault();
+                          handleAdjustQuestionDifficulty(question.id, 'harder');
+                        }}
+                      >
+                        🧠 Hacer más difícil
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
+                <Textarea
+                  value={question.texto}
+                  onChange={(e) => handleQuestionTextChange(question.id, e.target.value)}
+                  className="min-h-[100px]"
+                />
+
+                <div className="space-y-2">
+                  {question.opciones.map((opcion) => (
+                    <div key={opcion.id} className="flex items-center gap-3">
+                      <input
+                        type="radio"
+                        name={`correcta-${question.id}`}
+                        className="h-4 w-4"
+                        checked={question.respuestaCorrecta === opcion.id}
+                        onChange={() => setQuestionCorrectOption(question.id, opcion.id)}
+                      />
+                      <Input
+                        value={opcion.label}
+                        onChange={(e) => updateQuestionOption(question.id, opcion.id, e.target.value)}
+                        placeholder="Texto de la opción"
+                      />
+                    </div>
+                  ))}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="mt-1"
+                    onClick={() => addQuestionOption(question.id)}
+                  >
+                    + Agregar opción
+                  </Button>
+                </div>
+
+                <div>
+                  <Label className="text-xs text-muted-foreground">Retroalimentación</Label>
+                  <Textarea
+                    value={question.justificacion || ""}
+                    onChange={(e) => handleJustificacionChange(question.id, e.target.value)}
+                    placeholder="Mensaje que verá el estudiante al responder"
+                    className="mt-1"
+                  />
+                </div>
+
+                {perQuestionLoading[question.id] && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Ajustando con IA...
+                  </div>
+                )}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  };
 
   const renderStep4 = () => (
     <div className="space-y-4">
