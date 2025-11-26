@@ -21,7 +21,7 @@ export function MetricasGlobalesSalon({
       <div>
         <h2 className="text-2xl font-bold mb-2">Resumen del salón</h2>
         <p className="text-muted-foreground text-sm">
-          Vista general del desempeño del grupo {nombreSalon} durante el año escolar
+          Métricas del grupo durante el año escolar
         </p>
       </div>
 
@@ -29,8 +29,9 @@ export function MetricasGlobalesSalon({
         {/* Participación Promedio */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">Participación<Users className="h-4 w-4 text-primary" />
-              Participación Promedio
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Users className="h-4 w-4 text-primary" />
+              Participación
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -48,8 +49,9 @@ export function MetricasGlobalesSalon({
         {/* Alumnos en Riesgo */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">Alumnos que requieren refuerzo<AlertTriangle className="h-4 w-4 text-amber-600" />
-              Alumnos en Riesgo
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              Alumnos que requieren refuerzo
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -66,8 +68,9 @@ export function MetricasGlobalesSalon({
         {/* Porcentaje Promedio */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">Desempeño<CheckCircle2 className="h-4 w-4 text-primary" />
-              Porcentaje Promedio
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-primary" />
+              Desempeño
             </CardTitle>
           </CardHeader>
           <CardContent>
