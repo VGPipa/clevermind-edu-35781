@@ -33,9 +33,9 @@ Deno.serve(async (req) => {
       .from('clases')
       .select(`
         *,
-        temas!inner(nombre, descripcion, objetivos),
+        temas!inner(nombre, descripcion, objetivos, es_tema_temporal),
         grupos!inner(nombre, grado, perfil),
-        guias_tema!inner(estructura_sesiones)
+        guias_tema(estructura_sesiones)
       `)
       .eq('id', id_clase)
       .eq('id_profesor', profesor.id)
@@ -45,8 +45,11 @@ Deno.serve(async (req) => {
       return createErrorResponse('Clase no encontrada o no autorizada', 404);
     }
 
-    // Verificar que la clase tenga guía maestra asociada
-    if (!clase.id_guia_tema) {
+    // Para temas temporales, no se requiere guía maestra
+    const esTemaTemporalOExtraordinario = clase.temas?.es_tema_temporal || !clase.id_guia_tema;
+    
+    // Verificar que la clase tenga guía maestra asociada (solo para temas regulares)
+    if (!esTemaTemporalOExtraordinario && !clase.id_guia_tema) {
       return createErrorResponse(
         'Esta clase no tiene una guía maestra asociada. Debes crear la guía maestra del tema primero desde la página de Planificación.',
         400
