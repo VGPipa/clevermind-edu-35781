@@ -104,6 +104,8 @@ export default function GenerarClase() {
   const [edadSeleccionada, setEdadSeleccionada] = useState("");
   const [claseId, setClaseId] = useState<string | null>(claseIdParam);
   const [errores, setErrores] = useState<Record<string, string>>({});
+  const [idMateria, setIdMateria] = useState<string>("");
+  const [temaLibre, setTemaLibre] = useState<string>("");
   
   const [formData, setFormData] = useState({
     id_tema: temaId || "",
@@ -162,7 +164,9 @@ export default function GenerarClase() {
             nombre,
             descripcion,
             duracion_estimada,
+            id_materia,
             materias!inner (
+              id,
               nombre,
               plan_anual!inner (
                 grado,
@@ -188,6 +192,62 @@ export default function GenerarClase() {
       return response.data;
     },
     enabled: esSesionPreprogramada,
+  });
+
+  // Fetch materias for the profesor
+  const { data: materiasData } = useQuery({
+    queryKey: ['materias-profesor'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No user');
+
+      const profesorResponse = await (supabase as any)
+        .from('profesores')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (profesorResponse.error) throw profesorResponse.error;
+
+      const asignacionesResponse = await (supabase as any)
+        .from('asignaciones_profesor')
+        .select(`
+          id_materia,
+          materias!inner (
+            id,
+            nombre,
+            descripcion
+          )
+        `)
+        .eq('id_profesor', profesorResponse.data.id);
+
+      if (asignacionesResponse.error) throw asignacionesResponse.error;
+      
+      // Obtener materias únicas
+      const materiasUnicas = new Map();
+      asignacionesResponse.data?.forEach((a: any) => {
+        if (a.materias && !materiasUnicas.has(a.materias.id)) {
+          materiasUnicas.set(a.materias.id, a.materias);
+        }
+      });
+      return Array.from(materiasUnicas.values());
+    },
+  });
+
+  // Fetch temas for selected materia (only for preprogramadas)
+  const { data: temasData } = useQuery({
+    queryKey: ['temas-materia', idMateria],
+    queryFn: async () => {
+      if (!idMateria) return [];
+      const { data } = await supabase
+        .from('temas')
+        .select('id, nombre, descripcion')
+        .eq('id_materia', idMateria)
+        .eq('es_tema_temporal', false) // Solo temas reales, no temporales
+        .order('nombre');
+      return data || [];
+    },
+    enabled: !!idMateria && !extraordinaria, // Solo para preprogramadas
   });
 
   // Fetch grupos for the profesor
@@ -267,6 +327,11 @@ export default function GenerarClase() {
   useEffect(() => {
     if (claseData && esSesionPreprogramada) {
       setClaseId(claseData.id);
+
+      // Prellenar materia desde tema
+      if (claseData.temas?.id_materia) {
+        setIdMateria(claseData.temas.id_materia);
+      }
 
       let datosPrelim = null;
       if (Array.isArray(claseData.guias_tema?.estructura_sesiones) && claseData.numero_sesion) {
@@ -452,12 +517,19 @@ export default function GenerarClase() {
   const validarCampo = (campo: string, valor: any) => {
     const nuevosErrores = { ...errores };
     
-    if (campo === 'metodologias' && (!valor || valor.length === 0)) {
+    if (campo === 'materia' && !valor) {
+      nuevosErrores.materia = "Selecciona una materia";
+    } else if (campo === 'metodologias' && (!valor || valor.length === 0)) {
       nuevosErrores.metodologias = "Selecciona al menos una metodología";
     } else if (campo === 'edad' && !valor) {
       nuevosErrores.edad = "Selecciona un grado";
-    } else if (campo === 'tema' && !valor) {
-      nuevosErrores.tema = "Selecciona un tema";
+    } else if (campo === 'tema' && !valor && !esSesionPreprogramada) {
+      // En extraordinarias, validar tema libre
+      if (!temaLibre.trim()) {
+        nuevosErrores.tema = "Ingresa el tema de la clase";
+      }
+    } else if (campo === 'grado' && !valor && !esSesionPreprogramada) {
+      nuevosErrores.grado = "Selecciona un grado";
     } else if (campo === 'grupo' && !valor) {
       nuevosErrores.grupo = "Selecciona un grupo";
     } else {
@@ -478,9 +550,22 @@ export default function GenerarClase() {
 
   const handleNextStep = async () => {
     if (currentStep === 1) {
-      if (!formData.id_tema || !formData.id_grupo || (!esSesionPreprogramada && !edadSeleccionada) || metodologiasSeleccionadas.length === 0 || !formData.contextoEspecifico.trim()) {
-        toast.error("Por favor completa los campos obligatorios");
-        return;
+      // Validaciones según tipo de sesión
+      if (esSesionPreprogramada) {
+        if (!formData.id_tema || !formData.id_grupo || !formData.fecha_programada || 
+            !formData.duracionClase || metodologiasSeleccionadas.length === 0 || 
+            !formData.contextoEspecifico.trim()) {
+          toast.error("Por favor completa los campos obligatorios");
+          return;
+        }
+      } else {
+        // Extraordinaria: validar materia, tema libre, grado, grupo
+        if (!idMateria || !temaLibre.trim() || !edadSeleccionada || !formData.id_grupo ||
+            !formData.fecha_programada || !formData.duracionClase || 
+            metodologiasSeleccionadas.length === 0 || !formData.contextoEspecifico.trim()) {
+          toast.error("Por favor completa los campos obligatorios");
+          return;
+        }
       }
       if (formData.recursosSeleccionados.includes("otro") && !formData.recursoOtro.trim()) {
         toast.error("Describe el recurso adicional que seleccionaste como 'Otro'.");
@@ -533,7 +618,9 @@ export default function GenerarClase() {
           
           const { data, error } = await supabase.functions.invoke('crear-clase', {
             body: {
-              id_tema: formData.id_tema,
+              id_materia: idMateria, // Nueva
+              tema_libre: temaLibre.trim(), // Nueva - tema de texto libre
+              id_tema: null, // No se usa si tema_libre está presente
               id_grupo: formData.id_grupo,
               fecha_programada: formData.fecha_programada,
               duracion_minutos: parseInt(formData.duracionClase),
@@ -684,36 +771,42 @@ export default function GenerarClase() {
   );
 
   const seccion1Completa = useMemo(() => {
-    return !!formData.id_tema && !!formData.id_grupo && 
-           !!formData.fecha_programada && !!formData.duracionClase;
-  }, [formData.id_tema, formData.id_grupo, formData.fecha_programada, formData.duracionClase]);
-
-  const seccion2Completa = useMemo(() => {
     if (esSesionPreprogramada) {
-      // En sesión preprogramada, solo validar adaptaciones (el grado viene del grupo)
-      return formData.adaptacionesSeleccionadas.length > 0;
+      return !!idMateria && !!formData.id_tema && !!formData.id_grupo && 
+             !!formData.fecha_programada && !!formData.duracionClase;
+    } else {
+      return !!idMateria && !!temaLibre.trim() && !!edadSeleccionada && !!formData.id_grupo &&
+             !!formData.fecha_programada && !!formData.duracionClase;
     }
-    // En extraordinaria, validar grado y adaptaciones
-    return !!edadSeleccionada && formData.adaptacionesSeleccionadas.length > 0;
-  }, [edadSeleccionada, formData.adaptacionesSeleccionadas, esSesionPreprogramada]);
+  }, [formData.id_tema, formData.id_grupo, formData.fecha_programada, formData.duracionClase, idMateria, temaLibre, edadSeleccionada, esSesionPreprogramada]);
 
   const seccion3Completa = useMemo(() => {
     return metodologiasSeleccionadas.length > 0;
   }, [metodologiasSeleccionadas]);
 
   const progresoStep1 = useMemo(() => {
-    const camposObligatorios = [
-      !!formData.id_tema,
-      !!formData.id_grupo,
-      !!formData.fecha_programada,
-      !!formData.duracionClase,
-      metodologiasSeleccionadas.length > 0,
-      esSesionPreprogramada ? true : !!edadSeleccionada, // No requerir grado si es preprogramada (viene del grupo)
-      !!formData.contextoEspecifico.trim(),
-    ];
+    const camposObligatorios = esSesionPreprogramada
+      ? [
+          !!idMateria, // Materia (prellenada)
+          !!formData.id_tema, // Tema (prellenado)
+          !!formData.id_grupo, // Salón (prellenado)
+          !!formData.fecha_programada,
+          !!formData.duracionClase,
+          metodologiasSeleccionadas.length > 0,
+          !!formData.contextoEspecifico.trim(),
+        ]
+      : [
+          !!idMateria, // Materia (select)
+          !!temaLibre.trim(), // Tema libre (input)
+          !!edadSeleccionada, // Grado (select)
+          !!formData.fecha_programada,
+          !!formData.duracionClase,
+          metodologiasSeleccionadas.length > 0,
+          !!formData.contextoEspecifico.trim(),
+        ];
     const completados = camposObligatorios.filter(Boolean).length;
     return (completados / camposObligatorios.length) * 100;
-  }, [formData, metodologiasSeleccionadas, edadSeleccionada, esSesionPreprogramada]);
+  }, [formData, metodologiasSeleccionadas, edadSeleccionada, idMateria, temaLibre, esSesionPreprogramada]);
 
   const handleAgregarMetodologiaPersonalizada = () => {
     const nueva = metodologiaPersonalizada.trim();
@@ -776,18 +869,84 @@ export default function GenerarClase() {
                 </Badge>
               ) : (
                 <Badge variant="outline" className="text-muted-foreground">
-                  {[
-                    !!formData.id_tema,
-                    !!formData.id_grupo,
-                    !!formData.fecha_programada,
-                    !!formData.duracionClase,
-                  ].filter(Boolean).length}/4 campos
+                  {esSesionPreprogramada
+                    ? [
+                        !!idMateria,
+                        !!formData.id_tema,
+                        !!formData.id_grupo,
+                        !!formData.fecha_programada,
+                        !!formData.duracionClase,
+                      ].filter(Boolean).length
+                    : [
+                        !!idMateria,
+                        !!temaLibre.trim(),
+                        !!edadSeleccionada,
+                        !!formData.id_grupo,
+                        !!formData.fecha_programada,
+                        !!formData.duracionClase,
+                      ].filter(Boolean).length
+                  }/{esSesionPreprogramada ? "5" : "6"} campos
                 </Badge>
               )}
             </div>
           </AccordionTrigger>
           <AccordionContent>
             <div className="grid gap-4 md:grid-cols-2 pt-4">
+              {/* Materia */}
+              <div>
+                <Label>Materia *</Label>
+                {esSesionPreprogramada && claseData ? (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="p-3 rounded-md border bg-muted/50 flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium">{claseData.temas?.materias?.nombre || 'N/A'}</p>
+                          </div>
+                          <Badge variant="secondary" className="flex items-center gap-1">
+                            <Lock className="h-3 w-3" />
+                            Fijo
+                          </Badge>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="text-xs">Este campo viene de la sesión programada y no se puede modificar</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ) : (
+                  <>
+                    <Select 
+                      value={idMateria} 
+                      onValueChange={(val) => {
+                        setIdMateria(val);
+                        validarCampo('materia', val);
+                        // Limpiar tema cuando cambia materia
+                        setFormData({ ...formData, id_tema: "" });
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecciona una materia" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(materiasData || []).map((materia: any) => (
+                          <SelectItem key={materia.id} value={materia.id}>
+                            {materia.nombre}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {errores.materia && (
+                      <p className="text-xs text-destructive flex items-center gap-1 mt-1">
+                        <AlertCircle className="h-3 w-3" />
+                        {errores.materia}
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {/* Tema */}
               <div>
                 <Label>Tema *</Label>
                 {esSesionPreprogramada && claseData ? (
@@ -814,6 +973,23 @@ export default function GenerarClase() {
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
+                ) : extraordinaria ? (
+                  <>
+                    <Input
+                      placeholder="Ingresa el tema de la clase"
+                      value={temaLibre}
+                      onChange={(e) => {
+                        setTemaLibre(e.target.value);
+                        validarCampo('tema', e.target.value);
+                      }}
+                    />
+                    {errores.tema && (
+                      <p className="text-xs text-destructive flex items-center gap-1 mt-1">
+                        <AlertCircle className="h-3 w-3" />
+                        {errores.tema}
+                      </p>
+                    )}
+                  </>
                 ) : (
                   <>
                     <Select 
@@ -827,21 +1003,13 @@ export default function GenerarClase() {
                         <SelectValue placeholder="Selecciona un tema" />
                       </SelectTrigger>
                       <SelectContent>
-                        {temaData ? (
-                          <SelectItem value={temaData.id}>{temaData.nombre}</SelectItem>
-                        ) : (
-                          <>
-                            <SelectItem value="tema-1">Álgebra Básica</SelectItem>
-                            <SelectItem value="tema-2">Comprensión Lectora</SelectItem>
-                          </>
-                        )}
+                        {(temasData || []).map((tema: any) => (
+                          <SelectItem key={tema.id} value={tema.id}>
+                            {tema.nombre}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
-                    {temaData && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {temaData.descripcion || 'Sin descripción'}
-                      </p>
-                    )}
                     {errores.tema && (
                       <p className="text-xs text-destructive flex items-center gap-1 mt-1">
                         <AlertCircle className="h-3 w-3" />
@@ -852,17 +1020,18 @@ export default function GenerarClase() {
                 )}
               </div>
 
-              <div>
-                <Label>Salón *</Label>
-                {esSesionPreprogramada && claseData ? (
+              {/* Grado (solo extraordinarias) o Salón (solo preprogramadas) */}
+              {esSesionPreprogramada ? (
+                <div>
+                  <Label>Salón *</Label>
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <div className="p-3 rounded-md border bg-muted/50 flex items-center justify-between">
                           <div>
-                            <p className="text-sm font-medium">{claseData.grupos?.nombre}</p>
+                            <p className="text-sm font-medium">{claseData?.grupos?.nombre}</p>
                             <p className="text-xs text-muted-foreground">
-                              {claseData.grupos?.grado}° • Sección {claseData.grupos?.seccion}
+                              {claseData?.grupos?.grado}° • Sección {claseData?.grupos?.seccion}
                             </p>
                           </div>
                           <Badge variant="secondary" className="flex items-center gap-1">
@@ -876,23 +1045,53 @@ export default function GenerarClase() {
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
-                ) : (
-                  <>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <Label>Grado *</Label>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Selecciona el grado del salón para esta clase.
+                    </p>
+                    <Select
+                      value={edadSeleccionada}
+                      onValueChange={(val) => {
+                        setEdadSeleccionada(val);
+                        validarCampo('grado', val);
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecciona un grado" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Primaria</div>
+                        {GRADOS_PERU.filter(g => g.value.endsWith('P')).map((grado) => (
+                          <SelectItem key={grado.value} value={grado.value}>
+                            {grado.label}
+                          </SelectItem>
+                        ))}
+                        <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground mt-2">Secundaria</div>
+                        {GRADOS_PERU.filter(g => g.value.endsWith('S')).map((grado) => (
+                          <SelectItem key={grado.value} value={grado.value}>
+                            {grado.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {errores.grado && (
+                      <p className="text-xs text-destructive flex items-center gap-1 mt-2">
+                        <AlertCircle className="h-3 w-3" />
+                        {errores.grado}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <Label>Grupo *</Label>
                     <Select 
                       value={formData.id_grupo} 
                       onValueChange={(val) => {
                         setFormData({ ...formData, id_grupo: val });
                         validarCampo('grupo', val);
-                        // Auto-seleccionar grado basado en el grupo seleccionado (solo extraordinarias)
-                        if (!esSesionPreprogramada && gruposData) {
-                          const grupoSeleccionado = gruposData.find((g: any) => g.id === val);
-                          if (grupoSeleccionado?.grado) {
-                            const gradoMapeado = mapearGradoAGrupoEdad(grupoSeleccionado.grado);
-                            if (gradoMapeado) {
-                              setEdadSeleccionada(gradoMapeado);
-                            }
-                          }
-                        }
                       }}
                     >
                       <SelectTrigger>
@@ -912,9 +1111,9 @@ export default function GenerarClase() {
                         {errores.grupo}
                       </p>
                     )}
-                  </>
-                )}
-              </div>
+                  </div>
+                </>
+              )}
 
               <div>
                 <Label>Fecha Programada *</Label>
@@ -936,97 +1135,6 @@ export default function GenerarClase() {
                   <p className="text-xs text-muted-foreground mt-1">
                     Sugerido: {datosPreliminares.duracion_sugerida} minutos
                   </p>
-                )}
-              </div>
-            </div>
-          </AccordionContent>
-        </AccordionItem>
-
-        {/* SECCIÓN 2: Perfil del Grupo */}
-        <AccordionItem value="seccion-2">
-          <AccordionTrigger>
-            <div className="flex items-center gap-2">
-              <span>🎯 Perfil del Grupo</span>
-              {seccion2Completa ? (
-                <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">
-                  <CheckCircle2 className="h-3 w-3 mr-1" /> Completo
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="text-muted-foreground">
-                  {esSesionPreprogramada 
-                    ? `${formData.adaptacionesSeleccionadas.length > 0 ? "1/1" : "0/1"} campos`
-                    : `${[!!edadSeleccionada, formData.adaptacionesSeleccionadas.length > 0].filter(Boolean).length}/2 campos`
-                  }
-                </Badge>
-              )}
-            </div>
-          </AccordionTrigger>
-          <AccordionContent>
-            <div className="space-y-6 pt-4">
-              {!esSesionPreprogramada && (
-                <div>
-                  <Label>Grado *</Label>
-                  <p className="text-xs text-muted-foreground mb-2">
-                    Selecciona el grado del salón para esta clase.
-                  </p>
-                  <Select
-                    value={edadSeleccionada}
-                    onValueChange={(val) => {
-                      setEdadSeleccionada(val);
-                      validarCampo('edad', val);
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecciona un grado" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Primaria</div>
-                      {GRADOS_PERU.filter(g => g.value.endsWith('P')).map((grado) => (
-                        <SelectItem key={grado.value} value={grado.value}>
-                          {grado.label}
-                        </SelectItem>
-                      ))}
-                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground mt-2">Secundaria</div>
-                      {GRADOS_PERU.filter(g => g.value.endsWith('S')).map((grado) => (
-                        <SelectItem key={grado.value} value={grado.value}>
-                          {grado.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {errores.edad && (
-                    <p className="text-xs text-destructive flex items-center gap-1 mt-2">
-                      <AlertCircle className="h-3 w-3" />
-                      {errores.edad}
-                    </p>
-                  )}
-                </div>
-              )}
-
-              <div>
-                <Label>Inclusión y adaptaciones</Label>
-                <p className="text-xs text-muted-foreground mb-2">
-                  Selecciona necesidades del grupo que debas considerar. Puedes elegir varias.
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {ADAPTACIONES_OPTIONS.map((opcion) => (
-                    <Badge
-                      key={opcion.value}
-                      variant={formData.adaptacionesSeleccionadas.includes(opcion.value) ? "default" : "outline"}
-                      className="cursor-pointer hover:bg-primary/10 transition-colors py-1.5 px-3"
-                      onClick={() => toggleAdaptacion(opcion.value)}
-                    >
-                      {opcion.label}
-                    </Badge>
-                  ))}
-                </div>
-                {formData.adaptacionesSeleccionadas.includes("otro") && (
-                  <Input
-                    placeholder="Describe la adaptación adicional"
-                    value={formData.adaptacionOtra}
-                    onChange={(e) => setFormData({ ...formData, adaptacionOtra: e.target.value })}
-                    className="mt-3"
-                  />
                 )}
               </div>
             </div>
@@ -1068,48 +1176,81 @@ export default function GenerarClase() {
                 <p className="text-xs text-muted-foreground mb-2">
                   Selecciona una o más metodologías que utilizarás en esta clase.
                 </p>
-                <TooltipProvider>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {METODOLOGIAS.map((met) => (
-                      <Tooltip key={met}>
-                        <TooltipTrigger asChild>
-                          <Badge
-                            variant={metodologiasSeleccionadas.includes(met) ? "default" : "outline"}
-                            className="cursor-pointer hover:bg-primary/10 transition-colors"
-                            onClick={() => toggleMetodologia(met)}
-                          >
-                            {met}
-                          </Badge>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="max-w-xs text-xs">
-                            {DESCRIPCIONES_METODOLOGIAS[met] || "Metodología de pensamiento crítico"}
-                          </p>
-                        </TooltipContent>
-                      </Tooltip>
-                    ))}
-                    {customMetodologias.map((met) => (
-                      <Badge
-                        key={met}
-                        variant={metodologiasSeleccionadas.includes(met) ? "default" : "outline"}
-                        className="cursor-pointer hover:bg-primary/10 transition-colors"
-                        onClick={() => toggleMetodologia(met)}
-                      >
-                        {met}
-                      </Badge>
-                    ))}
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 border border-dashed"
-                      onClick={() => setMostrarInputMetodologia(true)}
-                    >
-                      <Plus className="h-4 w-4 mr-1" />
-                      Otra
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-between">
+                      <span className="flex flex-wrap gap-1">
+                        {metodologiasSeleccionadas.length > 0 ? (
+                          metodologiasSeleccionadas.map(met => (
+                            <Badge key={met} variant="secondary" className="text-xs">
+                              {met}
+                            </Badge>
+                          ))
+                        ) : (
+                          <span className="text-muted-foreground">Selecciona metodologías</span>
+                        )}
+                      </span>
+                      <ChevronDown className="h-4 w-4 opacity-50" />
                     </Button>
-                  </div>
-                </TooltipProvider>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-2" align="start">
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      <TooltipProvider>
+                        {METODOLOGIAS.map((met) => (
+                          <div key={met} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`met-${met}`}
+                              checked={metodologiasSeleccionadas.includes(met)}
+                              onCheckedChange={() => {
+                                toggleMetodologia(met);
+                                validarCampo('metodologias', metodologiasSeleccionadas);
+                              }}
+                            />
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Label htmlFor={`met-${met}`} className="cursor-pointer flex-1">
+                                  {met}
+                                </Label>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p className="max-w-xs text-xs">
+                                  {DESCRIPCIONES_METODOLOGIAS[met] || "Metodología de pensamiento crítico"}
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                        ))}
+                      </TooltipProvider>
+                      {customMetodologias.map((met) => (
+                        <div key={met} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`met-custom-${met}`}
+                            checked={metodologiasSeleccionadas.includes(met)}
+                            onCheckedChange={() => {
+                              toggleMetodologia(met);
+                              validarCampo('metodologias', metodologiasSeleccionadas);
+                            }}
+                          />
+                          <Label htmlFor={`met-custom-${met}`} className="cursor-pointer flex-1">
+                            {met}
+                          </Label>
+                        </div>
+                      ))}
+                      <div className="pt-2 border-t">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="w-full justify-start"
+                          onClick={() => setMostrarInputMetodologia(true)}
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          Agregar otra metodología
+                        </Button>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
                 {mostrarInputMetodologia && (
                   <div className="flex flex-col gap-2 mt-3 md:flex-row">
                     <Input
@@ -1141,9 +1282,6 @@ export default function GenerarClase() {
                     {errores.metodologias}
                   </p>
                 )}
-                {!errores.metodologias && metodologiasSeleccionadas.length === 0 && (
-                  <p className="text-xs text-destructive mt-1">Selecciona al menos una metodología</p>
-                )}
               </div>
 
               <div>
@@ -1151,22 +1289,49 @@ export default function GenerarClase() {
                 <p className="text-xs text-muted-foreground mb-2">
                   Indica qué recursos tendrás disponibles durante la sesión.
                 </p>
-                <div className="flex flex-wrap gap-2">
-                  {RECURSOS_OPTIONS.map((recurso) => {
-                    const Icon = recurso.icon;
-                    return (
-                      <Badge
-                        key={recurso.value}
-                        variant={formData.recursosSeleccionados.includes(recurso.value) ? "default" : "outline"}
-                        className="cursor-pointer hover:bg-primary/10 transition-colors py-1.5 px-3 flex items-center gap-1.5"
-                        onClick={() => toggleRecurso(recurso.value)}
-                      >
-                        <Icon className="h-3.5 w-3.5" />
-                        {recurso.label}
-                      </Badge>
-                    );
-                  })}
-                </div>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-between">
+                      <span className="flex flex-wrap gap-1">
+                        {formData.recursosSeleccionados.length > 0 ? (
+                          formData.recursosSeleccionados.map(recurso => {
+                            const opcion = RECURSOS_OPTIONS.find(r => r.value === recurso);
+                            const Icon = opcion?.icon || Book;
+                            return (
+                              <Badge key={recurso} variant="secondary" className="text-xs flex items-center gap-1">
+                                <Icon className="h-3 w-3" />
+                                {opcion?.label || recurso}
+                              </Badge>
+                            );
+                          })
+                        ) : (
+                          <span className="text-muted-foreground">Selecciona recursos</span>
+                        )}
+                      </span>
+                      <ChevronDown className="h-4 w-4 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-2" align="start">
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {RECURSOS_OPTIONS.map((recurso) => {
+                        const Icon = recurso.icon;
+                        return (
+                          <div key={recurso.value} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`rec-${recurso.value}`}
+                              checked={formData.recursosSeleccionados.includes(recurso.value)}
+                              onCheckedChange={() => toggleRecurso(recurso.value)}
+                            />
+                            <Label htmlFor={`rec-${recurso.value}`} className="cursor-pointer flex-1 flex items-center gap-2">
+                              <Icon className="h-4 w-4" />
+                              {recurso.label}
+                            </Label>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </PopoverContent>
+                </Popover>
                 {formData.recursosSeleccionados.includes("otro") && (
                   <Input
                     placeholder="Describe el recurso adicional"
@@ -1186,28 +1351,82 @@ export default function GenerarClase() {
             <div className="flex items-center gap-2">
               <span>📝 Contexto Adicional</span>
               <Badge variant="outline" className="text-muted-foreground">
-                {formData.contextoEspecifico.trim() ? "Completo" : "Opcional"}
+                {formData.contextoEspecifico.trim() && formData.adaptacionesSeleccionadas.length > 0 ? "Completo" : "Parcial"}
               </Badge>
             </div>
           </AccordionTrigger>
           <AccordionContent>
-            <div className="pt-4">
-              <Label>Contexto Específico *</Label>
-              <p className="text-xs text-muted-foreground mb-2">
-                Describe el contexto particular de tus estudiantes, sus necesidades, conocimientos previos, o cualquier información relevante.
-              </p>
-              <Textarea
-                value={formData.contextoEspecifico}
-                onChange={(e) => setFormData({ ...formData, contextoEspecifico: e.target.value })}
-                rows={5}
-                placeholder="Ejemplo: Los estudiantes tienen conocimientos básicos de álgebra pero necesitan reforzar la resolución de ecuaciones..."
-                className="resize-none"
-              />
-              {formData.contextoEspecifico.length > 0 && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  {formData.contextoEspecifico.length} caracteres
+            <div className="space-y-6 pt-4">
+              <div>
+                <Label>Contexto Específico *</Label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Describe el contexto particular de tus estudiantes, sus necesidades, conocimientos previos, o cualquier información relevante.
                 </p>
-              )}
+                <Textarea
+                  value={formData.contextoEspecifico}
+                  onChange={(e) => setFormData({ ...formData, contextoEspecifico: e.target.value })}
+                  rows={5}
+                  placeholder="Ejemplo: Los estudiantes tienen conocimientos básicos de álgebra pero necesitan reforzar la resolución de ecuaciones..."
+                  className="resize-none"
+                />
+                {formData.contextoEspecifico.length > 0 && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {formData.contextoEspecifico.length} caracteres
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <Label>Inclusión y adaptaciones</Label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Selecciona necesidades del grupo que debas considerar. Puedes elegir varias.
+                </p>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-between">
+                      <span className="flex flex-wrap gap-1">
+                        {formData.adaptacionesSeleccionadas.length > 0 ? (
+                          formData.adaptacionesSeleccionadas.map(adapt => {
+                            const opcion = ADAPTACIONES_OPTIONS.find(a => a.value === adapt);
+                            return (
+                              <Badge key={adapt} variant="secondary" className="text-xs">
+                                {opcion?.label || adapt}
+                              </Badge>
+                            );
+                          })
+                        ) : (
+                          <span className="text-muted-foreground">Selecciona adaptaciones</span>
+                        )}
+                      </span>
+                      <ChevronDown className="h-4 w-4 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-2" align="start">
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {ADAPTACIONES_OPTIONS.map((adapt) => (
+                        <div key={adapt.value} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`adapt-${adapt.value}`}
+                            checked={formData.adaptacionesSeleccionadas.includes(adapt.value)}
+                            onCheckedChange={() => toggleAdaptacion(adapt.value)}
+                          />
+                          <Label htmlFor={`adapt-${adapt.value}`} className="cursor-pointer flex-1">
+                            {adapt.label}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+                {formData.adaptacionesSeleccionadas.includes("otro") && (
+                  <Input
+                    placeholder="Describe la adaptación adicional"
+                    value={formData.adaptacionOtra}
+                    onChange={(e) => setFormData({ ...formData, adaptacionOtra: e.target.value })}
+                    className="mt-3"
+                  />
+                )}
+              </div>
             </div>
           </AccordionContent>
         </AccordionItem>
