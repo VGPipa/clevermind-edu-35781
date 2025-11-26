@@ -226,7 +226,7 @@ if (tipo === 'pre') {
       .insert({
         id_clase,
         titulo: `Evaluación ${tipo === 'pre' ? 'Diagnóstica PRE' : 'Sumativa POST'}`,
-        tipo: 'diagnostica',
+        tipo: tipo === 'pre' ? 'previo' : 'post',
         tipo_evaluacion: tipo,
         estado: 'borrador',
         tiempo_limite: tiempoLimite,
