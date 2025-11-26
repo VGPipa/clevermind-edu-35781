@@ -67,7 +67,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         metodologia,
         estado,
         id_guia_version_actual,
-        temas!inner(nombre, descripcion, objetivos)
+        temas!inner(nombre, descripcion, objetivos, es_tema_temporal)
       `)
       .eq('id', id_clase)
       .eq('id_profesor', profesor.id)
@@ -76,6 +76,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (claseError || !clase) {
       return createErrorResponse('Clase no encontrada o no autorizada', 404);
     }
+
+    const esTemaTemporalOExtraordinario = (clase.temas as any)?.es_tema_temporal || false;
 
     // Get current guide version
     if (!clase.id_guia_version_actual) {
@@ -94,8 +96,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     // Validate prerequisites
     if (tipo === 'pre') {
-      // Quiz pre requires approved guide
-      if (guideVersion.estado !== 'aprobada') {
+      // Quiz pre requires approved guide (except for temporary/extraordinary themes)
+      if (!esTemaTemporalOExtraordinario && guideVersion.estado !== 'aprobada') {
         return createErrorResponse('La guía debe estar aprobada antes de generar el quiz previo', 400);
       }
     } else {
