@@ -13,14 +13,14 @@ function calcularNivelLogro(porcentaje: number): 'bajo' | 'intermedio' | 'alto' 
 }
 
 function calcularSemaforo(porcentaje: number): 'verde' | 'amarillo' | 'rojo' {
-  if (porcentaje >= 70) return 'verde';
+  if (porcentaje >= 75) return 'verde';
   if (porcentaje >= 50) return 'amarillo';
   return 'rojo';
 }
 
 function clasificarPreparacion(porcentaje: number): 'baja' | 'media' | 'alta' {
-  if (porcentaje < 40) return 'baja';
-  if (porcentaje < 70) return 'media';
+  if (porcentaje < 50) return 'baja';
+  if (porcentaje < 75) return 'media';
   return 'alta';
 }
 
