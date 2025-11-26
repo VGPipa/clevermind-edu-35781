@@ -128,7 +128,6 @@ Debes producir un JSON con dos partes:
   "preguntas": [
     {
       "texto_pregunta": "...",
-      "tipo": "analisis|razonamiento|aplicacion|conocimiento",
       "puntos": ${tipo === 'pre' ? '1-2' : '2-4'},
       "retroalimentacion": "mensaje específico y constructivo",
       "opciones": ["Opción A", "Opción B", "Opción C", "Opción D"],
@@ -246,7 +245,7 @@ const preguntasToInsert = quizContent.preguntas.map((q, index: number) => {
   return {
     id_quiz: quiz.id,
     texto_pregunta: q.texto_pregunta,
-    tipo: q.tipo as any,
+    tipo: 'opcion_multiple',
     orden: index + 1,
     justificacion: q.retroalimentacion,
     texto_contexto: readingText,
