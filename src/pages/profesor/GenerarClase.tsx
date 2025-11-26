@@ -235,7 +235,7 @@ export default function GenerarClase() {
   });
 
   // Fetch temas for selected materia (only for preprogramadas)
-  const { data: temasData } = useQuery({
+  const { data: temasData } = useQuery<Array<{ id: string; nombre: string; descripcion: string | null }>>({
     queryKey: ['temas-materia', idMateria],
     queryFn: async () => {
       if (!idMateria) return [];
@@ -243,7 +243,6 @@ export default function GenerarClase() {
         .from('temas')
         .select('id, nombre, descripcion')
         .eq('id_materia', idMateria)
-        .eq('es_tema_temporal', false) // Solo temas reales, no temporales
         .order('nombre');
       return data || [];
     },

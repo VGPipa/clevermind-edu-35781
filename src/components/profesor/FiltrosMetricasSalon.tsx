@@ -22,15 +22,19 @@ export function FiltrosMetricasSalon({
   onTemaChange,
   onClaseChange,
 }: FiltrosMetricasSalonProps) {
+  if (!filtros) {
+    return null;
+  }
+
   // Filtrar temas por materia seleccionada
   const temasFiltrados = materiaSeleccionada
-    ? filtros.temas.filter((t) => t.id_materia === materiaSeleccionada)
-    : filtros.temas;
+    ? filtros.temas?.filter((t) => t.id_materia === materiaSeleccionada) || []
+    : filtros.temas || [];
 
   // Filtrar clases por tema seleccionado
   const clasesFiltradas = temaSeleccionado
-    ? filtros.clases.filter((c) => c.id_tema === temaSeleccionado)
-    : filtros.clases;
+    ? filtros.clases?.filter((c) => c.id_tema === temaSeleccionado) || []
+    : filtros.clases || [];
 
   // Resetear filtros dependientes cuando cambia el padre
   const handleMateriaChange = (value: string) => {
@@ -67,11 +71,11 @@ export function FiltrosMetricasSalon({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todas las materias</SelectItem>
-                {filtros.materias.map((materia) => (
+                {filtros.materias?.map((materia) => (
                   <SelectItem key={materia.id} value={materia.id}>
                     {materia.nombre}
                   </SelectItem>
-                ))}
+                )) || []}
               </SelectContent>
             </Select>
           </div>
@@ -82,7 +86,7 @@ export function FiltrosMetricasSalon({
             <Select
               value={temaSeleccionado || "todos"}
               onValueChange={handleTemaChange}
-              disabled={!materiaSeleccionada && filtros.materias.length > 0}
+              disabled={!materiaSeleccionada && (filtros.materias?.length || 0) > 0}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Todos los temas" />
@@ -104,7 +108,7 @@ export function FiltrosMetricasSalon({
             <Select
               value={claseSeleccionada || "todos"}
               onValueChange={handleClaseChange}
-              disabled={!temaSeleccionado && filtros.temas.length > 0}
+              disabled={!temaSeleccionado && (filtros.temas?.length || 0) > 0}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Todas las clases" />
