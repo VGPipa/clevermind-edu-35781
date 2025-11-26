@@ -1,16 +1,53 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Lightbulb, ChevronDown, ChevronUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Lightbulb, ChevronDown, ChevronUp, Sparkles, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { Recomendaciones } from "@/types/metricas-salon";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface RecomendacionesMetricasProps {
   recomendaciones: Recomendaciones;
+  idGrupo?: string;
+  onRecomendacionesGeneradas?: () => void;
 }
 
-export function RecomendacionesMetricas({ recomendaciones }: RecomendacionesMetricasProps) {
+export function RecomendacionesMetricas({ 
+  recomendaciones, 
+  idGrupo,
+  onRecomendacionesGeneradas 
+}: RecomendacionesMetricasProps) {
   const [preExpandido, setPreExpandido] = useState(true);
   const [postExpandido, setPostExpandido] = useState(true);
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const handleGenerarRecomendaciones = async () => {
+    if (!idGrupo) {
+      toast.error('No se puede generar recomendaciones sin un grupo seleccionado');
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generar-recomendaciones-metricas', {
+        body: { id_grupo: idGrupo },
+      });
+
+      if (error) throw error;
+
+      toast.success(data.mensaje || 'Recomendaciones generadas exitosamente');
+      
+      if (onRecomendacionesGeneradas) {
+        onRecomendacionesGeneradas();
+      }
+    } catch (error) {
+      console.error('Error generando recomendaciones:', error);
+      toast.error('Error al generar recomendaciones');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   if (!recomendaciones) {
     return (
@@ -24,11 +61,32 @@ export function RecomendacionesMetricas({ recomendaciones }: RecomendacionesMetr
 
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-2xl font-bold mb-2">Recomendaciones Accionables</h2>
-        <p className="text-muted-foreground text-sm">
-          Recomendaciones para mejorar la clase actual y futuras sesiones
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold mb-2">Recomendaciones Accionables</h2>
+          <p className="text-muted-foreground text-sm">
+            Recomendaciones para mejorar la clase actual y futuras sesiones
+          </p>
+        </div>
+        {idGrupo && (
+          <Button
+            onClick={handleGenerarRecomendaciones}
+            disabled={isGenerating}
+            className="gap-2"
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Generando...
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4" />
+                Generar Recomendaciones
+              </>
+            )}
+          </Button>
+        )}
       </div>
 
       {/* Recomendaciones PRE */}

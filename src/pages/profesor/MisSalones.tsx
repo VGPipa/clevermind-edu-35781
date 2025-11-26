@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, School } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -13,6 +13,7 @@ import { RecomendacionesMetricas } from "@/components/profesor/RecomendacionesMe
 import { ResponseMisSalones } from "@/types/metricas-salon";
 
 export default function MisSalones() {
+  const queryClient = useQueryClient();
   const [filtroSalon, setFiltroSalon] = useState<string>("todos");
   const [materiaSeleccionada, setMateriaSeleccionada] = useState<string | null>(null);
   const [temaSeleccionado, setTemaSeleccionado] = useState<string | null>(null);
@@ -223,7 +224,14 @@ export default function MisSalones() {
             )}
 
             {/* Recomendaciones */}
-            <RecomendacionesMetricas recomendaciones={salonSeleccionado.recomendaciones} />
+            <RecomendacionesMetricas 
+              recomendaciones={salonSeleccionado.recomendaciones}
+              idGrupo={salonSeleccionado.grupo.id}
+              onRecomendacionesGeneradas={() => {
+                // Refetch data after generating recommendations
+                queryClient.invalidateQueries({ queryKey: ["mis-salones"] });
+              }}
+            />
           </>
         )}
       </div>

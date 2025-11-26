@@ -44,3 +44,6 @@ verify_jwt = true
 
 [functions.actualizar-guia-tema]
 verify_jwt = true
+
+[functions.generar-recomendaciones-metricas]
+verify_jwt = true
