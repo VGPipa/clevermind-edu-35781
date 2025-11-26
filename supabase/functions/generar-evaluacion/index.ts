@@ -270,17 +270,18 @@ Mantén el formato JSON descrito anteriormente sin texto adicional.`;
     };
 
     const preguntasToInsert = quizContent.preguntas.map((q, index: number) => {
-      const opciones = q.tipo_respuesta === 'texto_abierto' ? [] : buildOpciones(q.opciones);
+      const isMultipleChoice = q.tipo_respuesta === 'multiple_choice';
+      const opciones = isMultipleChoice ? buildOpciones(q.opciones) : [];
       const correctOption =
-        q.tipo_respuesta === 'texto_abierto'
-          ? null
-          : opciones?.[typeof q.indice_correcto === 'number' ? q.indice_correcto : 0] ||
-            opciones?.[0] || { id: 'option-1', label: '' };
+        isMultipleChoice
+          ? opciones?.[typeof q.indice_correcto === 'number' ? q.indice_correcto : 0] ||
+            opciones?.[0] || { id: 'option-1', label: '' }
+          : null;
 
       return {
         id_quiz: quiz.id,
         texto_pregunta: q.texto_pregunta,
-        tipo: q.tipo as any,
+        tipo: isMultipleChoice ? 'opcion_multiple' : 'respuesta_corta',
         orden: index + 1,
         justificacion: q.retroalimentacion,
         texto_contexto: readingText,
