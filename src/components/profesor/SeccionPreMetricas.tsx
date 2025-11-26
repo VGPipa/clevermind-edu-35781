@@ -39,7 +39,7 @@ export function SeccionPreMetricas({
       <div>
         <h2 className="text-2xl font-bold mb-2">Evaluación Inicial (PRE)</h2>
         <p className="text-muted-foreground text-sm">
-          Evaluación de lo que el grupo sabía antes de la clase
+          Conocimientos antes de la clase
         </p>
       </div>
 
@@ -47,8 +47,9 @@ export function SeccionPreMetricas({
         {/* Participación del PRE */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">Participación<Users className="h-4 w-4" />
-              Participación del PRE
+            <CardTitle className="text-base flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Participación
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -80,8 +81,9 @@ export function SeccionPreMetricas({
         {/* Nivel General de Preparación */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">Nivel de Preparación<CheckCircle2 className="h-4 w-4" />
-              Nivel General de Preparación
+            <CardTitle className="text-base flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4" />
+              Nivel de Preparación
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -101,8 +103,9 @@ export function SeccionPreMetricas({
         {/* Conceptos con Menor Preparación */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">Conceptos que necesitan refuerzo<TrendingDown className="h-4 w-4 text-red-600" />
-              Conceptos con Menor Preparación Inicial
+            <CardTitle className="text-base flex items-center gap-2">
+              <TrendingDown className="h-4 w-4 text-red-600" />
+              Conceptos que necesitan refuerzo
             </CardTitle>
             <CardDescription>
               Ranking de conceptos que requieren más atención
@@ -128,8 +131,9 @@ export function SeccionPreMetricas({
         {/* Recomendaciones PREVIO A LA CLASE */}
         <Card className="border-blue-200 bg-blue-50/30">
           <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">Recomendaciones<Lightbulb className="h-4 w-4 text-blue-600" />
-              Recomendaciones PREVIO A LA CLASE
+            <CardTitle className="text-base flex items-center gap-2">
+              <Lightbulb className="h-4 w-4 text-blue-600" />
+              Recomendaciones
             </CardTitle>
             <CardDescription>Acciones sugeridas para preparar la sesión</CardDescription>
           </CardHeader>
