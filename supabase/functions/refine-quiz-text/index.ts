@@ -101,13 +101,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
       guideContext = buildGuideContext(guideVersion);
     }
 
-    const systemPrompt = `Eres un redactor pedagógico que escribe textos introductorios breves para quizzes diagnósticos.
-Debes mantener un tono motivador, concreto y amigable.`;
+    const systemPrompt = `Eres un experto en pedagogía y diseño instruccional que redacta el contenido teórico central para clases.
+Tu tarea es crear o mejorar textos que contengan las definiciones clave, conceptos fundamentales, principios y fórmulas esenciales del tema que los estudiantes deben memorizar y comprender profundamente.`;
 
     const actionPrompt =
       userIntent === 'regenerate'
-        ? 'Genera un texto completamente nuevo de máximo 120 palabras que prepare al estudiante para el quiz.'
-        : `Modifica el texto actual siguiendo esta instrucción del profesor: "${instruction || 'Mejora el texto manteniendo su intención original'}".`;
+        ? 'Genera un texto completamente nuevo de 150-250 palabras que presente la TEORÍA CENTRAL del tema: definiciones clave, conceptos fundamentales, principios/fórmulas esenciales que el estudiante debe memorizar.'
+        : `Modifica el texto actual siguiendo esta instrucción del profesor: "${instruction || 'Mejora el texto manteniendo su intención teórico-pedagógico'}".`;
 
     const userPrompt = `Contexto del tema:
 - Tema: ${temaNombre}
@@ -126,18 +126,21 @@ ${guideContext}
 
 ${actionPrompt}
 
-Requisitos:
-- Debe sentirse como una breve lectura teórica previa al quiz
-- Usa ejemplos concretos y una invitación a reflexionar
-- Evita repetir frases del texto original palabra por palabra
-- Resalta una idea central (concepto, analogía o pregunta guía) de la clase para mantener continuidad.
-- Extensión máxima: 120 palabras.`;
+CRÍTICO - Este texto debe ser el CORAZÓN TEÓRICO de la clase (150-250 palabras):
+- Incluir las definiciones clave y conceptos fundamentales del tema
+- Presentar los principios, fórmulas, reglas o leyes esenciales
+- Ser la síntesis de lo que el estudiante DEBE memorizar y comprender profundamente
+- Usar un lenguaje claro, preciso y apropiado para el grupo de edad: ${clase.grupo_edad || 'General'}
+- Estructurar la información de forma lógica y pedagógica (de lo básico a lo específico)
+- Ser técnicamente riguroso pero accesible
+- NO debe ser una simple introducción amigable, sino el contenido teórico nuclear de la lección
+- Extensión: 150-250 palabras.`;
 
     const aiResponse = await callAI({
       systemPrompt,
       userPrompt,
       temperature: 0.65,
-      maxTokens: 600,
+      maxTokens: 1000,
     });
 
     const newText = aiResponse.content?.trim();
