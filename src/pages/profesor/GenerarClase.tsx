@@ -48,6 +48,20 @@ const EDADES_MEJORADAS = [
   { value: "17+", label: "17+ años", nivel: "4° Medio / Superior", icon: "🎓" },
 ] as const;
 
+const GRADOS_PERU = [
+  { value: "1P", label: "1° Primaria" },
+  { value: "2P", label: "2° Primaria" },
+  { value: "3P", label: "3° Primaria" },
+  { value: "4P", label: "4° Primaria" },
+  { value: "5P", label: "5° Primaria" },
+  { value: "6P", label: "6° Primaria" },
+  { value: "1S", label: "1° Secundaria" },
+  { value: "2S", label: "2° Secundaria" },
+  { value: "3S", label: "3° Secundaria" },
+  { value: "4S", label: "4° Secundaria" },
+  { value: "5S", label: "5° Secundaria" },
+] as const;
+
 const RECURSOS_OPTIONS = [
   { value: "proyector_tv", label: "Proyector/TV", icon: Monitor },
   { value: "pizarra", label: "Pizarra", icon: Clipboard },
@@ -294,7 +308,8 @@ export default function GenerarClase() {
         adaptacionOtra: observacionesExtras?.adaptacion_otra ?? prev.adaptacionOtra,
       }));
 
-      if (claseData.grupo_edad) {
+      // No cargar grupo_edad si es sesión preprogramada, el grado viene del grupo
+      if (claseData.grupo_edad && !esSesionPreprogramada) {
         setEdadSeleccionada(claseData.grupo_edad);
       }
 
@@ -328,14 +343,16 @@ export default function GenerarClase() {
     const sesiones = temaData.duracion_estimada || 1;
     setSesionesRecomendadas(sesiones);
 
-    // Set default age group based on grade
+    // Set default grado based on plan_anual grado (solo para extraordinarias)
     const grado = temaData.materias?.plan_anual?.grado;
-    if (grado) {
+    if (grado && !esSesionPreprogramada) {
       const gradeNum = parseInt(grado);
-      if (gradeNum >= 1 && gradeNum <= 2) setEdadSeleccionada("5-6");
-      else if (gradeNum >= 3 && gradeNum <= 4) setEdadSeleccionada("7-8");
-      else if (gradeNum >= 5 && gradeNum <= 6) setEdadSeleccionada("9-10");
-      else setEdadSeleccionada("11-12");
+      // Mapear a estructura peruana: 1-6 Primaria, 7-11 Secundaria
+      if (gradeNum >= 1 && gradeNum <= 6) {
+        setEdadSeleccionada(`${gradeNum}P`);
+      } else if (gradeNum >= 7 && gradeNum <= 11) {
+        setEdadSeleccionada(`${gradeNum - 6}S`);
+      }
     }
   }, [temaData, esSesionPreprogramada]);
 
@@ -353,6 +370,21 @@ export default function GenerarClase() {
   const mapLabelsToValues = (labels: string[] | undefined, options: readonly { value: string; label: string }[]) => {
     if (!labels) return undefined;
     return labels.map((label) => options.find((option) => option.label === label)?.value || label);
+  };
+
+  // Mapear grado numérico a formato peruano (1P, 2P, etc.)
+  const mapearGradoAGrupoEdad = (grado: string | number | null | undefined): string | null => {
+    if (!grado) return null;
+    const gradeNum = typeof grado === 'string' ? parseInt(grado) : grado;
+    if (isNaN(gradeNum)) return null;
+    
+    // Estructura peruana: 1-6 Primaria, 7-11 Secundaria
+    if (gradeNum >= 1 && gradeNum <= 6) {
+      return `${gradeNum}P`;
+    } else if (gradeNum >= 7 && gradeNum <= 11) {
+      return `${gradeNum - 6}S`;
+    }
+    return null;
   };
 
   const buildExtendedContext = () => ({
@@ -423,7 +455,7 @@ export default function GenerarClase() {
     if (campo === 'metodologias' && (!valor || valor.length === 0)) {
       nuevosErrores.metodologias = "Selecciona al menos una metodología";
     } else if (campo === 'edad' && !valor) {
-      nuevosErrores.edad = "Selecciona un grupo de edad";
+      nuevosErrores.edad = "Selecciona un grado";
     } else if (campo === 'tema' && !valor) {
       nuevosErrores.tema = "Selecciona un tema";
     } else if (campo === 'grupo' && !valor) {
@@ -446,7 +478,7 @@ export default function GenerarClase() {
 
   const handleNextStep = async () => {
     if (currentStep === 1) {
-      if (!formData.id_tema || !formData.id_grupo || !edadSeleccionada || metodologiasSeleccionadas.length === 0 || !formData.contextoEspecifico.trim()) {
+      if (!formData.id_tema || !formData.id_grupo || (!esSesionPreprogramada && !edadSeleccionada) || metodologiasSeleccionadas.length === 0 || !formData.contextoEspecifico.trim()) {
         toast.error("Por favor completa los campos obligatorios");
         return;
       }
@@ -464,6 +496,11 @@ export default function GenerarClase() {
         const extendedContext = buildExtendedContext();
         // Si venimos desde una sesión ya programada, solo actualizamos la fila existente
         if (claseId && esSesionPreprogramada) {
+          // En sesión preprogramada, el grado viene del grupo
+          const gradoGrupo = claseData?.grupos?.grado 
+            ? mapearGradoAGrupoEdad(claseData.grupos.grado) 
+            : null;
+          
           const { data, error } = await (supabase as any)
             .from('clases')
             .update({
@@ -471,7 +508,7 @@ export default function GenerarClase() {
               id_grupo: formData.id_grupo,
               fecha_programada: formData.fecha_programada,
               duracion_minutos: parseInt(formData.duracionClase),
-              grupo_edad: edadSeleccionada,
+              grupo_edad: gradoGrupo || edadSeleccionada, // Usar grado del grupo si está disponible
               metodologia: metodologiasSeleccionadas.join(', '),
               contexto: formData.contextoEspecifico,
               observaciones: JSON.stringify(extendedContext),
@@ -488,13 +525,19 @@ export default function GenerarClase() {
           toast.success("Contexto actualizado para la sesión programada");
         } else {
           // Caso clase nueva / extraordinaria: crear clase desde cero
+          // Obtener el grado del grupo seleccionado si está disponible
+          const grupoSeleccionado = gruposData?.find((g: any) => g.id === formData.id_grupo);
+          const gradoGrupo = grupoSeleccionado?.grado 
+            ? mapearGradoAGrupoEdad(grupoSeleccionado.grado) 
+            : null;
+          
           const { data, error } = await supabase.functions.invoke('crear-clase', {
             body: {
               id_tema: formData.id_tema,
               id_grupo: formData.id_grupo,
               fecha_programada: formData.fecha_programada,
               duracion_minutos: parseInt(formData.duracionClase),
-              grupo_edad: edadSeleccionada,
+              grupo_edad: gradoGrupo || edadSeleccionada, // Priorizar grado del grupo, luego el seleccionado
               metodologia: metodologiasSeleccionadas.join(', '),
               contexto: formData.contextoEspecifico,
               observaciones: JSON.stringify(extendedContext),
@@ -646,8 +689,13 @@ export default function GenerarClase() {
   }, [formData.id_tema, formData.id_grupo, formData.fecha_programada, formData.duracionClase]);
 
   const seccion2Completa = useMemo(() => {
+    if (esSesionPreprogramada) {
+      // En sesión preprogramada, solo validar adaptaciones (el grado viene del grupo)
+      return formData.adaptacionesSeleccionadas.length > 0;
+    }
+    // En extraordinaria, validar grado y adaptaciones
     return !!edadSeleccionada && formData.adaptacionesSeleccionadas.length > 0;
-  }, [edadSeleccionada, formData.adaptacionesSeleccionadas]);
+  }, [edadSeleccionada, formData.adaptacionesSeleccionadas, esSesionPreprogramada]);
 
   const seccion3Completa = useMemo(() => {
     return metodologiasSeleccionadas.length > 0;
@@ -660,12 +708,12 @@ export default function GenerarClase() {
       !!formData.fecha_programada,
       !!formData.duracionClase,
       metodologiasSeleccionadas.length > 0,
-      !!edadSeleccionada,
+      esSesionPreprogramada ? true : !!edadSeleccionada, // No requerir grado si es preprogramada (viene del grupo)
       !!formData.contextoEspecifico.trim(),
     ];
     const completados = camposObligatorios.filter(Boolean).length;
     return (completados / camposObligatorios.length) * 100;
-  }, [formData, metodologiasSeleccionadas, edadSeleccionada]);
+  }, [formData, metodologiasSeleccionadas, edadSeleccionada, esSesionPreprogramada]);
 
   const handleAgregarMetodologiaPersonalizada = () => {
     const nueva = metodologiaPersonalizada.trim();
@@ -805,7 +853,7 @@ export default function GenerarClase() {
               </div>
 
               <div>
-                <Label>Grupo *</Label>
+                <Label>Salón *</Label>
                 {esSesionPreprogramada && claseData ? (
                   <TooltipProvider>
                     <Tooltip>
@@ -835,6 +883,16 @@ export default function GenerarClase() {
                       onValueChange={(val) => {
                         setFormData({ ...formData, id_grupo: val });
                         validarCampo('grupo', val);
+                        // Auto-seleccionar grado basado en el grupo seleccionado (solo extraordinarias)
+                        if (!esSesionPreprogramada && gruposData) {
+                          const grupoSeleccionado = gruposData.find((g: any) => g.id === val);
+                          if (grupoSeleccionado?.grado) {
+                            const gradoMapeado = mapearGradoAGrupoEdad(grupoSeleccionado.grado);
+                            if (gradoMapeado) {
+                              setEdadSeleccionada(gradoMapeado);
+                            }
+                          }
+                        }
                       }}
                     >
                       <SelectTrigger>
@@ -895,45 +953,55 @@ export default function GenerarClase() {
                 </Badge>
               ) : (
                 <Badge variant="outline" className="text-muted-foreground">
-                  {[!!edadSeleccionada, formData.adaptacionesSeleccionadas.length > 0].filter(Boolean).length}/2 campos
+                  {esSesionPreprogramada 
+                    ? `${formData.adaptacionesSeleccionadas.length > 0 ? "1/1" : "0/1"} campos`
+                    : `${[!!edadSeleccionada, formData.adaptacionesSeleccionadas.length > 0].filter(Boolean).length}/2 campos`
+                  }
                 </Badge>
               )}
             </div>
           </AccordionTrigger>
           <AccordionContent>
             <div className="space-y-6 pt-4">
-              <div>
-                <Label>Grupo de Edad *</Label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
-                  {EDADES_MEJORADAS.map((edad) => (
-                    <button
-                      key={edad.value}
-                      type="button"
-                      onClick={() => {
-                        setEdadSeleccionada(edad.value);
-                        validarCampo('edad', edad.value);
-                      }}
-                      className={`p-4 rounded-lg border-2 text-left transition-all ${
-                        edadSeleccionada === edad.value
-                          ? 'border-primary bg-primary/5'
-                          : 'border-border hover:border-primary/50'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-2xl">{edad.icon}</span>
-                        <span className="font-medium">{edad.label}</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground">{edad.nivel}</p>
-                    </button>
-                  ))}
-                </div>
-                {errores.edad && (
-                  <p className="text-xs text-destructive flex items-center gap-1 mt-2">
-                    <AlertCircle className="h-3 w-3" />
-                    {errores.edad}
+              {!esSesionPreprogramada && (
+                <div>
+                  <Label>Grado *</Label>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Selecciona el grado del salón para esta clase.
                   </p>
-                )}
-              </div>
+                  <Select
+                    value={edadSeleccionada}
+                    onValueChange={(val) => {
+                      setEdadSeleccionada(val);
+                      validarCampo('edad', val);
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona un grado" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Primaria</div>
+                      {GRADOS_PERU.filter(g => g.value.endsWith('P')).map((grado) => (
+                        <SelectItem key={grado.value} value={grado.value}>
+                          {grado.label}
+                        </SelectItem>
+                      ))}
+                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground mt-2">Secundaria</div>
+                      {GRADOS_PERU.filter(g => g.value.endsWith('S')).map((grado) => (
+                        <SelectItem key={grado.value} value={grado.value}>
+                          {grado.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errores.edad && (
+                    <p className="text-xs text-destructive flex items-center gap-1 mt-2">
+                      <AlertCircle className="h-3 w-3" />
+                      {errores.edad}
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div>
                 <Label>Inclusión y adaptaciones</Label>
