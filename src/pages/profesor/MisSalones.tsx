@@ -1,23 +1,24 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, School, Users, BookOpen, Lightbulb, BarChart3 } from "lucide-react";
+import { Loader2, School } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { SalonDashboardCard } from "@/components/profesor/SalonDashboardCard";
-import { AlumnosResultadosTable } from "@/components/profesor/AlumnosResultadosTable";
-import { RecomendacionesSection } from "@/components/profesor/RecomendacionesSection";
-import { useToast } from "@/hooks/use-toast";
+import { Card, CardContent } from "@/components/ui/card";
+import { MetricasGlobalesSalon } from "@/components/profesor/MetricasGlobalesSalon";
+import { FiltrosMetricasSalon } from "@/components/profesor/FiltrosMetricasSalon";
+import { SeccionPreMetricas } from "@/components/profesor/SeccionPreMetricas";
+import { SeccionPostMetricas } from "@/components/profesor/SeccionPostMetricas";
+import { RecomendacionesMetricas } from "@/components/profesor/RecomendacionesMetricas";
+import { ResponseMisSalones } from "@/types/metricas-salon";
 
 export default function MisSalones() {
-  const { toast } = useToast();
   const [filtroSalon, setFiltroSalon] = useState<string>("todos");
+  const [materiaSeleccionada, setMateriaSeleccionada] = useState<string | null>(null);
+  const [temaSeleccionado, setTemaSeleccionado] = useState<string | null>(null);
+  const [claseSeleccionada, setClaseSeleccionada] = useState<string | null>(null);
 
-  const { data, isLoading, error, refetch } = useQuery({
+  const { data, isLoading, error } = useQuery<ResponseMisSalones>({
     queryKey: ["mis-salones"],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke("get-mis-salones");
@@ -26,48 +27,15 @@ export default function MisSalones() {
     },
   });
 
-  const handleVerDetalleAlumno = (alumnoId: string) => {
-    // Navegar a detalle del alumno si existe esa página
-    // Por ahora solo mostrar toast
-    toast({
-      title: "Detalle de alumno",
-      description: `Ver detalles del alumno ${alumnoId}`,
-    });
-  };
-
-  const handleGenerarRetro = (alumnoId: string) => {
-    // Navegar a generar retroalimentación
-    toast({
-      title: "Generar retroalimentación",
-      description: `Generar retroalimentación para el alumno ${alumnoId}`,
-    });
-  };
-
-  const handleAplicarRecomendacion = (recomendacionId: string) => {
-    // Marcar recomendación como aplicada
-    toast({
-      title: "Recomendación aplicada",
-      description: "La recomendación ha sido marcada como aplicada",
-    });
-    refetch();
-  };
-
-  const handleGenerarRecomendaciones = () => {
-    // Generar nuevas recomendaciones
-    toast({
-      title: "Generar recomendaciones",
-      description: "Generando nuevas recomendaciones basadas en los resultados...",
-    });
-  };
-
   if (isLoading) {
     return (
       <AppLayout>
         <div className="space-y-6">
           <Skeleton className="h-10 w-64" />
-          <div className="grid gap-4 md:grid-cols-2">
-            <Skeleton className="h-64" />
-            <Skeleton className="h-64" />
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <Skeleton className="h-32" />
+            <Skeleton className="h-32" />
+            <Skeleton className="h-32" />
           </div>
         </div>
       </AppLayout>
@@ -92,30 +60,11 @@ export default function MisSalones() {
   }
 
   const salones = data?.salones || [];
-  
-  // Asegurar que cada salón tenga la estructura completa esperada
-  const salonesConEstructura = salones.map((salon: any) => ({
-    ...salon,
-    resumen: salon.resumen || {
-      promedio_nota: null,
-      comprension_promedio: null,
-      participacion_promedio: null,
-      completitud_promedio: null,
-      alumnos_en_riesgo: 0,
-      quizzes_pendientes: 0,
-      promedio_quiz_pre: null,
-      promedio_quiz_post: null,
-    },
-    alumnos: Array.isArray(salon.alumnos) ? salon.alumnos : [],
-    recomendaciones: Array.isArray(salon.recomendaciones) ? salon.recomendaciones : [],
-    retroalimentaciones: Array.isArray(salon.retroalimentaciones) ? salon.retroalimentaciones : [],
-    temas: Array.isArray(salon.temas) ? salon.temas : [],
-  }));
 
   const salonesFiltrados =
     filtroSalon === "todos"
-      ? salonesConEstructura
-      : salonesConEstructura.filter((s: any) => s.grupo?.id === filtroSalon);
+      ? salones
+      : salones.filter((s) => s.grupo.id === filtroSalon);
 
   const salonSeleccionado =
     filtroSalon !== "todos"
@@ -124,194 +73,158 @@ export default function MisSalones() {
         ? salonesFiltrados[0]
         : null;
 
-  return (
-    <AppLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
+  // Si hay múltiples salones, mostrar selector
+  if (salones.length > 1 && !salonSeleccionado) {
+    return (
+      <AppLayout>
+        <div className="space-y-6">
           <div>
             <h1 className="text-3xl font-bold text-black dark:text-white">
               Mis Salones
             </h1>
             <p className="text-muted-foreground mt-2">
-              Visualiza resultados de alumnos, clases y recomendaciones por salón
+              Selecciona un salón para ver sus métricas
             </p>
           </div>
+
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {salones.map((salon) => (
+              <Card
+                key={salon.grupo.id}
+                className="hover:shadow-md transition-all cursor-pointer"
+                onClick={() => setFiltroSalon(salon.grupo.id)}
+              >
+                <CardContent className="pt-6">
+                  <div className="space-y-2">
+                    <h3 className="font-semibold text-lg">{salon.grupo.nombre}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {salon.grupo.grado}° - Sección {salon.grupo.seccion}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {salon.grupo.cantidad_alumnos || 0} alumnos
+                    </p>
+                    <p className="text-sm text-primary mt-4">Ver métricas →</p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  // Si no hay salones
+  if (salones.length === 0) {
+    return (
+      <AppLayout>
+        <Card>
+          <CardContent className="py-12 text-center">
+            <School className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+            <p className="text-muted-foreground">
+              No hay salones disponibles
+            </p>
+            <p className="text-sm text-muted-foreground mt-2">
+              Los salones aparecerán aquí una vez que tengas asignaciones activas
+            </p>
+          </CardContent>
+        </Card>
+      </AppLayout>
+    );
+  }
+
+  // Vista principal con métricas
+  return (
+    <AppLayout>
+      <div className="space-y-6 pb-8">
+        {/* Header */}
+        <div>
+          <h1 className="text-3xl font-bold text-black dark:text-white">
+            Mis Salones
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            Métricas y análisis del desempeño del grupo
+          </p>
         </div>
 
-        {/* Filtro de Salón */}
-        {salonesConEstructura.length > 0 && (
+        {/* Selector de Salón (si hay múltiples) */}
+        {salones.length > 1 && (
           <Card>
-            <CardHeader>
-              <CardTitle>Filtros</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="w-full max-w-xs">
-                <Label>Seleccionar Salón</Label>
-                <Select value={filtroSalon} onValueChange={setFiltroSalon}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Todos los salones" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="todos">Todos los salones</SelectItem>
-                    {salonesConEstructura.map((salon: any) => (
-                      <SelectItem key={salon.grupo?.id} value={salon.grupo?.id}>
-                        {salon.grupo?.nombre} - {salon.grupo?.grado}° {salon.grupo?.seccion}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <label className="text-sm font-medium">Salón:</label>
+                <select
+                  value={filtroSalon}
+                  onChange={(e) => setFiltroSalon(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <option value="todos">Todos los salones</option>
+                  {salones.map((salon) => (
+                    <option key={salon.grupo.id} value={salon.grupo.id}>
+                      {salon.grupo.nombre} - {salon.grupo.grado}° {salon.grupo.seccion}
+                    </option>
+                  ))}
+                </select>
               </div>
             </CardContent>
           </Card>
         )}
 
         {/* Contenido Principal */}
-        {salonesFiltrados.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <School className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-              <p className="text-muted-foreground">
-                No hay salones disponibles
-              </p>
-              <p className="text-sm text-muted-foreground mt-2">
-                Los salones aparecerán aquí una vez que tengas asignaciones activas
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          <Tabs defaultValue="general" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="general" className="flex items-center gap-2">
-                <BarChart3 className="h-4 w-4" />
-                Vista General
-              </TabsTrigger>
-              <TabsTrigger value="alumnos" className="flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                Alumnos
-              </TabsTrigger>
-              <TabsTrigger value="recomendaciones" className="flex items-center gap-2">
-                <Lightbulb className="h-4 w-4" />
-                Recomendaciones
-              </TabsTrigger>
-            </TabsList>
+        {salonSeleccionado && (
+          <>
+            {/* Métricas Globales */}
+            <MetricasGlobalesSalon
+              metricas={salonSeleccionado.metricas_globales}
+              nombreSalon={salonSeleccionado.grupo.nombre}
+            />
 
-            {/* Vista General */}
-            <TabsContent value="general" className="space-y-6">
-              {salonesFiltrados.length === 1 ? (
-                <SalonDashboardCard salon={salonesFiltrados[0]} />
-              ) : (
-                <div className="grid gap-6 md:grid-cols-2">
-                  {salonesFiltrados.map((salon: any) => (
-                    <Card key={salon.grupo.id} className="hover:shadow-md transition-all">
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <Users className="h-5 w-5 text-primary" />
-                          {salon.grupo.nombre}
-                        </CardTitle>
-                        <CardDescription>
-                          {salon.grupo.grado}° - Sección {salon.grupo.seccion}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-4">
-                          <div>
-                            <div className="flex items-center justify-between text-sm mb-2">
-                              <span className="text-muted-foreground">Progreso General</span>
-                              <span className="font-medium">
-                                {salon.progreso_general?.porcentaje ?? 0}%
-                              </span>
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {salon.progreso_general?.completadas ?? 0} completadas •{" "}
-                              {salon.progreso_general?.programadas ?? 0} programadas
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2 text-sm">
-                            <div>
-                              <div className="text-muted-foreground">Promedio Nota</div>
-                              <div className="font-semibold">
-                                {salon.resumen?.promedio_nota !== null &&
-                                salon.resumen?.promedio_nota !== undefined
-                                  ? `${salon.resumen.promedio_nota.toFixed(1)}`
-                                  : "—"}
-                              </div>
-                            </div>
-                            <div>
-                              <div className="text-muted-foreground">Alumnos en Riesgo</div>
-                              <div className="font-semibold">
-                                {salon.resumen?.alumnos_en_riesgo ?? 0}
-                              </div>
-                            </div>
-                          </div>
-                          <div
-                            className="text-sm text-primary cursor-pointer hover:underline"
-                            onClick={() => setFiltroSalon(salon.grupo.id)}
-                          >
-                            Ver detalles →
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </TabsContent>
+            {/* Filtros */}
+            <FiltrosMetricasSalon
+              filtros={salonSeleccionado.filtros}
+              materiaSeleccionada={materiaSeleccionada}
+              temaSeleccionado={temaSeleccionado}
+              claseSeleccionada={claseSeleccionada}
+              onMateriaChange={setMateriaSeleccionada}
+              onTemaChange={setTemaSeleccionado}
+              onClaseChange={setClaseSeleccionada}
+            />
 
-            {/* Resultados de Alumnos */}
-            <TabsContent value="alumnos" className="space-y-6">
-              {salonSeleccionado ? (
-                <AlumnosResultadosTable
-                  alumnos={salonSeleccionado.alumnos}
-                  grupoNombre={salonSeleccionado.grupo.nombre}
-                  onVerDetalle={handleVerDetalleAlumno}
-                  onGenerarRetro={handleGenerarRetro}
-                />
-              ) : (
-                <div className="space-y-6">
-                  {salonesFiltrados.map((salon: any) => (
-                    <div key={salon.grupo.id}>
-                      <h3 className="text-lg font-semibold mb-4">
-                        {salon.grupo.nombre} - {salon.grupo.grado}° {salon.grupo.seccion}
-                      </h3>
-                      <AlumnosResultadosTable
-                        alumnos={salon.alumnos}
-                        grupoNombre={salon.grupo.nombre}
-                        onVerDetalle={handleVerDetalleAlumno}
-                        onGenerarRetro={handleGenerarRetro}
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </TabsContent>
+            {/* Sección PRE */}
+            {salonSeleccionado.datos_pre ? (
+              <SeccionPreMetricas datos={salonSeleccionado.datos_pre} />
+            ) : (
+              <Card>
+                <CardContent className="py-8 text-center">
+                  <p className="text-muted-foreground">
+                    No hay datos PRE disponibles aún
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Los datos aparecerán aquí una vez que se completen evaluaciones PRE
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Sección POST */}
+            {salonSeleccionado.datos_post ? (
+              <SeccionPostMetricas datos={salonSeleccionado.datos_post} />
+            ) : (
+              <Card>
+                <CardContent className="py-8 text-center">
+                  <p className="text-muted-foreground">
+                    No hay datos POST disponibles aún
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Los datos aparecerán aquí una vez que se completen evaluaciones POST
+                  </p>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Recomendaciones */}
-            <TabsContent value="recomendaciones" className="space-y-6">
-              {salonSeleccionado ? (
-                <RecomendacionesSection
-                  recomendaciones={salonSeleccionado.recomendaciones}
-                  onAplicarRecomendacion={handleAplicarRecomendacion}
-                  onGenerarRecomendaciones={handleGenerarRecomendaciones}
-                />
-              ) : (
-                <div className="space-y-6">
-                  {salonesFiltrados.map((salon: any) => (
-                    <div key={salon.grupo.id}>
-                      <h3 className="text-lg font-semibold mb-4">
-                        {salon.grupo.nombre} - {salon.grupo.grado}° {salon.grupo.seccion}
-                      </h3>
-                      <RecomendacionesSection
-                        recomendaciones={salon.recomendaciones}
-                        onAplicarRecomendacion={handleAplicarRecomendacion}
-                        onGenerarRecomendaciones={handleGenerarRecomendaciones}
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
+            <RecomendacionesMetricas recomendaciones={salonSeleccionado.recomendaciones} />
+          </>
         )}
       </div>
     </AppLayout>

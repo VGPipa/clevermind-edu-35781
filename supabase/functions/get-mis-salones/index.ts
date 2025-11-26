@@ -5,6 +5,57 @@ import {
   createSuccessResponse,
 } from '../_shared/auth.ts';
 
+// Helper functions para calcular niveles
+function calcularNivelLogro(porcentaje: number): 'bajo' | 'intermedio' | 'alto' {
+  if (porcentaje < 50) return 'bajo';
+  if (porcentaje < 75) return 'intermedio';
+  return 'alto';
+}
+
+function calcularSemaforo(porcentaje: number): 'verde' | 'amarillo' | 'rojo' {
+  if (porcentaje >= 70) return 'verde';
+  if (porcentaje >= 50) return 'amarillo';
+  return 'rojo';
+}
+
+function clasificarPreparacion(porcentaje: number): 'baja' | 'media' | 'alta' {
+  if (porcentaje < 40) return 'baja';
+  if (porcentaje < 70) return 'media';
+  return 'alta';
+}
+
+// Función para identificar conceptos de preguntas usando IA
+async function identificarConceptosPreguntas(
+  supabase: any,
+  preguntas: Array<{ id: string; texto_pregunta: string; texto_contexto?: string | null }>
+): Promise<Map<string, string>> {
+  if (preguntas.length === 0) return new Map();
+
+  try {
+    const { data, error } = await supabase.functions.invoke('identificar-conceptos-preguntas', {
+      body: { preguntas },
+    });
+
+    if (error || !data?.conceptos) {
+      console.warn('Error identificando conceptos, usando fallback:', error);
+      // Fallback: usar tema como concepto
+      return new Map();
+    }
+
+    const conceptosMap = new Map<string, string>();
+    for (const item of data.conceptos) {
+      if (item.id_pregunta && item.concepto) {
+        conceptosMap.set(item.id_pregunta, item.concepto.trim());
+      }
+    }
+
+    return conceptosMap;
+  } catch (error) {
+    console.error('Error llamando identificar-conceptos-preguntas:', error);
+    return new Map();
+  }
+}
+
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
     return handleCors();
@@ -43,7 +94,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
 
     if (!asignaciones || asignaciones.length === 0) {
-      return createSuccessResponse({ salones: [] });
+      return createSuccessResponse({ salones: [], total_salones: 0 });
     }
 
     // Group by salón (grupo)
@@ -60,82 +111,43 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }
     });
 
-    // For each salón, get temas with guía maestra that have at least one sesión
-    const salonesConTemas = await Promise.all(
+    // Process each salón
+    const salonesConMetricas = await Promise.all(
       Array.from(gruposUnicos.values()).map(async ({ grupo, asignaciones: grupoAsignaciones }) => {
-        // Get all temas from materias assigned to this grupo
         const materiaIds = grupoAsignaciones.map((a: any) => a.id_materia).filter(Boolean);
         
         if (materiaIds.length === 0) {
-          return {
-            grupo,
-            temas: [],
-            progreso_general: { porcentaje: 0, total_sesiones: 0, completadas: 0, programadas: 0, pendientes: 0 },
-            resumen: {
-              promedio_nota: null,
-              comprension_promedio: null,
-              participacion_promedio: null,
-              completitud_promedio: null,
-              alumnos_en_riesgo: 0,
-              quizzes_pendientes: 0,
-              promedio_quiz_pre: null,
-              promedio_quiz_post: null,
-            },
-            alumnos: [],
-            recomendaciones: [],
-          };
+          return crearSalonVacio(grupo);
         }
 
+        // Get temas
         const { data: temas } = await supabase
           .from('temas')
           .select('id, nombre, id_materia')
           .in('id_materia', materiaIds);
 
         if (!temas || temas.length === 0) {
-          return {
-            grupo,
-            temas: [],
-            progreso_general: { porcentaje: 0, total_sesiones: 0, completadas: 0, programadas: 0, pendientes: 0 },
-            resumen: {
-              promedio_nota: null,
-              comprension_promedio: null,
-              participacion_promedio: null,
-              completitud_promedio: null,
-              alumnos_en_riesgo: 0,
-              quizzes_pendientes: 0,
-              promedio_quiz_pre: null,
-              promedio_quiz_post: null,
-            },
-            alumnos: [],
-            recomendaciones: [],
-          };
+          return crearSalonVacio(grupo);
         }
 
-        const temaIds = temas.map(t => t.id);
+        // Get materias for filtros
+        const materiasUnicas = new Map<string, any>();
+        grupoAsignaciones.forEach((a: any) => {
+          if (a.materias) {
+            materiasUnicas.set(a.id_materia, a.materias);
+          }
+        });
 
-        // Get guías maestras for these temas
-        const { data: guiasTema } = await supabase
-          .from('guias_tema')
-          .select('id, id_tema, total_sesiones')
-          .eq('id_profesor', profesor.id)
-          .in('id_tema', temaIds.length > 0 ? temaIds : ['00000000-0000-0000-0000-000000000000']);
-
-        const temasConGuia = new Set(guiasTema?.map(g => g.id_tema) || []);
-
-        // Get clases (sesiones) for temas with guía, filtered by grupo
+        // Get clases with quizzes
         const { data: clases } = await supabase
           .from('clases')
           .select(`
             id,
             id_tema,
-            id_guia_tema,
-            id_guia_version_actual,
             numero_sesion,
             fecha_programada,
-            fecha_ejecutada,
             estado,
-            duracion_minutos,
-            temas (
+            temas!inner (
               id,
               nombre,
               id_materia,
@@ -147,8 +159,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
             quizzes (
               id,
               tipo,
+              tipo_evaluacion,
               estado,
-              created_at,
+              preguntas (
+                id,
+                texto_pregunta,
+                texto_contexto
+              ),
               respuestas_alumno (
                 id,
                 id_alumno,
@@ -157,317 +174,119 @@ Deno.serve(async (req: Request): Promise<Response> => {
                 calificaciones (
                   nota_numerica,
                   porcentaje_aciertos
+                ),
+                respuestas_detalle (
+                  id_pregunta,
+                  es_correcta
                 )
               )
             )
           `)
           .eq('id_profesor', profesor.id)
           .eq('id_grupo', grupo.id)
-          .in('id_tema', Array.from(temasConGuia));
+          .in('id_tema', temas.map(t => t.id));
 
-        // Group clases by tema and filter: only temas with at least one sesión
-        const temasConSesiones = new Map<string, any[]>();
-        (clases || []).forEach((claseOriginal: any) => {
-          const clase = {
-            ...claseOriginal,
-            tiene_guia: Boolean(claseOriginal.id_guia_version_actual),
-          };
-          if (clase.id_tema) {
-            if (!temasConSesiones.has(clase.id_tema)) {
-              temasConSesiones.set(clase.id_tema, []);
-            }
-            temasConSesiones.get(clase.id_tema)!.push(clase);
-          }
-        });
-
-        // Build temas with sesiones
-        const temasData = Array.from(temasConSesiones.entries()).map(([temaId, sesiones]) => {
-          const tema = temas.find(t => t.id === temaId);
-          const guiaTema = guiasTema?.find(g => g.id_tema === temaId);
-          const primeraSesion = sesiones[0];
-          const materia = primeraSesion?.temas?.materias;
-
-          const completadas = sesiones.filter(s => s.estado === 'completada' || s.estado === 'ejecutada').length;
-          const programadas = sesiones.filter(s => s.fecha_programada && s.estado !== 'completada' && s.estado !== 'ejecutada').length;
-          const totalSesiones = guiaTema?.total_sesiones || 0;
-          const pendientes = totalSesiones - sesiones.length;
-
-          return {
-            tema: {
-              id: tema?.id || temaId,
-              nombre: tema?.nombre || 'Sin nombre',
-              materia: {
-                id: materia?.id,
-                nombre: materia?.nombre,
-              },
-            },
-            guia_tema: {
-              id: guiaTema?.id,
-              total_sesiones: totalSesiones,
-            },
-            sesiones: sesiones.sort((a, b) => (a.numero_sesion || 0) - (b.numero_sesion || 0)),
-            progreso: {
-              completadas,
-              programadas,
-              pendientes,
-              total: sesiones.length,
-              porcentaje: totalSesiones > 0 
-                ? Math.round((completadas / totalSesiones) * 100)
-                : 0,
-            },
-          };
-        });
-
-        const { data: alumnosGrupo, error: alumnosGrupoError } = await supabase
+        // Get alumnos del grupo
+        const { data: alumnosGrupo } = await supabase
           .from('alumnos_grupo')
           .select(`
             id,
             alumnos (
               id,
               nombre,
-              apellido,
-              grado,
-              seccion
+              apellido
             )
           `)
           .eq('id_grupo', grupo.id);
 
-        if (alumnosGrupoError) {
-          console.error('Error obteniendo alumnos del grupo:', alumnosGrupoError);
-        }
-
         const alumnosSalon = (alumnosGrupo || [])
-          .map((registro: any) => registro.alumnos)
+          .map((r: any) => r.alumnos)
           .filter(Boolean);
 
-        const clasesConDatos = clases || [];
-        const quizzesSalon = clasesConDatos.flatMap((clase: any) =>
-          (clase.quizzes || []).map((quiz: any) => ({
-            ...quiz,
-            clase_metadata: {
-              id: clase.id,
-              numero_sesion: clase.numero_sesion,
-              fecha_programada: clase.fecha_programada,
-              estado: clase.estado,
-            },
-          }))
-        );
-
-        const respuestasSalon = quizzesSalon.flatMap((quiz: any) =>
-          (quiz.respuestas_alumno || []).map((respuesta: any) => ({
-            ...respuesta,
-            quiz_id: quiz.id,
-            quiz_tipo: quiz.tipo,
-            calificacion: Array.isArray(respuesta.calificaciones)
-              ? respuesta.calificaciones[0]
-              : respuesta.calificaciones,
-          }))
-        );
-
-        const notas = respuestasSalon
-          .map(respuesta => respuesta.calificacion?.nota_numerica)
-          .filter((nota): nota is number => typeof nota === 'number');
-
-        const porcentajes = respuestasSalon
-          .map(respuesta => respuesta.calificacion?.porcentaje_aciertos)
-          .filter((valor): valor is number => typeof valor === 'number');
-
-        const promedioNota = notas.length > 0
-          ? notas.reduce((sum, nota) => sum + nota, 0) / notas.length
-          : null;
-
-        const promedioComprension = porcentajes.length > 0
-          ? porcentajes.reduce((sum, valor) => sum + valor, 0) / porcentajes.length
-          : null;
-
-        const totalEsperadoRespuestas = alumnosSalon.length * quizzesSalon.length;
-        const respuestasCompletadas = respuestasSalon.filter(r => r.estado === 'completado').length;
-        const participacionPromedio = totalEsperadoRespuestas > 0
-          ? (respuestasCompletadas / totalEsperadoRespuestas) * 100
-          : null;
-
-        // Debug logs
-        console.log(`[get-mis-salones] Grupo ${grupo.id}:`, {
-          alumnosCount: alumnosSalon.length,
-          quizzesCount: quizzesSalon.length,
-          respuestasCount: respuestasSalon.length,
-          promedioNota,
-          promedioComprension,
-          participacionPromedio,
-        });
-
-        const quizzesPendientes = quizzesSalon.filter(quiz => {
-          const completadasQuiz = (quiz.respuestas_alumno || []).filter((r: any) => r.estado === 'completado').length;
-          return alumnosSalon.length > 0 ? completadasQuiz < alumnosSalon.length : false;
-        }).length;
-
-        const promedioQuizPre = (() => {
-          const notasPre = respuestasSalon
-            .filter(r => r.quiz_tipo === 'previo')
-            .map(r => r.calificacion?.nota_numerica)
-            .filter((nota): nota is number => typeof nota === 'number');
-          if (!notasPre.length) return null;
-          return notasPre.reduce((sum, nota) => sum + nota, 0) / notasPre.length;
-        })();
-
-        const promedioQuizPost = (() => {
-          const notasPost = respuestasSalon
-            .filter(r => r.quiz_tipo === 'post')
-            .map(r => r.calificacion?.nota_numerica)
-            .filter((nota): nota is number => typeof nota === 'number');
-          if (!notasPost.length) return null;
-          return notasPost.reduce((sum, nota) => sum + nota, 0) / notasPost.length;
-        })();
-
-        // Retroalimentaciones feature removed - table doesn't exist
-        const retroPorAlumno = new Map<string, any>();
-
-        const { data: recomendacionesData, error: recomendacionesError } = await supabase
-          .from('recomendaciones')
-          .select(`
-            id,
-            tipo,
-            aplicada,
-            contenido,
-            created_at,
-            clases!inner (
-              id,
-              numero_sesion,
-              fecha_programada,
-              estado,
-              id_grupo,
-              id_profesor
-            )
-          `)
-          .eq('clases.id_grupo', grupo.id)
-          .eq('clases.id_profesor', profesor.id)
-          .order('created_at', { ascending: false })
-          .limit(10);
-
-        if (recomendacionesError) {
-          console.error('Error obteniendo recomendaciones:', recomendacionesError);
-        }
-
-        const recomendacionesSalon = (recomendacionesData || []).map((recomendacion: any) => ({
-          id: recomendacion.id,
-          tipo: recomendacion.tipo,
-          aplicada: recomendacion.aplicada,
-          contenido: recomendacion.contenido,
-          created_at: recomendacion.created_at,
-          clase: recomendacion.clases
-            ? {
-                id: recomendacion.clases.id,
-                numero_sesion: recomendacion.clases.numero_sesion,
-                fecha_programada: recomendacion.clases.fecha_programada,
-                estado: recomendacion.clases.estado,
-              }
-            : null,
-        }));
-
-        const alumnosStats = alumnosSalon.map((alumno: any) => {
-          const respuestasAlumno = respuestasSalon.filter(r => r.id_alumno === alumno.id);
-          const calificacionesAlumno = respuestasAlumno
-            .map(r => r.calificacion?.nota_numerica)
-            .filter((nota): nota is number => typeof nota === 'number');
-          const aciertosAlumno = respuestasAlumno
-            .map(r => r.calificacion?.porcentaje_aciertos)
-            .filter((valor): valor is number => typeof valor === 'number');
-
-          const promedioAlumno =
-            calificacionesAlumno.length > 0
-              ? calificacionesAlumno.reduce((sum, nota) => sum + nota, 0) / calificacionesAlumno.length
-              : null;
-
-          const promedioAciertos =
-            aciertosAlumno.length > 0
-              ? aciertosAlumno.reduce((sum, valor) => sum + valor, 0) / aciertosAlumno.length
-              : null;
-
-          const quizzesCompletados = respuestasAlumno.filter(r => r.estado === 'completado').length;
-          const quizzesTotales = quizzesSalon.length;
-          const quizzesPendientesAlumno = quizzesTotales > 0 ? Math.max(quizzesTotales - quizzesCompletados, 0) : 0;
-
-          const alertas = {
-            bajoRendimiento: promedioAlumno !== null ? promedioAlumno < 11 : false,
-            pocaParticipacion: quizzesTotales > 0 ? quizzesCompletados / quizzesTotales < 0.5 : false,
-          };
-
-          const ultimaRetro = retroPorAlumno.get(alumno.id);
-
-          return {
-            id: alumno.id,
-            nombre: alumno.nombre,
-            apellido: alumno.apellido,
-            grado: alumno.grado,
-            seccion: alumno.seccion,
-            promedio_nota: promedioAlumno,
-            promedio_aciertos: promedioAciertos,
-            quizzes_completados: quizzesCompletados,
-            quizzes_pendientes: quizzesPendientesAlumno,
-            alertas,
-            ultima_retroalimentacion: ultimaRetro
-              ? {
-                  tipo: ultimaRetro.tipo,
-                  resumen: ultimaRetro.contenido?.resumen || null,
-                  fecha: ultimaRetro.fecha_envio || ultimaRetro.created_at,
-                }
-              : null,
-          };
-        });
-
-        const alumnosEnRiesgo = alumnosStats.filter(
-          alumno => alumno.alertas?.bajoRendimiento || alumno.alertas?.pocaParticipacion
-        ).length;
-
-        // Calculate overall progress for salón
-        const totalSesionesSalon = temasData.reduce((sum, t) => sum + (t.guia_tema?.total_sesiones || 0), 0);
-        const sesionesCompletadasSalon = temasData.reduce((sum, t) => sum + t.progreso.completadas, 0);
-        const progresoGeneral = totalSesionesSalon > 0
-          ? Math.round((sesionesCompletadasSalon / totalSesionesSalon) * 100)
-          : 0;
-
-        const resumenSalon = {
-          promedio_nota: promedioNota,
-          comprension_promedio: promedioComprension,
-          participacion_promedio: participacionPromedio,
-          completitud_promedio: participacionPromedio,
-          alumnos_en_riesgo: alumnosEnRiesgo,
-          quizzes_pendientes: quizzesPendientes,
-          promedio_quiz_pre: promedioQuizPre,
-          promedio_quiz_post: promedioQuizPost,
+        // Build filtros
+        const filtros = {
+          materias: Array.from(materiasUnicas.values()).map((m: any) => ({
+            id: m.id,
+            nombre: m.nombre,
+          })),
+          temas: temas.map((t: any) => ({
+            id: t.id,
+            nombre: t.nombre,
+            id_materia: t.id_materia,
+          })),
+          clases: (clases || []).map((c: any) => ({
+            id: c.id,
+            numero_sesion: c.numero_sesion,
+            fecha_programada: c.fecha_programada,
+            id_tema: c.id_tema,
+          })),
         };
 
-        const salonData = {
-          grupo,
-          temas: temasData,
-          progreso_general: {
-            porcentaje: progresoGeneral,
-            total_sesiones: totalSesionesSalon,
-            completadas: sesionesCompletadasSalon,
-            programadas: temasData.reduce((sum, t) => sum + t.progreso.programadas, 0),
-            pendientes: temasData.reduce((sum, t) => sum + t.progreso.pendientes, 0),
+        // Process quizzes PRE and POST
+        const quizzesPre: any[] = [];
+        const quizzesPost: any[] = [];
+        
+        (clases || []).forEach((clase: any) => {
+          (clase.quizzes || []).forEach((quiz: any) => {
+            if (quiz.tipo_evaluacion === 'pre') {
+              quizzesPre.push({ ...quiz, id_clase: clase.id, clase_metadata: clase });
+            } else if (quiz.tipo_evaluacion === 'post') {
+              quizzesPost.push({ ...quiz, id_clase: clase.id, clase_metadata: clase });
+            }
+          });
+        });
+
+        // Identificar conceptos para PRE y POST
+        const todasLasPreguntas = [
+          ...quizzesPre.flatMap((q: any) => (q.preguntas || []).map((p: any) => ({ ...p, quiz_tipo: 'pre' }))),
+          ...quizzesPost.flatMap((q: any) => (q.preguntas || []).map((p: any) => ({ ...p, quiz_tipo: 'post' }))),
+        ];
+
+        const conceptosMap = await identificarConceptosPreguntas(
+          supabase,
+          todasLasPreguntas.map((p: any) => ({
+            id: p.id,
+            texto_pregunta: p.texto_pregunta,
+            texto_contexto: p.texto_contexto,
+          }))
+        );
+
+        // Calcular métricas globales (año escolar completo)
+        const metricasGlobales = calcularMetricasGlobales(
+          [...quizzesPre, ...quizzesPost],
+          alumnosSalon,
+          conceptosMap
+        );
+
+        // Calcular datos PRE
+        const datosPre = calcularDatosPre(quizzesPre, alumnosSalon, conceptosMap);
+
+        // Calcular datos POST
+        const datosPost = calcularDatosPost(quizzesPost, alumnosSalon, conceptosMap);
+
+        // Generar recomendaciones
+        const recomendaciones = generarRecomendaciones(datosPre, datosPost, conceptosMap);
+
+        return {
+          grupo: {
+            id: grupo.id,
+            nombre: grupo.nombre,
+            grado: grupo.grado,
+            seccion: grupo.seccion,
+            cantidad_alumnos: grupo.cantidad_alumnos || alumnosSalon.length,
           },
-          resumen: resumenSalon,
-          alumnos: alumnosStats,
-          recomendaciones: recomendacionesSalon,
+          metricas_globales: metricasGlobales,
+          filtros: filtros,
+          datos_pre: datosPre,
+          datos_post: datosPost,
+          recomendaciones: recomendaciones,
         };
-
-        // Debug: verificar estructura completa
-        console.log(`[get-mis-salones] Datos completos para grupo ${grupo.id}:`, {
-          tieneResumen: !!salonData.resumen,
-          tieneAlumnos: Array.isArray(salonData.alumnos),
-          alumnosCount: salonData.alumnos.length,
-          tieneRecomendaciones: Array.isArray(salonData.recomendaciones),
-          recomendacionesCount: salonData.recomendaciones.length,
-        });
-
-        return salonData;
       })
     );
 
     return createSuccessResponse({
-      salones: salonesConTemas,
-      total_salones: salonesConTemas.length,
+      salones: salonesConMetricas,
+      total_salones: salonesConMetricas.length,
     });
 
   } catch (error) {
@@ -477,3 +296,539 @@ Deno.serve(async (req: Request): Promise<Response> => {
   }
 });
 
+function crearSalonVacio(grupo: any) {
+  return {
+    grupo: {
+      id: grupo.id,
+      nombre: grupo.nombre,
+      grado: grupo.grado,
+      seccion: grupo.seccion,
+      cantidad_alumnos: grupo.cantidad_alumnos || 0,
+    },
+    metricas_globales: {
+      participacion_promedio: 0,
+      dominio_por_conceptos: [],
+      areas_fuertes: [],
+      areas_dificultad: [],
+      alumnos_riesgo: { cantidad: 0, porcentaje: 0 },
+    },
+    filtros: {
+      materias: [],
+      temas: [],
+      clases: [],
+    },
+    datos_pre: null,
+    datos_post: null,
+    recomendaciones: { pre: [], post: [] },
+  };
+}
+
+function calcularMetricasGlobales(
+  todosLosQuizzes: any[],
+  alumnosSalon: any[],
+  conceptosMap: Map<string, string>
+) {
+  if (todosLosQuizzes.length === 0 || alumnosSalon.length === 0) {
+    return {
+      participacion_promedio: 0,
+      dominio_por_conceptos: [],
+      areas_fuertes: [],
+      areas_dificultad: [],
+      alumnos_riesgo: { cantidad: 0, porcentaje: 0 },
+    };
+  }
+
+  // Calcular participación promedio
+  const totalEsperadoRespuestas = alumnosSalon.length * todosLosQuizzes.length;
+  const respuestasCompletadas = todosLosQuizzes.reduce((sum, quiz) => {
+    return sum + (quiz.respuestas_alumno || []).filter((r: any) => r.estado === 'completado').length;
+  }, 0);
+  const participacionPromedio = totalEsperadoRespuestas > 0
+    ? Math.round((respuestasCompletadas / totalEsperadoRespuestas) * 100)
+    : 0;
+
+  // Calcular dominio por conceptos (solo POST)
+  const quizzesPost = todosLosQuizzes.filter((q: any) => q.tipo_evaluacion === 'post');
+  const dominioPorConceptos = calcularDominioPorConceptos(quizzesPost, conceptosMap);
+
+  // Áreas fuertes y débiles
+  const conceptosOrdenados = [...dominioPorConceptos].sort((a, b) => b.porcentaje_logro - a.porcentaje_logro);
+  const areasFuertes = conceptosOrdenados.slice(0, 3).map(c => ({
+    concepto: c.concepto,
+    porcentaje: c.porcentaje_logro,
+  }));
+  const areasDificultad = conceptosOrdenados.slice(-3).reverse().map(c => ({
+    concepto: c.concepto,
+    porcentaje: c.porcentaje_logro,
+  }));
+
+  // Alumnos en riesgo (basado en POST)
+  const alumnosEnRiesgo = calcularAlumnosEnRiesgo(quizzesPost, alumnosSalon);
+  const porcentajeRiesgo = alumnosSalon.length > 0
+    ? Math.round((alumnosEnRiesgo.length / alumnosSalon.length) * 100)
+    : 0;
+
+  return {
+    participacion_promedio: participacionPromedio,
+    dominio_por_conceptos: dominioPorConceptos,
+    areas_fuertes: areasFuertes,
+    areas_dificultad: areasDificultad,
+    alumnos_riesgo: {
+      cantidad: alumnosEnRiesgo.length,
+      porcentaje: porcentajeRiesgo,
+    },
+  };
+}
+
+function calcularDominioPorConceptos(quizzes: any[], conceptosMap: Map<string, string>) {
+  const conceptosStats = new Map<string, { correctas: number; total: number }>();
+
+  quizzes.forEach((quiz: any) => {
+    (quiz.preguntas || []).forEach((pregunta: any) => {
+      const concepto = conceptosMap.get(pregunta.id) || 'Concepto no identificado';
+      
+      if (!conceptosStats.has(concepto)) {
+        conceptosStats.set(concepto, { correctas: 0, total: 0 });
+      }
+
+      const stats = conceptosStats.get(concepto)!;
+      
+      // Contar respuestas correctas para esta pregunta
+      (quiz.respuestas_alumno || []).forEach((respuesta: any) => {
+        if (respuesta.estado === 'completado') {
+          const detalle = (respuesta.respuestas_detalle || []).find(
+            (d: any) => d.id_pregunta === pregunta.id
+          );
+          if (detalle) {
+            stats.total++;
+            if (detalle.es_correcta) {
+              stats.correctas++;
+            }
+          }
+        }
+      });
+    });
+  });
+
+  const resultado: Array<{ concepto: string; porcentaje_logro: number; nivel_logro: string }> = [];
+  
+  conceptosStats.forEach((stats, concepto) => {
+    if (stats.total > 0) {
+      const porcentaje = Math.round((stats.correctas / stats.total) * 100);
+      resultado.push({
+        concepto,
+        porcentaje_logro: porcentaje,
+        nivel_logro: calcularNivelLogro(porcentaje),
+      });
+    }
+  });
+
+  return resultado;
+}
+
+function calcularAlumnosEnRiesgo(quizzes: any[], alumnosSalon: any[]): any[] {
+  const alumnosStats = new Map<string, { porcentajes: number[] }>();
+
+  alumnosSalon.forEach((alumno: any) => {
+    alumnosStats.set(alumno.id, { porcentajes: [] });
+  });
+
+  quizzes.forEach((quiz: any) => {
+    (quiz.respuestas_alumno || []).forEach((respuesta: any) => {
+      if (respuesta.estado === 'completado' && respuesta.calificaciones) {
+        const calificacion = Array.isArray(respuesta.calificaciones)
+          ? respuesta.calificaciones[0]
+          : respuesta.calificaciones;
+        
+        if (calificacion?.porcentaje_aciertos !== null && calificacion?.porcentaje_aciertos !== undefined) {
+          const stats = alumnosStats.get(respuesta.id_alumno);
+          if (stats) {
+            stats.porcentajes.push(Number(calificacion.porcentaje_aciertos));
+          }
+        }
+      }
+    });
+  });
+
+  const alumnosRiesgo: any[] = [];
+  
+  alumnosStats.forEach((stats, alumnoId) => {
+    if (stats.porcentajes.length > 0) {
+      const promedio = stats.porcentajes.reduce((sum, p) => sum + p, 0) / stats.porcentajes.length;
+      if (promedio < 50) {
+        const alumno = alumnosSalon.find((a: any) => a.id === alumnoId);
+        if (alumno) {
+          alumnosRiesgo.push({
+            id: alumno.id,
+            nombre: alumno.nombre,
+            apellido: alumno.apellido,
+            porcentaje: Math.round(promedio),
+          });
+        }
+      }
+    }
+  });
+
+  return alumnosRiesgo;
+}
+
+function calcularDatosPre(quizzesPre: any[], alumnosSalon: any[], conceptosMap: Map<string, string>) {
+  if (quizzesPre.length === 0) return null;
+
+  // Participación
+  const totalEsperado = alumnosSalon.length * quizzesPre.length;
+  const respuestasCompletadas = quizzesPre.reduce((sum, quiz) => {
+    return sum + (quiz.respuestas_alumno || []).filter((r: any) => r.estado === 'completado').length;
+  }, 0);
+  const porcentajeParticipacion = totalEsperado > 0
+    ? Math.round((respuestasCompletadas / totalEsperado) * 100)
+    : 0;
+
+  // Ausentes
+  const alumnosQueRespondieron = new Set<string>();
+  quizzesPre.forEach((quiz: any) => {
+    (quiz.respuestas_alumno || []).forEach((respuesta: any) => {
+      if (respuesta.estado === 'completado') {
+        alumnosQueRespondieron.add(respuesta.id_alumno);
+      }
+    });
+  });
+  const ausentes = alumnosSalon
+    .filter((a: any) => !alumnosQueRespondieron.has(a.id))
+    .map((a: any) => ({
+      id: a.id,
+      nombre: a.nombre,
+      apellido: a.apellido,
+    }));
+
+  // Nivel de preparación
+  const porcentajesAciertos: number[] = [];
+  quizzesPre.forEach((quiz: any) => {
+    (quiz.respuestas_alumno || []).forEach((respuesta: any) => {
+      if (respuesta.estado === 'completado' && respuesta.calificaciones) {
+        const calificacion = Array.isArray(respuesta.calificaciones)
+          ? respuesta.calificaciones[0]
+          : respuesta.calificaciones;
+        if (calificacion?.porcentaje_aciertos !== null && calificacion?.porcentaje_aciertos !== undefined) {
+          porcentajesAciertos.push(Number(calificacion.porcentaje_aciertos));
+        }
+      }
+    });
+  });
+  const promedioAciertos = porcentajesAciertos.length > 0
+    ? porcentajesAciertos.reduce((sum, p) => sum + p, 0) / porcentajesAciertos.length
+    : 0;
+
+  // Conceptos débiles
+  const conceptosDebiles = calcularConceptosDebiles(quizzesPre, conceptosMap);
+
+  // Alumnos en riesgo
+  const alumnosRiesgo = calcularAlumnosRiesgoPre(quizzesPre, alumnosSalon);
+
+  return {
+    participacion: {
+      porcentaje: porcentajeParticipacion,
+      ausentes: ausentes,
+    },
+    nivel_preparacion: {
+      porcentaje: Math.round(promedioAciertos),
+      clasificacion: clasificarPreparacion(promedioAciertos),
+    },
+    conceptos_debiles: conceptosDebiles,
+    alumnos_riesgo: alumnosRiesgo,
+  };
+}
+
+function calcularConceptosDebiles(quizzes: any[], conceptosMap: Map<string, string>) {
+  const conceptosStats = new Map<string, { correctas: number; total: number }>();
+
+  quizzes.forEach((quiz: any) => {
+    (quiz.preguntas || []).forEach((pregunta: any) => {
+      const concepto = conceptosMap.get(pregunta.id) || 'Concepto no identificado';
+      
+      if (!conceptosStats.has(concepto)) {
+        conceptosStats.set(concepto, { correctas: 0, total: 0 });
+      }
+
+      const stats = conceptosStats.get(concepto)!;
+      
+      (quiz.respuestas_alumno || []).forEach((respuesta: any) => {
+        if (respuesta.estado === 'completado') {
+          const detalle = (respuesta.respuestas_detalle || []).find(
+            (d: any) => d.id_pregunta === pregunta.id
+          );
+          if (detalle) {
+            stats.total++;
+            if (detalle.es_correcta) {
+              stats.correctas++;
+            }
+          }
+        }
+      });
+    });
+  });
+
+  const resultado: Array<{ concepto: string; porcentaje_acierto: number }> = [];
+  
+  conceptosStats.forEach((stats, concepto) => {
+    if (stats.total > 0) {
+      const porcentaje = Math.round((stats.correctas / stats.total) * 100);
+      resultado.push({ concepto, porcentaje_acierto: porcentaje });
+    }
+  });
+
+  // Ordenar por porcentaje (menor primero) y tomar top 5
+  return resultado.sort((a, b) => a.porcentaje_acierto - b.porcentaje_acierto).slice(0, 5);
+}
+
+function calcularAlumnosRiesgoPre(quizzes: any[], alumnosSalon: any[]) {
+  const alumnosStats = new Map<string, { porcentajes: number[] }>();
+
+  alumnosSalon.forEach((alumno: any) => {
+    alumnosStats.set(alumno.id, { porcentajes: [] });
+  });
+
+  quizzes.forEach((quiz: any) => {
+    (quiz.respuestas_alumno || []).forEach((respuesta: any) => {
+      if (respuesta.estado === 'completado' && respuesta.calificaciones) {
+        const calificacion = Array.isArray(respuesta.calificaciones)
+          ? respuesta.calificaciones[0]
+          : respuesta.calificaciones;
+        
+        if (calificacion?.porcentaje_aciertos !== null && calificacion?.porcentaje_aciertos !== undefined) {
+          const stats = alumnosStats.get(respuesta.id_alumno);
+          if (stats) {
+            stats.porcentajes.push(Number(calificacion.porcentaje_aciertos));
+          }
+        }
+      }
+    });
+  });
+
+  const alumnosRiesgo: any[] = [];
+  
+  alumnosStats.forEach((stats, alumnoId) => {
+    if (stats.porcentajes.length > 0) {
+      const promedio = stats.porcentajes.reduce((sum, p) => sum + p, 0) / stats.porcentajes.length;
+      if (promedio < 40) { // Preparación baja
+        const alumno = alumnosSalon.find((a: any) => a.id === alumnoId);
+        if (alumno) {
+          alumnosRiesgo.push({
+            id: alumno.id,
+            nombre: alumno.nombre,
+            apellido: alumno.apellido,
+            porcentaje: Math.round(promedio),
+          });
+        }
+      }
+    }
+  });
+
+  return alumnosRiesgo.sort((a, b) => a.porcentaje - b.porcentaje);
+}
+
+function calcularDatosPost(quizzesPost: any[], alumnosSalon: any[], conceptosMap: Map<string, string>) {
+  if (quizzesPost.length === 0) return null;
+
+  // Participación
+  const totalEsperado = alumnosSalon.length * quizzesPost.length;
+  const respuestasCompletadas = quizzesPost.reduce((sum, quiz) => {
+    return sum + (quiz.respuestas_alumno || []).filter((r: any) => r.estado === 'completado').length;
+  }, 0);
+  const porcentajeParticipacion = totalEsperado > 0
+    ? Math.round((respuestasCompletadas / totalEsperado) * 100)
+    : 0;
+
+  // Nivel de logro
+  const porcentajesAciertos: number[] = [];
+  quizzesPost.forEach((quiz: any) => {
+    (quiz.respuestas_alumno || []).forEach((respuesta: any) => {
+      if (respuesta.estado === 'completado' && respuesta.calificaciones) {
+        const calificacion = Array.isArray(respuesta.calificaciones)
+          ? respuesta.calificaciones[0]
+          : respuesta.calificaciones;
+        if (calificacion?.porcentaje_aciertos !== null && calificacion?.porcentaje_aciertos !== undefined) {
+          porcentajesAciertos.push(Number(calificacion.porcentaje_aciertos));
+        }
+      }
+    });
+  });
+  const promedioLogro = porcentajesAciertos.length > 0
+    ? porcentajesAciertos.reduce((sum, p) => sum + p, 0) / porcentajesAciertos.length
+    : 0;
+
+  // Distribución por niveles
+  const distribucion = {
+    riesgo: porcentajesAciertos.filter(p => p < 50).length,
+    suficiente: porcentajesAciertos.filter(p => p >= 50 && p < 75).length,
+    bueno: porcentajesAciertos.filter(p => p >= 75 && p < 90).length,
+    destacado: porcentajesAciertos.filter(p => p >= 90).length,
+  };
+
+  // Conceptos logrados
+  const conceptosLogrados = calcularConceptosLogrados(quizzesPost, conceptosMap);
+
+  // Alumnos que requieren apoyo
+  const alumnosApoyo = calcularAlumnosApoyo(quizzesPost, alumnosSalon);
+
+  return {
+    participacion: {
+      porcentaje: porcentajeParticipacion,
+    },
+    nivel_logro: {
+      promedio: Math.round(promedioLogro),
+      distribucion: distribucion,
+    },
+    conceptos_logrados: conceptosLogrados,
+    alumnos_apoyo: alumnosApoyo,
+  };
+}
+
+function calcularConceptosLogrados(quizzes: any[], conceptosMap: Map<string, string>) {
+  const conceptosStats = new Map<string, { correctas: number; total: number }>();
+
+  quizzes.forEach((quiz: any) => {
+    (quiz.preguntas || []).forEach((pregunta: any) => {
+      const concepto = conceptosMap.get(pregunta.id) || 'Concepto no identificado';
+      
+      if (!conceptosStats.has(concepto)) {
+        conceptosStats.set(concepto, { correctas: 0, total: 0 });
+      }
+
+      const stats = conceptosStats.get(concepto)!;
+      
+      (quiz.respuestas_alumno || []).forEach((respuesta: any) => {
+        if (respuesta.estado === 'completado') {
+          const detalle = (respuesta.respuestas_detalle || []).find(
+            (d: any) => d.id_pregunta === pregunta.id
+          );
+          if (detalle) {
+            stats.total++;
+            if (detalle.es_correcta) {
+              stats.correctas++;
+            }
+          }
+        }
+      });
+    });
+  });
+
+  const resultado: Array<{ concepto: string; porcentaje_logro: number; semaforo: string }> = [];
+  
+  conceptosStats.forEach((stats, concepto) => {
+    if (stats.total > 0) {
+      const porcentaje = Math.round((stats.correctas / stats.total) * 100);
+      resultado.push({
+        concepto,
+        porcentaje_logro: porcentaje,
+        semaforo: calcularSemaforo(porcentaje),
+      });
+    }
+  });
+
+  return resultado.sort((a, b) => b.porcentaje_logro - a.porcentaje_logro);
+}
+
+function calcularAlumnosApoyo(quizzes: any[], alumnosSalon: any[]) {
+  const alumnosStats = new Map<string, { porcentajes: number[] }>();
+
+  alumnosSalon.forEach((alumno: any) => {
+    alumnosStats.set(alumno.id, { porcentajes: [] });
+  });
+
+  quizzes.forEach((quiz: any) => {
+    (quiz.respuestas_alumno || []).forEach((respuesta: any) => {
+      if (respuesta.estado === 'completado' && respuesta.calificaciones) {
+        const calificacion = Array.isArray(respuesta.calificaciones)
+          ? respuesta.calificaciones[0]
+          : respuesta.calificaciones;
+        
+        if (calificacion?.porcentaje_aciertos !== null && calificacion?.porcentaje_aciertos !== undefined) {
+          const stats = alumnosStats.get(respuesta.id_alumno);
+          if (stats) {
+            stats.porcentajes.push(Number(calificacion.porcentaje_aciertos));
+          }
+        }
+      }
+    });
+  });
+
+  const alumnosApoyo: any[] = [];
+  
+  alumnosStats.forEach((stats, alumnoId) => {
+    if (stats.porcentajes.length > 0) {
+      const promedio = stats.porcentajes.reduce((sum, p) => sum + p, 0) / stats.porcentajes.length;
+      if (promedio < 50) { // En riesgo
+        const alumno = alumnosSalon.find((a: any) => a.id === alumnoId);
+        if (alumno) {
+          alumnosApoyo.push({
+            id: alumno.id,
+            nombre: alumno.nombre,
+            apellido: alumno.apellido,
+            porcentaje: Math.round(promedio),
+          });
+        }
+      }
+    }
+  });
+
+  return alumnosApoyo.sort((a, b) => a.porcentaje - b.porcentaje);
+}
+
+function generarRecomendaciones(datosPre: any, datosPost: any, conceptosMap: Map<string, string>) {
+  const recomendacionesPre: Array<{ recomendacion: string; sugerencia: string }> = [];
+  const recomendacionesPost: Array<{ recomendacion: string; sugerencia: string; tipo: string; evidencia?: string }> = [];
+
+  // Recomendaciones PRE
+  if (datosPre) {
+    // Basadas en conceptos débiles
+    datosPre.conceptos_debiles.slice(0, 3).forEach((concepto: any) => {
+      recomendacionesPre.push({
+        recomendacion: `Refuerza el concepto de ${concepto.concepto}.`,
+        sugerencia: `El grupo muestra solo ${concepto.porcentaje_acierto}% de aciertos en este concepto. Considera activar conocimientos previos o usar ejemplos visuales antes de abordar el tema.`,
+      });
+    });
+
+    // Basadas en alumnos en riesgo
+    if (datosPre.alumnos_riesgo.length > 0) {
+      const nombres = datosPre.alumnos_riesgo.slice(0, 3).map((a: any) => a.nombre).join(', ');
+      recomendacionesPre.push({
+        recomendacion: `Atiende a los alumnos con bajo diagnóstico durante actividades grupales.`,
+        sugerencia: `Los alumnos ${nombres} mostraron preparación baja (<40%). Asigna roles que les permitan observar y luego responder preguntas guiadas.`,
+      });
+    }
+  }
+
+  // Recomendaciones POST
+  if (datosPost) {
+    // Tipo: Refuerzo
+    datosPost.conceptos_logrados
+      .filter((c: any) => c.semaforo === 'rojo' || c.semaforo === 'amarillo')
+      .slice(0, 2)
+      .forEach((concepto: any) => {
+        recomendacionesPost.push({
+          recomendacion: `Fortalece la comprensión de ${concepto.concepto}.`,
+          sugerencia: `Incluye un mini-ejercicio de refuerzo sobre este concepto durante el calentamiento de la siguiente clase.`,
+          tipo: 'refuerzo',
+        });
+      });
+
+    // Tipo: Evaluación guía
+    datosPost.conceptos_logrados
+      .filter((c: any) => c.semaforo === 'verde')
+      .slice(0, 1)
+      .forEach((concepto: any) => {
+        recomendacionesPost.push({
+          recomendacion: `La explicación sobre ${concepto.concepto} fue efectiva.`,
+          sugerencia: `El ${concepto.porcentaje_logro}% de alumnos lograron responder correctamente. Considera mantener este enfoque para conceptos similares.`,
+          tipo: 'evaluacion_guia',
+          evidencia: `${concepto.porcentaje_logro}% de aciertos`,
+        });
+      });
+  }
+
+  return {
+    pre: recomendacionesPre.slice(0, 5),
+    post: recomendacionesPost.slice(0, 5),
+  };
+}
