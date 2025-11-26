@@ -128,17 +128,18 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const enfoque = tipo === 'pre' ? 'teórico' : 'aplicación y análisis';
 
     // Build AI prompt
-    const systemPrompt = `Eres un experto en evaluación educativa y pensamiento crítico.
-Genera preguntas de evaluación que midan habilidades de pensamiento crítico.
-Para quiz PRE: enfócate en conocimientos teóricos básicos (máximo 3 preguntas, 5 minutos).
-Para quiz POST: incluye análisis, aplicación y razonamiento (5-10 preguntas, 15 minutos).`;
+    const systemPrompt = `Eres un experto en evaluación educativa, pedagogía y diseño instruccional.
+Tu tarea es generar contenido teórico central y preguntas que midan comprensión profunda y pensamiento crítico.
+Para quiz PRE: crea la TEORÍA FUNDAMENTAL del tema (150-250 palabras) con definiciones clave, conceptos esenciales y principios que el estudiante debe memorizar, seguido de 3 preguntas teóricas básicas (5 minutos).
+Para quiz POST: presenta teoría avanzada y genera preguntas de análisis, aplicación y razonamiento (5-10 preguntas, 15 minutos).
+El texto teórico debe ser preciso, educativo y estructurado pedagógicamente.`;
 
     const complexity = tipo === 'pre' ? 'básico' : 'avanzado';
     const guideContext = buildGuideContext(guideVersion);
 const userPrompt = `Necesito preparar un quiz ${tipo === 'pre' ? 'PRE (diagnóstico)' : 'POST (sumativo)'} para una clase.
 Debes producir un JSON con dos partes:
 {
-  "lectura": "Párrafo de máximo 120 palabras que introduzca el tema al estudiante en un tono amigable",
+  "lectura": "Texto de 150-250 palabras con la TEORÍA CENTRAL del tema: definiciones clave, conceptos fundamentales, principios o fórmulas esenciales que el estudiante debe comprender y memorizar",
   "preguntas": [
     {
       "texto_pregunta": "...",
@@ -163,18 +164,24 @@ ${guideVersion.objetivos}
 Contexto detallado de la guía (teoría central, estructura y preguntas guía):
 ${guideContext}
 
-La lectura debe:
-- Preparar cognitivamente al estudiante para el quiz
-- Mencionar al menos un ejemplo concreto relacionado al tema
+CRÍTICO - La "lectura" debe ser el CORAZÓN TEÓRICO de la clase (150-250 palabras):
+- Incluir las definiciones clave y conceptos fundamentales del tema
+- Presentar los principios, fórmulas, reglas o leyes esenciales
+- Ser la síntesis de lo que el estudiante DEBE memorizar y comprender profundamente
+- Usar un lenguaje claro, preciso y apropiado para el grupo de edad
+- Estructurar la información de forma lógica y pedagógica (de lo básico a lo específico)
+- Ser técnicamente rigurosa pero accesible
+- NO debe ser una simple introducción amigable, sino el contenido teórico nuclear de la lección
 
 Las preguntas deben:
-- Evaluar pensamiento crítico (análisis, razonamiento, aplicación)
+- Evaluar la comprensión de la teoría presentada en la lectura
+- Medir pensamiento crítico (análisis, razonamiento, aplicación)
 - Ser apropiadas para el nivel ${complexity}
 ${tipo === 'pre' 
-  ? '- Enfocarse en conocimientos teóricos básicos del tema\n- Ser breves y directas (máximo 3 preguntas)' 
-  : '- Ser más desafiantes que una evaluación pre\n- Incluir análisis profundo y aplicación práctica'}
-- Conectar explícitamente su enunciado con el corazón teórico descrito arriba (menciona situaciones, materiales o ejemplos alineados a la guía)
-- Incluir retroalimentación automática específica para cada respuesta
+  ? '- Enfocarse en conocimientos teóricos básicos del tema\n- Ser breves y directas (máximo 3 preguntas)\n- Verificar que el estudiante comprendió los conceptos clave de la lectura' 
+  : '- Ser más desafiantes que una evaluación pre\n- Incluir análisis profundo y aplicación práctica de la teoría'}
+- Conectar explícitamente con los conceptos teóricos presentados en la lectura
+- Incluir retroalimentación automática específica que refuerce el aprendizaje teórico
 ${tipo === 'pre' ? '- Tiempo estimado: 5 minutos total' : '- Tiempo estimado: 15 minutos total'}
 
 Mantén el formato JSON descrito anteriormente sin texto adicional.`;
