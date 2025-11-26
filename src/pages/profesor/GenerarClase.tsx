@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Brain, Loader2, FileText, CheckCircle2, AlertCircle, Target, Clock, Plus, X, ChevronDown } from "lucide-react";
+import { Brain, Loader2, FileText, CheckCircle2, AlertCircle, Target, Clock, Plus, X, ChevronDown, Lock, Monitor, Clipboard, Globe, Smartphone, Blocks, Book } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { ProgressBar } from "@/components/profesor/ProgressBar";
@@ -35,15 +38,33 @@ const METODOLOGIAS = [
 
 const EDAD_GRUPOS = ["5-6", "7-8", "9-10", "11-12", "13-14", "15-16", "17+"];
 
-const RECURSOS_OPTIONS = [
-  { value: "proyector_tv", label: "Proyector/TV" },
-  { value: "pizarra", label: "Pizarra" },
-  { value: "internet", label: "Internet" },
-  { value: "dispositivos_alumnos", label: "Dispositivos de los alumnos" },
-  { value: "material_concreto", label: "Material concreto" },
-  { value: "libros", label: "Libros" },
-  { value: "otro", label: "Otro" },
+const EDADES_MEJORADAS = [
+  { value: "5-6", label: "5-6 años", nivel: "Preescolar/1° Básico", icon: "🎨" },
+  { value: "7-8", label: "7-8 años", nivel: "2°-3° Básico", icon: "📚" },
+  { value: "9-10", label: "9-10 años", nivel: "4°-5° Básico", icon: "🔬" },
+  { value: "11-12", label: "11-12 años", nivel: "6°-7° Básico", icon: "💡" },
+  { value: "13-14", label: "13-14 años", nivel: "8° Básico - 1° Medio", icon: "🎯" },
+  { value: "15-16", label: "15-16 años", nivel: "2°-3° Medio", icon: "📊" },
+  { value: "17+", label: "17+ años", nivel: "4° Medio / Superior", icon: "🎓" },
 ] as const;
+
+const RECURSOS_OPTIONS = [
+  { value: "proyector_tv", label: "Proyector/TV", icon: Monitor },
+  { value: "pizarra", label: "Pizarra", icon: Clipboard },
+  { value: "internet", label: "Internet", icon: Globe },
+  { value: "dispositivos_alumnos", label: "Dispositivos de los alumnos", icon: Smartphone },
+  { value: "material_concreto", label: "Material concreto", icon: Blocks },
+  { value: "libros", label: "Libros", icon: Book },
+  { value: "otro", label: "Otro", icon: Plus },
+] as const;
+
+const DESCRIPCIONES_METODOLOGIAS: Record<string, string> = {
+  "Aprendizaje Basado en Casos": "Análisis de situaciones reales para desarrollar habilidades de resolución de problemas.",
+  "Método Socrático": "Diálogo guiado con preguntas para que los estudiantes descubran el conocimiento por sí mismos.",
+  "Resolución de Problemas": "Enfoque estructurado para abordar desafíos paso a paso.",
+  "Debate Estructurado": "Discusión organizada que fomenta el pensamiento crítico y la argumentación.",
+  "Análisis Comparativo": "Comparación sistemática de conceptos, ideas o situaciones para identificar similitudes y diferencias.",
+};
 
 const ADAPTACIONES_OPTIONS = [
   { value: "ninguna", label: "Ninguna" },
@@ -68,6 +89,7 @@ export default function GenerarClase() {
   const [metodologiasSeleccionadas, setMetodologiasSeleccionadas] = useState<string[]>([]);
   const [edadSeleccionada, setEdadSeleccionada] = useState("");
   const [claseId, setClaseId] = useState<string | null>(claseIdParam);
+  const [errores, setErrores] = useState<Record<string, string>>({});
   
   const [formData, setFormData] = useState({
     id_tema: temaId || "",
@@ -380,6 +402,8 @@ export default function GenerarClase() {
         updated = updated.filter((item) => item !== value);
       } else if (value === "ninguna") {
         updated = ["ninguna"];
+        // Limpiar adaptacionOtra cuando se selecciona "ninguna"
+        return { ...prev, adaptacionesSeleccionadas: updated, adaptacionOtra: "" };
       } else {
         updated = updated.filter((item) => item !== "ninguna");
         updated.push(value);
@@ -393,17 +417,36 @@ export default function GenerarClase() {
     });
   };
 
-  const toggleMetodologia = (metodologia: string) => {
-    if (metodologiasSeleccionadas.includes(metodologia)) {
-      setMetodologiasSeleccionadas(metodologiasSeleccionadas.filter(m => m !== metodologia));
+  const validarCampo = (campo: string, valor: any) => {
+    const nuevosErrores = { ...errores };
+    
+    if (campo === 'metodologias' && (!valor || valor.length === 0)) {
+      nuevosErrores.metodologias = "Selecciona al menos una metodología";
+    } else if (campo === 'edad' && !valor) {
+      nuevosErrores.edad = "Selecciona un grupo de edad";
+    } else if (campo === 'tema' && !valor) {
+      nuevosErrores.tema = "Selecciona un tema";
+    } else if (campo === 'grupo' && !valor) {
+      nuevosErrores.grupo = "Selecciona un grupo";
     } else {
-      setMetodologiasSeleccionadas([...metodologiasSeleccionadas, metodologia]);
+      delete nuevosErrores[campo];
     }
+    
+    setErrores(nuevosErrores);
+  };
+
+  const toggleMetodologia = (metodologia: string) => {
+    const nuevasMetodologias = metodologiasSeleccionadas.includes(metodologia)
+      ? metodologiasSeleccionadas.filter(m => m !== metodologia)
+      : [...metodologiasSeleccionadas, metodologia];
+    
+    setMetodologiasSeleccionadas(nuevasMetodologias);
+    validarCampo('metodologias', nuevasMetodologias);
   };
 
   const handleNextStep = async () => {
     if (currentStep === 1) {
-      if (!formData.id_tema || !formData.id_grupo || !edadSeleccionada || metodologiasSeleccionadas.length === 0) {
+      if (!formData.id_tema || !formData.id_grupo || !edadSeleccionada || metodologiasSeleccionadas.length === 0 || !formData.contextoEspecifico.trim()) {
         toast.error("Por favor completa los campos obligatorios");
         return;
       }
@@ -597,6 +640,33 @@ export default function GenerarClase() {
     [metodologiasSeleccionadas]
   );
 
+  const seccion1Completa = useMemo(() => {
+    return !!formData.id_tema && !!formData.id_grupo && 
+           !!formData.fecha_programada && !!formData.duracionClase;
+  }, [formData.id_tema, formData.id_grupo, formData.fecha_programada, formData.duracionClase]);
+
+  const seccion2Completa = useMemo(() => {
+    return !!edadSeleccionada && formData.adaptacionesSeleccionadas.length > 0;
+  }, [edadSeleccionada, formData.adaptacionesSeleccionadas]);
+
+  const seccion3Completa = useMemo(() => {
+    return metodologiasSeleccionadas.length > 0;
+  }, [metodologiasSeleccionadas]);
+
+  const progresoStep1 = useMemo(() => {
+    const camposObligatorios = [
+      !!formData.id_tema,
+      !!formData.id_grupo,
+      !!formData.fecha_programada,
+      !!formData.duracionClase,
+      metodologiasSeleccionadas.length > 0,
+      !!edadSeleccionada,
+      !!formData.contextoEspecifico.trim(),
+    ];
+    const completados = camposObligatorios.filter(Boolean).length;
+    return (completados / camposObligatorios.length) * 100;
+  }, [formData, metodologiasSeleccionadas, edadSeleccionada]);
+
   const handleAgregarMetodologiaPersonalizada = () => {
     const nueva = metodologiaPersonalizada.trim();
     if (!nueva) {
@@ -613,371 +683,467 @@ export default function GenerarClase() {
 
   const renderStep1 = () => (
     <div className="space-y-6">
-      {/* Datos Preliminares de la Sesión */}
-      {esSesionPreprogramada && datosPreliminares && (
-        <Card className="bg-green-50 border-green-200">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-3">
-              <FileText className="h-5 w-5 text-green-600 mt-0.5" />
-              <div className="flex-1">
-                <h3 className="font-semibold text-green-900 mb-2">Datos Preliminares de la Sesión {claseData?.numero_sesion}</h3>
-                {datosPreliminares.titulo_preliminar && (
-                  <div className="mb-2">
-                    <p className="text-sm font-medium text-green-800">Título Preliminar:</p>
-                    <p className="text-sm text-green-700">{datosPreliminares.titulo_preliminar}</p>
-                  </div>
-                )}
-                {datosPreliminares.contexto_preliminar && (
-                  <div className="mb-2">
-                    <p className="text-sm font-medium text-green-800">Contexto Preliminar:</p>
-                    <p className="text-sm text-green-700">{datosPreliminares.contexto_preliminar}</p>
-                  </div>
-                )}
-                {datosPreliminares.duracion_sugerida && (
-                  <div>
-                    <p className="text-sm font-medium text-green-800">Duración Sugerida:</p>
-                    <p className="text-sm text-green-700">{datosPreliminares.duracion_sugerida} minutos</p>
-                  </div>
-                )}
-                <p className="text-xs text-green-600 mt-2 italic">
-                  Estos datos preliminares se usarán como referencia al generar la guía de clase específica.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Session Recommendation */}
+      {/* Banner de Recomendación */}
       {temaData && sesionesRecomendadas > 1 && !esSesionPreprogramada && (
-        <Card className="bg-blue-50 border-blue-200">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
-              <div>
-                <h3 className="font-semibold text-blue-900 mb-1">Recomendación de Sesiones</h3>
-                <p className="text-sm text-blue-800">
-                  Este tema tiene una duración estimada de <strong>{sesionesRecomendadas} semanas</strong>.
-                  Se recomienda crear <strong>{sesionesRecomendadas} sesiones/clases</strong> para cubrir todo el contenido.
-                </p>
-                <p className="text-xs text-blue-700 mt-2">
-                  Puedes crear las sesiones restantes desde el dashboard después de crear esta primera.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="bg-blue-50/50 border-l-4 border-blue-400 px-4 py-2 mb-4 rounded-r">
+          <p className="text-sm text-blue-800">
+            <strong>💡 Recomendación:</strong> Este tema sugiere {sesionesRecomendadas} sesiones para cubrir todo el contenido.
+          </p>
+        </div>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <div>
-          <Label>Tema *</Label>
-          {esSesionPreprogramada && claseData ? (
-            <div className="p-3 rounded-md border bg-muted flex items-center justify-between">
+      {/* Banner de Datos Preliminares */}
+      {esSesionPreprogramada && datosPreliminares && (
+        <div className="bg-green-50/50 border-l-4 border-green-400 px-4 py-2 mb-4 rounded-r">
+          <p className="text-sm text-green-800">
+            <strong>📋 Datos Preliminares Sesión {claseData?.numero_sesion}:</strong>{" "}
+            {datosPreliminares.duracion_sugerida && `Duración sugerida: ${datosPreliminares.duracion_sugerida} min`}
+            {datosPreliminares.titulo_preliminar && ` • ${datosPreliminares.titulo_preliminar}`}
+          </p>
+        </div>
+      )}
+
+      {/* Barra de Progreso */}
+      <Card className="mb-6">
+        <CardHeader>
+          <div className="space-y-2">
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>Progreso del formulario</span>
+              <span>{Math.round(progresoStep1)}% completado</span>
+            </div>
+            <Progress value={progresoStep1} className="h-1.5" />
+          </div>
+        </CardHeader>
+      </Card>
+
+      <Accordion type="multiple" defaultValue={["seccion-1"]} className="w-full">
+        {/* SECCIÓN 1: Información Básica */}
+        <AccordionItem value="seccion-1">
+          <AccordionTrigger>
+            <div className="flex items-center gap-2">
+              <span>📚 Información Básica</span>
+              {seccion1Completa ? (
+                <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">
+                  <CheckCircle2 className="h-3 w-3 mr-1" /> Completo
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="text-muted-foreground">
+                  {[
+                    !!formData.id_tema,
+                    !!formData.id_grupo,
+                    !!formData.fecha_programada,
+                    !!formData.duracionClase,
+                  ].filter(Boolean).length}/4 campos
+                </Badge>
+              )}
+            </div>
+          </AccordionTrigger>
+          <AccordionContent>
+            <div className="grid gap-4 md:grid-cols-2 pt-4">
               <div>
-                <p className="text-sm font-medium">{claseData.temas?.nombre}</p>
-                {claseData.temas?.descripcion && (
-                  <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                    {claseData.temas.descripcion}
+                <Label>Tema *</Label>
+                {esSesionPreprogramada && claseData ? (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="p-3 rounded-md border bg-muted/50 flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium">{claseData.temas?.nombre}</p>
+                            {claseData.temas?.descripcion && (
+                              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                                {claseData.temas.descripcion}
+                              </p>
+                            )}
+                          </div>
+                          <Badge variant="secondary" className="flex items-center gap-1">
+                            <Lock className="h-3 w-3" />
+                            Fijo
+                          </Badge>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="text-xs">Este campo viene de la sesión programada y no se puede modificar</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ) : (
+                  <>
+                    <Select 
+                      value={formData.id_tema} 
+                      onValueChange={(val) => {
+                        setFormData({ ...formData, id_tema: val });
+                        validarCampo('tema', val);
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecciona un tema" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {temaData ? (
+                          <SelectItem value={temaData.id}>{temaData.nombre}</SelectItem>
+                        ) : (
+                          <>
+                            <SelectItem value="tema-1">Álgebra Básica</SelectItem>
+                            <SelectItem value="tema-2">Comprensión Lectora</SelectItem>
+                          </>
+                        )}
+                      </SelectContent>
+                    </Select>
+                    {temaData && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {temaData.descripcion || 'Sin descripción'}
+                      </p>
+                    )}
+                    {errores.tema && (
+                      <p className="text-xs text-destructive flex items-center gap-1 mt-1">
+                        <AlertCircle className="h-3 w-3" />
+                        {errores.tema}
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+
+              <div>
+                <Label>Grupo *</Label>
+                {esSesionPreprogramada && claseData ? (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="p-3 rounded-md border bg-muted/50 flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium">{claseData.grupos?.nombre}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {claseData.grupos?.grado}° • Sección {claseData.grupos?.seccion}
+                            </p>
+                          </div>
+                          <Badge variant="secondary" className="flex items-center gap-1">
+                            <Lock className="h-3 w-3" />
+                            Fijo
+                          </Badge>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="text-xs">Este campo viene de la sesión programada y no se puede modificar</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ) : (
+                  <>
+                    <Select 
+                      value={formData.id_grupo} 
+                      onValueChange={(val) => {
+                        setFormData({ ...formData, id_grupo: val });
+                        validarCampo('grupo', val);
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecciona un grupo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(gruposData || []).map((grupo: any) => (
+                          <SelectItem key={grupo.id} value={grupo.id}>
+                            {grupo.nombre} - {grupo.grado}° {grupo.seccion}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {errores.grupo && (
+                      <p className="text-xs text-destructive flex items-center gap-1 mt-1">
+                        <AlertCircle className="h-3 w-3" />
+                        {errores.grupo}
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+
+              <div>
+                <Label>Fecha Programada *</Label>
+                <Input
+                  type="date"
+                  value={formData.fecha_programada}
+                  onChange={(e) => setFormData({ ...formData, fecha_programada: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <Label>Duración de la Clase (minutos) *</Label>
+                <Input
+                  type="number"
+                  value={formData.duracionClase}
+                  onChange={(e) => setFormData({ ...formData, duracionClase: e.target.value })}
+                />
+                {esSesionPreprogramada && datosPreliminares?.duracion_sugerida && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Sugerido: {datosPreliminares.duracion_sugerida} minutos
                   </p>
                 )}
               </div>
-              <Badge variant="outline">Bloqueado</Badge>
             </div>
-          ) : (
-            <>
-              <Select value={formData.id_tema} onValueChange={(val) => setFormData({ ...formData, id_tema: val })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona un tema" />
-                </SelectTrigger>
-                <SelectContent>
-                  {temaData ? (
-                    <SelectItem value={temaData.id}>{temaData.nombre}</SelectItem>
-                  ) : (
-                    <>
-                      <SelectItem value="tema-1">Álgebra Básica</SelectItem>
-                      <SelectItem value="tema-2">Comprensión Lectora</SelectItem>
-                    </>
-                  )}
-                </SelectContent>
-              </Select>
-              {temaData && (
+          </AccordionContent>
+        </AccordionItem>
+
+        {/* SECCIÓN 2: Perfil del Grupo */}
+        <AccordionItem value="seccion-2">
+          <AccordionTrigger>
+            <div className="flex items-center gap-2">
+              <span>🎯 Perfil del Grupo</span>
+              {seccion2Completa ? (
+                <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">
+                  <CheckCircle2 className="h-3 w-3 mr-1" /> Completo
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="text-muted-foreground">
+                  {[!!edadSeleccionada, formData.adaptacionesSeleccionadas.length > 0].filter(Boolean).length}/2 campos
+                </Badge>
+              )}
+            </div>
+          </AccordionTrigger>
+          <AccordionContent>
+            <div className="space-y-6 pt-4">
+              <div>
+                <Label>Grupo de Edad *</Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
+                  {EDADES_MEJORADAS.map((edad) => (
+                    <button
+                      key={edad.value}
+                      type="button"
+                      onClick={() => {
+                        setEdadSeleccionada(edad.value);
+                        validarCampo('edad', edad.value);
+                      }}
+                      className={`p-4 rounded-lg border-2 text-left transition-all ${
+                        edadSeleccionada === edad.value
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border hover:border-primary/50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-2xl">{edad.icon}</span>
+                        <span className="font-medium">{edad.label}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">{edad.nivel}</p>
+                    </button>
+                  ))}
+                </div>
+                {errores.edad && (
+                  <p className="text-xs text-destructive flex items-center gap-1 mt-2">
+                    <AlertCircle className="h-3 w-3" />
+                    {errores.edad}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <Label>Inclusión y adaptaciones</Label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Selecciona necesidades del grupo que debas considerar. Puedes elegir varias.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {ADAPTACIONES_OPTIONS.map((opcion) => (
+                    <Badge
+                      key={opcion.value}
+                      variant={formData.adaptacionesSeleccionadas.includes(opcion.value) ? "default" : "outline"}
+                      className="cursor-pointer hover:bg-primary/10 transition-colors py-1.5 px-3"
+                      onClick={() => toggleAdaptacion(opcion.value)}
+                    >
+                      {opcion.label}
+                    </Badge>
+                  ))}
+                </div>
+                {formData.adaptacionesSeleccionadas.includes("otro") && (
+                  <Input
+                    placeholder="Describe la adaptación adicional"
+                    value={formData.adaptacionOtra}
+                    onChange={(e) => setFormData({ ...formData, adaptacionOtra: e.target.value })}
+                    className="mt-3"
+                  />
+                )}
+              </div>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+
+        {/* SECCIÓN 3: Enfoque Pedagógico */}
+        <AccordionItem value="seccion-3">
+          <AccordionTrigger>
+            <div className="flex items-center gap-2">
+              <span>🧠 Enfoque Pedagógico</span>
+              {seccion3Completa ? (
+                <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">
+                  <CheckCircle2 className="h-3 w-3 mr-1" /> Completo
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="text-muted-foreground">
+                  {metodologiasSeleccionadas.length > 0 ? "1/3 campos" : "0/3 campos"}
+                </Badge>
+              )}
+            </div>
+          </AccordionTrigger>
+          <AccordionContent>
+            <div className="space-y-6 pt-4">
+              <div>
+                <Label>Objetivo Específico de esta Sesión</Label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Define qué quieres lograr en esta sesión en particular (ej.: introducción, práctica guiada, repaso, etc.).
+                </p>
+                <Input
+                  placeholder="Ej: Práctica guiada de problemas con material concreto"
+                  value={formData.objetivoEspecifico}
+                  onChange={(e) => setFormData({ ...formData, objetivoEspecifico: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <Label>Metodologías de Pensamiento Crítico *</Label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Selecciona una o más metodologías que utilizarás en esta clase.
+                </p>
+                <TooltipProvider>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {METODOLOGIAS.map((met) => (
+                      <Tooltip key={met}>
+                        <TooltipTrigger asChild>
+                          <Badge
+                            variant={metodologiasSeleccionadas.includes(met) ? "default" : "outline"}
+                            className="cursor-pointer hover:bg-primary/10 transition-colors"
+                            onClick={() => toggleMetodologia(met)}
+                          >
+                            {met}
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="max-w-xs text-xs">
+                            {DESCRIPCIONES_METODOLOGIAS[met] || "Metodología de pensamiento crítico"}
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    ))}
+                    {customMetodologias.map((met) => (
+                      <Badge
+                        key={met}
+                        variant={metodologiasSeleccionadas.includes(met) ? "default" : "outline"}
+                        className="cursor-pointer hover:bg-primary/10 transition-colors"
+                        onClick={() => toggleMetodologia(met)}
+                      >
+                        {met}
+                      </Badge>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 border border-dashed"
+                      onClick={() => setMostrarInputMetodologia(true)}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Otra
+                    </Button>
+                  </div>
+                </TooltipProvider>
+                {mostrarInputMetodologia && (
+                  <div className="flex flex-col gap-2 mt-3 md:flex-row">
+                    <Input
+                      autoFocus
+                      placeholder="Nombre de la metodología"
+                      value={metodologiaPersonalizada}
+                      onChange={(e) => setMetodologiaPersonalizada(e.target.value)}
+                    />
+                    <div className="flex gap-2">
+                      <Button type="button" onClick={handleAgregarMetodologiaPersonalizada}>
+                        Agregar
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => {
+                          setMostrarInputMetodologia(false);
+                          setMetodologiaPersonalizada("");
+                        }}
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                {errores.metodologias && (
+                  <p className="text-xs text-destructive flex items-center gap-1 mt-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {errores.metodologias}
+                  </p>
+                )}
+                {!errores.metodologias && metodologiasSeleccionadas.length === 0 && (
+                  <p className="text-xs text-destructive mt-1">Selecciona al menos una metodología</p>
+                )}
+              </div>
+
+              <div>
+                <Label>Recursos disponibles</Label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Indica qué recursos tendrás disponibles durante la sesión.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {RECURSOS_OPTIONS.map((recurso) => {
+                    const Icon = recurso.icon;
+                    return (
+                      <Badge
+                        key={recurso.value}
+                        variant={formData.recursosSeleccionados.includes(recurso.value) ? "default" : "outline"}
+                        className="cursor-pointer hover:bg-primary/10 transition-colors py-1.5 px-3 flex items-center gap-1.5"
+                        onClick={() => toggleRecurso(recurso.value)}
+                      >
+                        <Icon className="h-3.5 w-3.5" />
+                        {recurso.label}
+                      </Badge>
+                    );
+                  })}
+                </div>
+                {formData.recursosSeleccionados.includes("otro") && (
+                  <Input
+                    placeholder="Describe el recurso adicional"
+                    value={formData.recursoOtro}
+                    onChange={(e) => setFormData({ ...formData, recursoOtro: e.target.value })}
+                    className="mt-3"
+                  />
+                )}
+              </div>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+
+        {/* SECCIÓN 4: Contexto Adicional */}
+        <AccordionItem value="seccion-4">
+          <AccordionTrigger>
+            <div className="flex items-center gap-2">
+              <span>📝 Contexto Adicional</span>
+              <Badge variant="outline" className="text-muted-foreground">
+                {formData.contextoEspecifico.trim() ? "Completo" : "Opcional"}
+              </Badge>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent>
+            <div className="pt-4">
+              <Label>Contexto Específico *</Label>
+              <p className="text-xs text-muted-foreground mb-2">
+                Describe el contexto particular de tus estudiantes, sus necesidades, conocimientos previos, o cualquier información relevante.
+              </p>
+              <Textarea
+                value={formData.contextoEspecifico}
+                onChange={(e) => setFormData({ ...formData, contextoEspecifico: e.target.value })}
+                rows={5}
+                placeholder="Ejemplo: Los estudiantes tienen conocimientos básicos de álgebra pero necesitan reforzar la resolución de ecuaciones..."
+                className="resize-none"
+              />
+              {formData.contextoEspecifico.length > 0 && (
                 <p className="text-xs text-muted-foreground mt-1">
-                  {temaData.descripcion || 'Sin descripción'}
+                  {formData.contextoEspecifico.length} caracteres
                 </p>
               )}
-            </>
-          )}
-        </div>
-
-        <div>
-          <Label>Grupo *</Label>
-          {esSesionPreprogramada && claseData ? (
-            <div className="p-3 rounded-md border bg-muted flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium">{claseData.grupos?.nombre}</p>
-                <p className="text-xs text-muted-foreground">
-                  {claseData.grupos?.grado}° • Sección {claseData.grupos?.seccion}
-                </p>
-              </div>
-              <Badge variant="outline">Bloqueado</Badge>
             </div>
-          ) : (
-            <Select value={formData.id_grupo} onValueChange={(val) => setFormData({ ...formData, id_grupo: val })}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecciona un grupo" />
-              </SelectTrigger>
-              <SelectContent>
-                {(gruposData || []).map((grupo: any) => (
-                  <SelectItem key={grupo.id} value={grupo.id}>
-                    {grupo.nombre} - {grupo.grado}° {grupo.seccion}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        </div>
-
-        <div>
-          <Label>Fecha Programada *</Label>
-          <Input
-            type="date"
-            value={formData.fecha_programada}
-            onChange={(e) => setFormData({ ...formData, fecha_programada: e.target.value })}
-          />
-        </div>
-
-        <div>
-          <Label>Duración de la Clase (minutos) *</Label>
-          <Input
-            type="number"
-            value={formData.duracionClase}
-            onChange={(e) => setFormData({ ...formData, duracionClase: e.target.value })}
-          />
-          {esSesionPreprogramada && datosPreliminares?.duracion_sugerida && (
-            <p className="text-xs text-muted-foreground mt-1">
-              Sugerido: {datosPreliminares.duracion_sugerida} minutos
-            </p>
-          )}
-        </div>
-      </div>
-
-      <div>
-        <Label>Grupo de Edad *</Label>
-        <div className="grid grid-cols-3 md:grid-cols-4 gap-2 mt-2">
-          {EDAD_GRUPOS.map((edad) => (
-            <Button
-              key={edad}
-              variant={edadSeleccionada === edad ? "default" : "outline"}
-              onClick={() => setEdadSeleccionada(edad)}
-            >
-              {edad}
-            </Button>
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <Label>Objetivo Específico de esta Sesión</Label>
-        <p className="text-xs text-muted-foreground mb-2">
-          Define qué quieres lograr en esta sesión en particular (ej.: introducción, práctica guiada, repaso, etc.).
-        </p>
-        <Input
-          placeholder="Ej: Práctica guiada de problemas con material concreto"
-          value={formData.objetivoEspecifico}
-          onChange={(e) => setFormData({ ...formData, objetivoEspecifico: e.target.value })}
-        />
-      </div>
-
-      <div>
-        <Label>Metodologías de Pensamiento Crítico *</Label>
-        <p className="text-xs text-muted-foreground mb-2">
-          Selecciona una o más metodologías que utilizarás en esta clase.
-        </p>
-        <div className="flex flex-wrap gap-2 mt-2">
-          {METODOLOGIAS.map((met) => (
-            <Badge
-              key={met}
-              variant={metodologiasSeleccionadas.includes(met) ? "default" : "outline"}
-              className="cursor-pointer hover:bg-primary/10 transition-colors"
-              onClick={() => toggleMetodologia(met)}
-            >
-              {met}
-            </Badge>
-          ))}
-          {customMetodologias.map((met) => (
-            <Badge
-              key={met}
-              variant={metodologiasSeleccionadas.includes(met) ? "default" : "outline"}
-              className="cursor-pointer hover:bg-primary/10 transition-colors"
-              onClick={() => toggleMetodologia(met)}
-            >
-              {met}
-            </Badge>
-          ))}
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-8 border border-dashed"
-            onClick={() => setMostrarInputMetodologia(true)}
-          >
-            <Plus className="h-4 w-4 mr-1" />
-            Otra
-          </Button>
-        </div>
-        {mostrarInputMetodologia && (
-          <div className="flex flex-col gap-2 mt-3 md:flex-row">
-            <Input
-              autoFocus
-              placeholder="Nombre de la metodología"
-              value={metodologiaPersonalizada}
-              onChange={(e) => setMetodologiaPersonalizada(e.target.value)}
-            />
-            <div className="flex gap-2">
-              <Button type="button" onClick={handleAgregarMetodologiaPersonalizada}>
-                Agregar
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => {
-                  setMostrarInputMetodologia(false);
-                  setMetodologiaPersonalizada("");
-                }}
-              >
-                Cancelar
-              </Button>
-            </div>
-          </div>
-        )}
-        {metodologiasSeleccionadas.length === 0 && (
-          <p className="text-xs text-destructive mt-1">Selecciona al menos una metodología</p>
-        )}
-      </div>
-
-      <div>
-        <Label>Recursos disponibles</Label>
-        <p className="text-xs text-muted-foreground mb-2">
-          Indica qué recursos tendrás disponibles durante la sesión.
-        </p>
-        <div className="space-y-3">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="w-full justify-between">
-                {formData.recursosSeleccionados.length > 0
-                  ? `${formData.recursosSeleccionados.length} recurso(s) seleccionados`
-                  : "Selecciona recursos"}
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-72 space-y-2">
-              {RECURSOS_OPTIONS.map((opcion) => (
-                <label key={opcion.value} className="flex items-center gap-2 text-sm">
-                  <Checkbox
-                    checked={formData.recursosSeleccionados.includes(opcion.value)}
-                    onCheckedChange={() => toggleRecurso(opcion.value)}
-                  />
-                  <span>{opcion.label}</span>
-                </label>
-              ))}
-            </PopoverContent>
-          </Popover>
-          {formData.recursosSeleccionados.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {formData.recursosSeleccionados.map((value) => {
-                const label = RECURSOS_OPTIONS.find((opt) => opt.value === value)?.label || value;
-                return (
-                  <Badge key={value} variant="outline" className="flex items-center gap-1">
-                    {label}
-                    <button type="button" onClick={() => toggleRecurso(value)} className="text-muted-foreground hover:text-destructive">
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                );
-              })}
-            </div>
-          )}
-          {formData.recursosSeleccionados.includes("otro") && (
-            <Input
-              placeholder="Describe el recurso adicional"
-              value={formData.recursoOtro}
-              onChange={(e) => setFormData({ ...formData, recursoOtro: e.target.value })}
-            />
-          )}
-        </div>
-      </div>
-
-      <div>
-        <Label>Inclusión y adaptaciones</Label>
-        <p className="text-xs text-muted-foreground mb-2">
-          Selecciona necesidades del grupo que debas considerar. Puedes elegir varias.
-        </p>
-        <div className="space-y-3">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="w-full justify-between">
-                {formData.adaptacionesSeleccionadas.length > 0
-                  ? `${formData.adaptacionesSeleccionadas.length} adaptación(es)`
-                  : "Selecciona adaptaciones"}
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-72 space-y-2">
-              {ADAPTACIONES_OPTIONS.map((opcion) => (
-                <label key={opcion.value} className="flex items-center gap-2 text-sm">
-                  <Checkbox
-                    checked={formData.adaptacionesSeleccionadas.includes(opcion.value)}
-                    onCheckedChange={() => toggleAdaptacion(opcion.value)}
-                  />
-                  <span>{opcion.label}</span>
-                </label>
-              ))}
-            </PopoverContent>
-          </Popover>
-          {formData.adaptacionesSeleccionadas.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {formData.adaptacionesSeleccionadas.map((value) => {
-                const label = ADAPTACIONES_OPTIONS.find((opt) => opt.value === value)?.label || value;
-                return (
-                  <Badge key={value} variant="outline" className="flex items-center gap-1">
-                    {label}
-                    <button type="button" onClick={() => toggleAdaptacion(value)} className="text-muted-foreground hover:text-destructive">
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                );
-              })}
-            </div>
-          )}
-          {formData.adaptacionesSeleccionadas.includes("otro") && (
-            <Input
-              placeholder="Describe la adaptación adicional"
-              value={formData.adaptacionOtra}
-              onChange={(e) => setFormData({ ...formData, adaptacionOtra: e.target.value })}
-            />
-          )}
-        </div>
-      </div>
-
-      <div>
-        <Label>Contexto Específico *</Label>
-        <p className="text-xs text-muted-foreground mb-2">
-          Describe el contexto particular de tus estudiantes, sus necesidades, conocimientos previos, o cualquier información relevante.
-        </p>
-        <Textarea
-          value={formData.contextoEspecifico}
-          onChange={(e) => setFormData({ ...formData, contextoEspecifico: e.target.value })}
-          rows={5}
-          placeholder="Ejemplo: Los estudiantes tienen conocimientos básicos de álgebra pero necesitan reforzar la resolución de ecuaciones..."
-          className="resize-none"
-        />
-        {formData.contextoEspecifico.length > 0 && (
-          <p className="text-xs text-muted-foreground mt-1">
-            {formData.contextoEspecifico.length} caracteres
-          </p>
-        )}
-      </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
 
       {numeroSesion && (
         <div className="bg-muted p-3 rounded-lg">
