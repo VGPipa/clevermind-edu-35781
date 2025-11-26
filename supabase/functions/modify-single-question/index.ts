@@ -40,9 +40,11 @@ function buildGuideContext(guide: any) {
 interface AIPregunta {
   texto_pregunta: string;
   tipo?: string;
-  opciones: string[];
-  indice_correcto: number;
+  opciones?: string[];
+  indice_correcto?: number;
   retroalimentacion?: string;
+  tipo_respuesta?: 'multiple_choice' | 'texto_abierto';
+  respuesta_modelo?: string;
 }
 
 Deno.serve(async (req: Request): Promise<Response> => {
@@ -114,7 +116,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const tema = (clase.temas as any)?.nombre || 'la sesión';
     const descripcionTema = (clase.temas as any)?.descripcion || '';
     const objetivos = (clase.temas as any)?.objetivos || '';
-    const lecturaBase = quiz.instrucciones || pregunta.texto_contexto || '';
+    const isPre = quiz.tipo_evaluacion === 'pre';
+    const lecturaBase = isPre ? quiz.instrucciones || pregunta.texto_contexto || '' : '';
 
     let guideContext = 'Sin información adicional de la guía.';
     if (clase.id_guia_version_actual) {
@@ -126,8 +129,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
       guideContext = buildGuideContext(guideVersion);
     }
 
-    const systemPrompt = `Eres un generador de preguntas de opción múltiple para diagnósticos educativos.
-Responde únicamente en formato JSON.`;
+    const systemPrompt = `Eres un generador de preguntas de evaluación para pensamiento crítico.
+Puedes producir preguntas de opción múltiple o de respuesta abierta. Responde únicamente en JSON.`;
 
     const actionInstructions =
       action === 'swap'
@@ -136,17 +139,20 @@ Responde únicamente en formato JSON.`;
             difficulty === 'easier' ? 'más sencilla y accesible' : 'más desafiante'
           }, manteniendo el mismo aprendizaje objetivo.`;
 
+    const tipoRespuestaActual =
+      Array.isArray(pregunta.opciones) && pregunta.opciones.length > 0
+        ? 'multiple_choice'
+        : 'texto_abierto';
+
     const userPrompt = `Contexto del tema:
 - Tema: ${tema}
 - Descripción: ${descripcionTema}
 - Objetivos: ${objetivos}
 - Grupo de edad: ${clase.grupo_edad || 'General'}
 - Metodologías: ${clase.metodologia || 'No especificadas'}
-
-Lectura base:
-"""
-${lecturaBase}
-"""
+${isPre ? `Lectura base:
+"${lecturaBase}"
+` : ''}
 
 Resumen de la guía que contiene el corazón teórico de la clase:
 ${guideContext}
@@ -155,7 +161,9 @@ Pregunta actual:
 """
 ${pregunta.texto_pregunta}
 """
+Tipo de respuesta actual: ${tipoRespuestaActual}
 Opciones actuales: ${(pregunta.opciones as any) || '[]'}
+Respuesta esperada actual: ${pregunta.respuesta_correcta || 'No definida'}
 
 ${actionInstructions}
 - Mantén la conexión con los objetivos y la estructura descritos arriba; el enunciado debe reflejar explícitamente ese corazón teórico.
@@ -163,8 +171,11 @@ ${actionInstructions}
 Devuelve JSON con la forma:
 {
   "texto_pregunta": "...",
+  "tipo": "conocimiento|analisis|aplicacion|razonamiento",
+  "tipo_respuesta": "multiple_choice" | "texto_abierto",
   "opciones": ["A", "B", "C", "D"],
   "indice_correcto": 1,
+  "respuesta_modelo": "Texto esperado si es respuesta abierta",
   "retroalimentacion": "..."
 }`;
 
@@ -182,13 +193,15 @@ Devuelve JSON con la forma:
       return createErrorResponse('La IA no devolvió una pregunta válida', 500);
     }
 
-    const opciones = Array.isArray(parsed.opciones) ? parsed.opciones : [];
+    const isMultipleChoice = parsed.tipo_respuesta !== 'texto_abierto';
+    const opciones = isMultipleChoice && Array.isArray(parsed.opciones) ? parsed.opciones : [];
     const opcionesMap = opciones.map((texto, index) => ({
       id: `option-${index + 1}`,
       label: texto,
     }));
-    const correcta =
-      opcionesMap[parsed.indice_correcto] || opcionesMap[0] || { id: 'option-1', label: '' };
+    const correcta = isMultipleChoice
+      ? opcionesMap[parsed.indice_correcto ?? 0] || opcionesMap[0] || { id: 'option-1', label: '' }
+      : null;
 
     const { data: updatedQuestion, error: updateError } = await supabase
       .from('preguntas')
@@ -196,9 +209,9 @@ Devuelve JSON con la forma:
         texto_pregunta: parsed.texto_pregunta,
         tipo: 'opcion_multiple',
         opciones: opcionesMap,
-        respuesta_correcta: correcta.id,
+        respuesta_correcta: isMultipleChoice ? correcta.id : parsed.respuesta_modelo || pregunta.respuesta_correcta,
         justificacion: parsed.retroalimentacion || pregunta.justificacion,
-        texto_contexto: lecturaBase,
+        texto_contexto: isPre ? lecturaBase : null,
       })
       .eq('id', question_id)
       .select('*')

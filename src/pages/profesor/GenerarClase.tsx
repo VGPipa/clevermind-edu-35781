@@ -101,6 +101,23 @@ type PreQuizState = {
   questions: QuizQuestionState[];
 };
 
+type PostQuizQuestionState = {
+  id: string;
+  texto: string;
+  tipo: string;
+  tipoRespuesta: 'multiple_choice' | 'texto_abierto';
+  orden: number;
+  opciones: QuizOptionState[];
+  respuestaCorrecta: string | null;
+  justificacion?: string | null;
+  loadingAction?: 'swap' | 'easier' | 'harder' | null;
+};
+
+type PostQuizState = {
+  quizId: string;
+  questions: PostQuizQuestionState[];
+};
+
 const DESCRIPCIONES_METODOLOGIAS: Record<string, string> = {
   "Aprendizaje Basado en Casos": "Análisis de situaciones reales para desarrollar habilidades de resolución de problemas.",
   "Método Socrático": "Diálogo guiado con preguntas para que los estudiantes descubran el conocimiento por sí mismos.",
@@ -433,6 +450,40 @@ export default function GenerarClase() {
     enabled: !!claseId,
   });
 
+  const {
+    data: postQuizData,
+    isLoading: postQuizFetching,
+    refetch: refetchPostQuiz,
+  } = useQuery({
+    queryKey: ['post-quiz', claseId],
+    queryFn: async () => {
+      if (!claseId) return null;
+
+      const { data, error } = await (supabase as any)
+        .from('quizzes')
+        .select(`
+          id,
+          tipo_evaluacion,
+          preguntas:preguntas (
+            id,
+            texto_pregunta,
+            tipo,
+            orden,
+            opciones,
+            respuesta_correcta,
+            justificacion
+          )
+        `)
+        .eq('id_clase', claseId)
+        .eq('tipo_evaluacion', 'post')
+        .maybeSingle();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!claseId,
+  });
+
   // Verificar guía solo cuando viene un tema específico
   useEffect(() => {
     if (temaId && !extraordinaria) {
@@ -662,8 +713,27 @@ export default function GenerarClase() {
     setPreQuizDirty(false);
   }, [preQuizData]);
 
+  useEffect(() => {
+    if (!postQuizData) {
+      setPostQuizState(null);
+      setPostQuizDirty(false);
+      return;
+    }
+
+    const preguntasOrdenadas = Array.isArray(postQuizData.preguntas)
+      ? [...postQuizData.preguntas].sort((a: any, b: any) => (a.orden || 0) - (b.orden || 0))
+      : [];
+
+    setPostQuizState({
+      quizId: postQuizData.id,
+      questions: preguntasOrdenadas.map((pregunta: any, index: number) =>
+        mapPostPreguntaToState(pregunta, index)
+      ),
+    });
+    setPostQuizDirty(false);
+  }, [postQuizData]);
+
   const [guiaGenerada, setGuiaGenerada] = useState<any>(null);
-  const [preguntasPost, setPreguntasPost] = useState<any[]>([]);
   const [sesionesRecomendadas, setSesionesRecomendadas] = useState<number>(1);
   const [numeroSesion, setNumeroSesion] = useState<number | null>(null);
   const [mostrarInputMetodologia, setMostrarInputMetodologia] = useState(false);
@@ -684,6 +754,17 @@ export default function GenerarClase() {
   const [customInstructionText, setCustomInstructionText] = useState("");
   const customInstructionAnchorRef = useRef<HTMLButtonElement | null>(null);
   const isGeneratingPreQuizRef = useRef(false);
+  const [postQuizState, setPostQuizState] = useState<PostQuizState | null>(null);
+  const [postQuizDirty, setPostQuizDirty] = useState(false);
+  const [postQuizLoading, setPostQuizLoading] = useState(false);
+  const [postQuizActionLoading, setPostQuizActionLoading] = useState<{
+    regenerateAll: boolean;
+    perQuestion: Record<string, boolean>;
+  }>({
+    regenerateAll: false,
+    perQuestion: {},
+  });
+  const isGeneratingPostQuizRef = useRef(false);
   const hasLoadedInProgressRef = useRef(false);
   useEffect(() => {
     if (hasLoadedInProgressRef.current) return;
@@ -772,6 +853,20 @@ export default function GenerarClase() {
     justificacion: pregunta.justificacion,
   });
 
+  const mapPostPreguntaToState = (pregunta: any, index: number): PostQuizQuestionState => {
+    const isMultipleChoice = Array.isArray(pregunta.opciones) && pregunta.opciones.length > 0;
+    return {
+      id: pregunta.id,
+      texto: pregunta.texto_pregunta,
+      tipo: pregunta.tipo,
+      orden: pregunta.orden || index + 1,
+      tipoRespuesta: isMultipleChoice ? 'multiple_choice' : 'texto_abierto',
+      opciones: isMultipleChoice ? ensureMinimumOptions(normalizeOptions(pregunta.opciones)) : [],
+      respuestaCorrecta: pregunta.respuesta_correcta || null,
+      justificacion: pregunta.justificacion,
+    };
+  };
+
   const updateReadingText = (texto: string) => {
     setPreQuizState(prev => prev ? { ...prev, lectura: texto } : prev);
     setPreQuizDirty(true);
@@ -818,6 +913,11 @@ export default function GenerarClase() {
       setPreQuizLoading(false);
       setPreQuizActionLoading({ reading: false, regenerateAll: false, perQuestion: {} });
       isGeneratingPreQuizRef.current = false;
+      setPostQuizState(null);
+      setPostQuizDirty(false);
+      setPostQuizLoading(false);
+      setPostQuizActionLoading({ regenerateAll: false, perQuestion: {} });
+      isGeneratingPostQuizRef.current = false;
       setCurrentStep(1);
       setTemaLibre("");
       setMetodologiasSeleccionadas([]);
@@ -826,6 +926,7 @@ export default function GenerarClase() {
       setFormData(buildInitialFormData(options?.initialTemaId ?? (temaId || "")));
       queryClient.removeQueries({ queryKey: ['clase'], exact: false });
       queryClient.removeQueries({ queryKey: ['pre-quiz'], exact: false });
+      queryClient.removeQueries({ queryKey: ['post-quiz'], exact: false });
       queryClient.removeQueries({ queryKey: ['guia-version'], exact: false });
 
       if (options?.clearInProgress) {
@@ -1058,6 +1159,232 @@ export default function GenerarClase() {
       toast.error(error.message || "No se pudo actualizar el texto");
     } finally {
       setPreQuizActionLoading(prev => ({ ...prev, reading: false }));
+    }
+  };
+
+  const setPostQuestionLoader = (questionId: string, value: boolean) => {
+    setPostQuizActionLoading(prev => ({
+      ...prev,
+      perQuestion: { ...prev.perQuestion, [questionId]: value },
+    }));
+  };
+
+  const generatePostQuiz = async () => {
+    if (!claseId || isGeneratingPostQuizRef.current) return;
+    isGeneratingPostQuizRef.current = true;
+
+    setPostQuizLoading(true);
+    try {
+      const { error } = await supabase.functions.invoke('generar-evaluacion', {
+        body: { id_clase: claseId, tipo: 'post' },
+      });
+
+      if (error) throw error;
+
+      await refetchPostQuiz();
+      toast.success("Evaluación post generada. Ahora puedes personalizarla.");
+    } catch (error: any) {
+      console.error('Error generating post-quiz:', error);
+      toast.error(error.message || "No se pudo generar la evaluación POST");
+    } finally {
+      setPostQuizLoading(false);
+      isGeneratingPostQuizRef.current = false;
+    }
+  };
+
+  const persistPostQuizChanges = async () => {
+    if (!postQuizState) return;
+
+    setPostQuizLoading(true);
+    try {
+      const questionsUpdate = Promise.all(
+        postQuizState.questions.map((question) =>
+          supabase
+            .from('preguntas')
+            .update({
+              texto_pregunta: question.texto,
+              respuesta_correcta: question.respuestaCorrecta,
+              opciones: question.opciones,
+              justificacion: question.justificacion,
+              orden: question.orden,
+            })
+            .eq('id', question.id)
+        )
+      );
+
+      const results = await questionsUpdate;
+
+      for (const result of results) {
+        if (result.error) throw result.error;
+      }
+
+      setPostQuizDirty(false);
+      toast.success("Cambios del quiz POST guardados");
+    } catch (error: any) {
+      console.error('Error saving post-quiz:', error);
+      toast.error(error.message || "No se pudieron guardar los cambios del quiz POST");
+      throw error;
+    } finally {
+      setPostQuizLoading(false);
+    }
+  };
+
+  const updatePostQuestion = (
+    questionId: string,
+    updater: (question: PostQuizQuestionState) => PostQuizQuestionState
+  ) => {
+    setPostQuizState((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        questions: prev.questions.map((question) =>
+          question.id === questionId ? updater(question) : question
+        ),
+      };
+    });
+    setPostQuizDirty(true);
+  };
+
+  const handlePostQuestionTextChange = (questionId: string, value: string) => {
+    updatePostQuestion(questionId, (question) => ({ ...question, texto: value }));
+  };
+
+  const handlePostQuestionTypeChange = (questionId: string, tipoRespuesta: 'multiple_choice' | 'texto_abierto') => {
+    updatePostQuestion(questionId, (question) => {
+      if (tipoRespuesta === 'multiple_choice') {
+        const opciones = ensureMinimumOptions(
+          question.opciones.length > 0 ? question.opciones : normalizeOptions([])
+        );
+        return {
+          ...question,
+          tipoRespuesta,
+          opciones,
+          respuestaCorrecta: opciones[0]?.id || null,
+        };
+      }
+
+      return {
+        ...question,
+        tipoRespuesta,
+        opciones: [],
+        respuestaCorrecta: question.respuestaCorrecta || '',
+      };
+    });
+  };
+
+  const handlePostQuestionOptionChange = (
+    questionId: string,
+    optionId: string,
+    value: string
+  ) => {
+    updatePostQuestion(questionId, (question) => ({
+      ...question,
+      opciones: question.opciones.map((opcion) =>
+        opcion.id === optionId ? { ...opcion, label: value } : opcion
+      ),
+    }));
+  };
+
+  const addPostQuestionOption = (questionId: string) => {
+    updatePostQuestion(questionId, (question) => {
+      const nextIndex = question.opciones.length;
+      const newOption = { id: `option-${nextIndex + 1}`, label: '' };
+      return {
+        ...question,
+        opciones: [...question.opciones, newOption],
+      };
+    });
+  };
+
+  const setPostQuestionCorrectOption = (questionId: string, optionId: string) => {
+    updatePostQuestion(questionId, (question) => ({
+      ...question,
+      respuestaCorrecta: optionId,
+    }));
+  };
+
+  const handlePostExpectedAnswerChange = (questionId: string, value: string) => {
+    updatePostQuestion(questionId, (question) => ({
+      ...question,
+      respuestaCorrecta: value,
+    }));
+  };
+
+  const handlePostJustificacionChange = (questionId: string, value: string) => {
+    updatePostQuestion(questionId, (question) => ({
+      ...question,
+      justificacion: value,
+    }));
+  };
+
+  const handlePostRegenerateAllQuestions = async () => {
+    if (!postQuizState?.quizId) return;
+    setPostQuizActionLoading(prev => ({ ...prev, regenerateAll: true }));
+
+    try {
+      const { error } = await supabase.functions.invoke('regenerate-quiz-questions', {
+        body: { quiz_id: postQuizState.quizId, clase_id: claseId },
+      });
+
+      if (error) throw error;
+
+      await refetchPostQuiz();
+      toast.success("Se regeneraron las preguntas del POST");
+    } catch (error: any) {
+      console.error('Error regenerating post questions:', error);
+      toast.error(error.message || 'No se pudieron regenerar las preguntas POST');
+    } finally {
+      setPostQuizActionLoading(prev => ({ ...prev, regenerateAll: false }));
+    }
+  };
+
+  const handlePostSwapQuestion = async (questionId: string) => {
+    if (!postQuizState?.quizId) return;
+
+    setPostQuestionLoader(questionId, true);
+    try {
+      const { error } = await supabase.functions.invoke('modify-single-question', {
+        body: { quiz_id: postQuizState.quizId, question_id: questionId, action: 'swap' },
+      });
+
+      if (error) throw error;
+
+      await refetchPostQuiz();
+      toast.success("Pregunta reemplazada");
+    } catch (error: any) {
+      console.error('Error swapping post question:', error);
+      toast.error(error.message || 'No se pudo cambiar la pregunta');
+    } finally {
+      setPostQuestionLoader(questionId, false);
+    }
+  };
+
+  const handlePostAdjustQuestionDifficulty = async (
+    questionId: string,
+    difficulty: 'easier' | 'harder'
+  ) => {
+    if (!postQuizState?.quizId) return;
+
+    setPostQuestionLoader(questionId, true);
+    try {
+      const { error } = await supabase.functions.invoke('modify-single-question', {
+        body: {
+          quiz_id: postQuizState.quizId,
+          question_id: questionId,
+          action: 'adjust_difficulty',
+          difficulty,
+        },
+      });
+
+      if (error) throw error;
+
+      await refetchPostQuiz();
+      toast.success("Pregunta ajustada");
+    } catch (error: any) {
+      console.error('Error adjusting post question difficulty:', error);
+      toast.error(error.message || 'No se pudo ajustar la dificultad');
+    } finally {
+      setPostQuestionLoader(questionId, false);
     }
   };
 
@@ -1300,17 +1627,21 @@ export default function GenerarClase() {
 
       setLoading(true);
       try {
-        const { data, error } = await supabase.functions.invoke('generar-evaluacion', {
-          body: { id_clase: claseId, tipo: 'post' }
-        });
+        if (!postQuizState?.quizId) {
+          if (postQuizLoading || isGeneratingPostQuizRef.current) {
+            return;
+          }
+          await generatePostQuiz();
+          return;
+        }
 
-        if (error) throw error;
-
-        setPreguntasPost(data.preguntas);
+        await persistPostQuizChanges();
         setCurrentStep(5);
-        toast.success("Evaluación post generada exitosamente");
       } catch (error: any) {
-        toast.error(error.message || "Error al generar evaluación");
+        // persistPostQuizChanges ya muestra el error
+        if (!error?.message?.includes('guardados')) {
+          toast.error(error.message || "Error al guardar evaluación POST");
+        }
       } finally {
         setLoading(false);
       }
@@ -1375,7 +1706,18 @@ export default function GenerarClase() {
       preQuizActionLoading.regenerateAll ||
       isPerQuestionActionRunning);
 
-  const isContinueDisabled = loading || isStep3AsyncInFlight;
+  const isPostPerQuestionLoading = useMemo(
+    () => Object.values(postQuizActionLoading.perQuestion || {}).some(Boolean),
+    [postQuizActionLoading.perQuestion]
+  );
+
+  const isStep4AsyncInFlight =
+    currentStep === 4 &&
+    (postQuizLoading ||
+      postQuizActionLoading.regenerateAll ||
+      isPostPerQuestionLoading);
+
+  const isContinueDisabled = loading || isStep3AsyncInFlight || isStep4AsyncInFlight;
 
   const customMetodologias = useMemo(
     () => metodologiasSeleccionadas.filter((met) => !METODOLOGIAS.includes(met)),
@@ -2357,29 +2699,207 @@ export default function GenerarClase() {
     );
   };
 
-  const renderStep4 = () => (
-    <div className="space-y-4">
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-        <p className="text-sm text-yellow-800">
-          <AlertCircle className="inline h-4 w-4 mr-1" />
-          Las preguntas post-clase son más complejas para medir el progreso real
-        </p>
-      </div>
-      {preguntasPost.map((preg, i) => (
-        <Card key={i}>
-          <CardHeader>
-            <div className="flex justify-between items-start">
-              <CardTitle className="text-base">Pregunta {i + 1}</CardTitle>
-              <Badge variant="secondary">{preg.tipo}</Badge>
+  const renderStep4 = () => {
+    if (postQuizFetching || postQuizLoading) {
+      return (
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Procesando evaluación POST...
+        </div>
+      );
+    }
+
+    if (!postQuizState) {
+      return (
+        <div className="border border-dashed rounded-lg p-6 text-center space-y-4">
+          <AlertCircle className="mx-auto h-10 w-10 text-muted-foreground" />
+          <div>
+            <p className="font-medium">Aún no has generado la evaluación POST</p>
+            <p className="text-sm text-muted-foreground">
+              Se crearán 10 preguntas para medir el aprendizaje posterior a la clase.
+            </p>
+          </div>
+          <Button onClick={generatePostQuiz} disabled={postQuizLoading} className="inline-flex items-center gap-2">
+            <Sparkles className="h-4 w-4" />
+            Generar evaluación POST
+          </Button>
+        </div>
+      );
+    }
+
+    const perQuestionLoading = postQuizActionLoading.perQuestion;
+
+    return (
+      <div className="space-y-6">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <p className="text-sm text-yellow-800">
+            <AlertCircle className="inline h-4 w-4 mr-1" />
+            Estas preguntas deben medir aplicación, análisis y razonamiento. Asegúrate de que cubran todo el cierre de la clase.
+          </p>
+        </div>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>Preguntas del POST</CardTitle>
+              <CardDescription>Analiza cada pregunta y ajusta si es necesario.</CardDescription>
             </div>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="gap-2"
+              onClick={handlePostRegenerateAllQuestions}
+              disabled={postQuizActionLoading.regenerateAll}
+            >
+              {postQuizActionLoading.regenerateAll ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCcw className="h-4 w-4" />
+              )}
+              Regenerar todas
+            </Button>
           </CardHeader>
-          <CardContent>
-            <p>{preg.texto_pregunta}</p>
+          <CardContent className="space-y-4">
+            {postQuizState.questions.map((question, index) => (
+              <div key={question.id} className="border rounded-lg p-4 space-y-3">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-1">
+                    <p className="font-semibold">Pregunta {index + 1}</p>
+                    <p className="text-xs text-muted-foreground capitalize">{question.tipo || 'sin tipo'}</p>
+                    <Badge variant="outline" className="text-[10px] uppercase tracking-wide">
+                      {question.tipoRespuesta === 'multiple_choice' ? 'Opción múltiple' : 'Respuesta abierta'}
+                    </Badge>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        disabled={!!perQuestionLoading[question.id]}
+                        onSelect={(event) => {
+                          event.preventDefault();
+                          handlePostSwapQuestion(question.id);
+                        }}
+                      >
+                        🔀 Cambiar pregunta
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        disabled={!!perQuestionLoading[question.id]}
+                        onSelect={(event) => {
+                          event.preventDefault();
+                          handlePostAdjustQuestionDifficulty(question.id, 'easier');
+                        }}
+                      >
+                        🧠 Hacer más fácil
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        disabled={!!perQuestionLoading[question.id]}
+                        onSelect={(event) => {
+                          event.preventDefault();
+                          handlePostAdjustQuestionDifficulty(question.id, 'harder');
+                        }}
+                      >
+                        🧠 Hacer más difícil
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        disabled={question.tipoRespuesta === 'multiple_choice'}
+                        onSelect={(event) => {
+                          event.preventDefault();
+                          handlePostQuestionTypeChange(question.id, 'multiple_choice');
+                        }}
+                      >
+                        ✅ Convertir a opción múltiple
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        disabled={question.tipoRespuesta === 'texto_abierto'}
+                        onSelect={(event) => {
+                          event.preventDefault();
+                          handlePostQuestionTypeChange(question.id, 'texto_abierto');
+                        }}
+                      >
+                        ✍️ Convertir a respuesta abierta
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
+                <Textarea
+                  value={question.texto}
+                  onChange={(e) => handlePostQuestionTextChange(question.id, e.target.value)}
+                  className="min-h-[100px]"
+                />
+
+                {question.tipoRespuesta === 'multiple_choice' ? (
+                  <div className="space-y-2">
+                    {question.opciones.map((opcion) => (
+                      <div key={opcion.id} className="flex items-center gap-3">
+                        <input
+                          type="radio"
+                          name={`post-correcta-${question.id}`}
+                          className="h-4 w-4"
+                          checked={question.respuestaCorrecta === opcion.id}
+                          onChange={() => setPostQuestionCorrectOption(question.id, opcion.id)}
+                        />
+                        <Input
+                          value={opcion.label}
+                          onChange={(e) => handlePostQuestionOptionChange(question.id, opcion.id, e.target.value)}
+                          placeholder="Texto de la opción"
+                        />
+                      </div>
+                    ))}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="mt-1"
+                      onClick={() => addPostQuestionOption(question.id)}
+                    >
+                      + Agregar opción
+                    </Button>
+                  </div>
+                ) : (
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Respuesta esperada (opcional)</Label>
+                    <Textarea
+                      value={question.respuestaCorrecta || ""}
+                      onChange={(e) => handlePostExpectedAnswerChange(question.id, e.target.value)}
+                      placeholder="Describe la respuesta que considerarás correcta"
+                      className="mt-1"
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <Label className="text-xs text-muted-foreground">Retroalimentación</Label>
+                  <Textarea
+                    value={question.justificacion || ""}
+                    onChange={(e) => handlePostJustificacionChange(question.id, e.target.value)}
+                    placeholder="Mensaje que verá el estudiante al responder"
+                    className="mt-1"
+                  />
+                </div>
+
+                {perQuestionLoading[question.id] && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Ajustando con IA...
+                  </div>
+                )}
+              </div>
+            ))}
           </CardContent>
         </Card>
-      ))}
-    </div>
-  );
+
+        {postQuizDirty && (
+          <p className="text-xs text-muted-foreground">Cambios pendientes de guardado.</p>
+        )}
+      </div>
+    );
+  };
 
   const renderStep5 = () => (
     <div className="space-y-6">

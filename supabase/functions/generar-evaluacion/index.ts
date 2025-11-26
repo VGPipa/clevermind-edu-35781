@@ -128,30 +128,41 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const enfoque = tipo === 'pre' ? 'teórico' : 'aplicación y análisis';
 
     // Build AI prompt
-    const systemPrompt = `Eres un experto en evaluación educativa, pedagogía y diseño instruccional.
-Tu tarea es generar contenido teórico central y preguntas que midan comprensión profunda y pensamiento crítico.
-Para quiz PRE: crea la TEORÍA FUNDAMENTAL del tema (150-250 palabras) con definiciones clave, conceptos esenciales y principios que el estudiante debe memorizar, seguido de 3 preguntas teóricas básicas (5 minutos).
-Para quiz POST: presenta teoría avanzada y genera preguntas de análisis, aplicación y razonamiento (5-10 preguntas, 15 minutos).
-El texto teórico debe ser preciso, educativo y estructurado pedagógicamente.`;
+    const systemPrompt = `Eres un experto en evaluación educativa y pensamiento crítico.
+Genera preguntas de evaluación que midan habilidades de pensamiento crítico.
+Para quiz PRE: enfócate en conocimientos teóricos básicos (máximo 3 preguntas, 5 minutos) y desarrolla la teoría esencial del tema.
+Para quiz POST: incluye análisis, aplicación y razonamiento (10 preguntas, 15 minutos) con preguntas mixtas (opción múltiple y respuesta abierta).`;
 
     const complexity = tipo === 'pre' ? 'básico' : 'avanzado';
     const guideContext = buildGuideContext(guideVersion);
-const userPrompt = `Necesito preparar un quiz ${tipo === 'pre' ? 'PRE (diagnóstico)' : 'POST (sumativo)'} para una clase.
-Debes producir un JSON con dos partes:
-{
-  "lectura": "Texto de 150-250 palabras con la TEORÍA CENTRAL del tema: definiciones clave, conceptos fundamentales, principios o fórmulas esenciales que el estudiante debe comprender y memorizar",
+    const wantsReadingBlock = tipo === 'pre';
+    const questionCountText =
+      tipo === 'pre'
+        ? `${minPreguntas === maxPreguntas ? maxPreguntas : `${minPreguntas}-${maxPreguntas}`} preguntas`
+        : 'exactamente 10 preguntas';
+
+    const lecturaPrompt = wantsReadingBlock
+      ? `"lectura": "Texto de 150-250 palabras que contenga la teoría fundamental del tema (definiciones clave, principios esenciales, fórmulas o casos representativos)",`
+      : '';
+
+    const userPrompt = `Necesito preparar un quiz ${tipo === 'pre' ? 'PRE (diagnóstico)' : 'POST (sumativo)'} para una clase.
+Debes producir un JSON con ${
+        wantsReadingBlock ? 'dos partes' : 'una parte'
+      }:
+  ${lecturaPrompt}
   "preguntas": [
     {
       "texto_pregunta": "...",
       "puntos": ${tipo === 'pre' ? '1-2' : '2-4'},
       "retroalimentacion": "mensaje específico y constructivo",
+      "tipo_respuesta": "multiple_choice" | "texto_abierto",
       "opciones": ["Opción A", "Opción B", "Opción C", "Opción D"],
       "indice_correcto": 0
     }
   ]
 }
 
-Genera ${minPreguntas === maxPreguntas ? maxPreguntas : `${minPreguntas}-${maxPreguntas}`} preguntas de evaluación ${tipo === 'pre' ? 'diagnóstica PRE' : 'sumativa POST'} para:
+Genera ${questionCountText} de evaluación ${tipo === 'pre' ? 'diagnóstica PRE' : 'sumativa POST'} para:
 
 Tema: ${temaNombre}
 Descripción del tema: ${(clase.temas as any)?.descripcion || 'No especificada'}
@@ -164,14 +175,7 @@ ${guideVersion.objetivos}
 Contexto detallado de la guía (teoría central, estructura y preguntas guía):
 ${guideContext}
 
-CRÍTICO - La "lectura" debe ser el CORAZÓN TEÓRICO de la clase (150-250 palabras):
-- Incluir las definiciones clave y conceptos fundamentales del tema
-- Presentar los principios, fórmulas, reglas o leyes esenciales
-- Ser la síntesis de lo que el estudiante DEBE memorizar y comprender profundamente
-- Usar un lenguaje claro, preciso y apropiado para el grupo de edad
-- Estructurar la información de forma lógica y pedagógica (de lo básico a lo específico)
-- Ser técnicamente rigurosa pero accesible
-- NO debe ser una simple introducción amigable, sino el contenido teórico nuclear de la lección
+${wantsReadingBlock ? `La lectura debe incluir definiciones, principios y ejemplos esenciales (150-250 palabras) y servir como referencia teórica principal.` : ''}
 
 Las preguntas deben:
 - Evaluar la comprensión de la teoría presentada en la lectura
@@ -195,34 +199,36 @@ Mantén el formato JSON descrito anteriormente sin texto adicional.`;
       maxTokens: 2000,
       });
 
-const quizContent = parseAIJSON<{
-  lectura?: string;
-  preguntas: Array<{
-    texto_pregunta: string;
-    tipo: string;
-    puntos: number;
-    retroalimentacion: string;
-    opciones: string[];
-    indice_correcto: number;
-  }>;
-}>(aiResponse.content);
+    const quizContent = parseAIJSON<{
+      lectura?: string;
+      preguntas: Array<{
+        texto_pregunta: string;
+        tipo: string;
+        puntos: number;
+        retroalimentacion: string;
+        opciones?: string[];
+        indice_correcto?: number;
+        tipo_respuesta?: 'multiple_choice' | 'texto_abierto';
+      }>;
+    }>(aiResponse.content);
 
-    const readingText = quizContent.lectura?.trim() || `Lectura introductoria para el tema ${temaNombre}.`;
+    const readingText = wantsReadingBlock
+      ? quizContent.lectura?.trim() || `Lectura introductoria para el tema ${temaNombre}.`
+      : null;
     quizContent.preguntas = Array.isArray(quizContent.preguntas) ? quizContent.preguntas : [];
 
     // Validate number of questions
-const numPreguntas = quizContent.preguntas.length;
-if (tipo === 'pre') {
-  if (numPreguntas === 0) {
-    return createErrorResponse('El quiz pre debe tener al menos 1 pregunta', 400);
-  }
-  if (numPreguntas > 3) {
-    quizContent.preguntas = quizContent.preguntas.slice(0, 3);
-  }
-} else if (tipo === 'post' && (numPreguntas < 5 || numPreguntas > 10)) {
-      // Adjust to valid range for post
-      if (quizContent.preguntas.length < 5) {
-        return createErrorResponse('El quiz post debe tener al menos 5 preguntas', 400);
+    const numPreguntas = quizContent.preguntas.length;
+    if (tipo === 'pre') {
+      if (numPreguntas === 0) {
+        return createErrorResponse('El quiz pre debe tener al menos 1 pregunta', 400);
+      }
+      if (numPreguntas > 3) {
+        quizContent.preguntas = quizContent.preguntas.slice(0, 3);
+      }
+    } else if (tipo === 'post') {
+      if (numPreguntas < 10) {
+        return createErrorResponse('El quiz post debe tener exactamente 10 preguntas', 400);
       }
       quizContent.preguntas = quizContent.preguntas.slice(0, 10);
     }
@@ -236,7 +242,8 @@ if (tipo === 'pre') {
         tipo: tipo === 'pre' ? 'previo' : 'post',
         tipo_evaluacion: tipo,
         estado: 'borrador',
-        tiempo_limite: tiempoLimite,
+        tiempo_limite_minutos: tiempoLimite,
+        max_preguntas: tipo === 'pre' ? maxPreguntas : 10,
         instrucciones: readingText
       })
       .select()
@@ -248,31 +255,33 @@ if (tipo === 'pre') {
     }
 
     // Create questions
-const buildOpciones = (opciones: string[]): Array<{ id: string; label: string }> => {
-  const items = Array.isArray(opciones) ? opciones : [];
-  return items.map((texto, idx) => ({
-    id: `option-${idx + 1}`,
-    label: texto,
-  }));
-};
+    const buildOpciones = (opciones: string[] | undefined): Array<{ id: string; label: string }> => {
+      const items = Array.isArray(opciones) ? opciones : [];
+      return items.map((texto, idx) => ({
+        id: `option-${idx + 1}`,
+        label: texto,
+      }));
+    };
 
-const preguntasToInsert = quizContent.preguntas.map((q, index: number) => {
-  const opciones = buildOpciones(q.opciones);
-  const correctOption =
-    opciones?.[q.indice_correcto] ||
-    opciones?.[0] || { id: 'option-1', label: '' };
+    const preguntasToInsert = quizContent.preguntas.map((q, index: number) => {
+      const opciones = q.tipo_respuesta === 'texto_abierto' ? [] : buildOpciones(q.opciones);
+      const correctOption =
+        q.tipo_respuesta === 'texto_abierto'
+          ? null
+          : opciones?.[typeof q.indice_correcto === 'number' ? q.indice_correcto : 0] ||
+            opciones?.[0] || { id: 'option-1', label: '' };
 
-  return {
-    id_quiz: quiz.id,
-    texto_pregunta: q.texto_pregunta,
-    tipo: 'opcion_multiple',
-    orden: index + 1,
-    justificacion: q.retroalimentacion,
-    texto_contexto: readingText,
-    respuesta_correcta: correctOption.id,
-    opciones,
-  };
-});
+      return {
+        id_quiz: quiz.id,
+        texto_pregunta: q.texto_pregunta,
+        tipo: q.tipo as any,
+        orden: index + 1,
+        justificacion: q.retroalimentacion,
+        texto_contexto: readingText,
+        respuesta_correcta: correctOption ? correctOption.id : null,
+        opciones,
+      };
+    });
 
     const { error: preguntasError } = await supabase
       .from('preguntas')

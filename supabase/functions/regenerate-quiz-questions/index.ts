@@ -40,9 +40,10 @@ function buildGuideContext(guide: any) {
 interface AIPregunta {
   texto_pregunta: string;
   tipo?: string;
-  opciones: string[];
-  indice_correcto: number;
+  opciones?: string[];
+  indice_correcto?: number;
   retroalimentacion?: string;
+  tipo_respuesta?: 'multiple_choice' | 'texto_abierto';
 }
 
 Deno.serve(async (req: Request): Promise<Response> => {
@@ -96,7 +97,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const tema = (clase.temas as any)?.nombre || 'la sesión';
     const descripcionTema = (clase.temas as any)?.descripcion || '';
     const objetivos = (clase.temas as any)?.objetivos || '';
-    const lecturaBase = quiz.instrucciones || 'Lectura introductoria no especificada.';
+    const isPre = quiz.tipo_evaluacion === 'pre';
+    const lecturaBase = isPre
+      ? quiz.instrucciones || 'Lectura introductoria no especificada.'
+      : null;
 
     let guideContext = 'No hay detalles suficientes de la guía.';
     if (clase.id_guia_version_actual) {
@@ -108,35 +112,42 @@ Deno.serve(async (req: Request): Promise<Response> => {
       guideContext = buildGuideContext(guideVersion);
     }
 
-    const systemPrompt = `Eres un diseñador de evaluaciones diagnósticas para pensamiento crítico.
-Generas preguntas de opción múltiple con 4 alternativas y una respuesta correcta.`;
+    const systemPrompt = `Eres un diseñador de evaluaciones diagnósticas y sumativas para pensamiento crítico.
+Generas preguntas de alta calidad y estableces claramente el tipo de respuesta (opción múltiple o texto abierto).`;
 
-    const userPrompt = `Genera exactamente 3 preguntas diagnósticas PRE para el siguiente contexto:
+    const questionCount = isPre ? 3 : 10;
+
+    const userPrompt = `${isPre ? 'Genera exactamente 3 preguntas diagnósticas PRE' : 'Genera exactamente 10 preguntas POST sumativas'} para el siguiente contexto:
 
 Tema: ${tema}
 Descripción: ${descripcionTema}
 Objetivos: ${objetivos}
 Grupo de edad: ${clase.grupo_edad || 'General'}
 Metodologías: ${clase.metodologia || 'No especificadas'}
-Lectura base para el estudiante:
+${
+  isPre
+    ? `Lectura base para el estudiante:
 """
 ${lecturaBase}
 """
-
+`
+    : ''
+}
 Resumen de la guía y corazón teórico:
 ${guideContext}
 
 Requisitos:
-- Enfócate en comprobar conocimientos previos teóricos.
-- Cada pregunta debe tener 4 opciones claras y una única respuesta correcta.
-- Alterna los verbos e introduce ejemplos concretos relacionados con la lectura.
-- Vincula cada situación o ejemplo con los objetivos y estructura descritos anteriormente para mantener el corazón teórico de la clase.
+- Si la pregunta es de opción múltiple, define 4 opciones claras y una única respuesta correcta.
+- Si la pregunta es de texto abierto, define "tipo_respuesta": "texto_abierto" y omite las opciones.
+- Alterna niveles cognitivos y vincula cada situación con los objetivos descritos.
 
-Devuelve un JSON con esta forma:
+Devuelve JSON con la forma:
 {
   "preguntas": [
     {
       "texto_pregunta": "¿...?",
+      "tipo": "conocimiento|analisis|aplicacion|razonamiento",
+      "tipo_respuesta": "multiple_choice" | "texto_abierto",
       "opciones": ["A", "B", "C", "D"],
       "indice_correcto": 1,
       "retroalimentacion": "Explicación breve"
@@ -158,7 +169,7 @@ Devuelve un JSON con esta forma:
       return createErrorResponse('La IA no devolvió preguntas válidas', 500);
     }
 
-    const preguntas = parsed.preguntas.slice(0, 3);
+    const preguntas = parsed.preguntas.slice(0, questionCount);
 
     const { error: deleteError } = await supabase
       .from('preguntas')
@@ -170,7 +181,7 @@ Devuelve un JSON con esta forma:
       return createErrorResponse(deleteError.message, 500);
     }
 
-    const mapOpciones = (opciones: string[]): Array<{ id: string; label: string }> => {
+    const mapOpciones = (opciones?: string[]): Array<{ id: string; label: string }> => {
       const sanitized = Array.isArray(opciones) ? opciones : [];
       return sanitized.map((texto, index) => ({
         id: `option-${index + 1}`,
@@ -179,9 +190,12 @@ Devuelve un JSON con esta forma:
     };
 
     const preguntasToInsert = preguntas.map((pregunta, index) => {
-      const opciones = mapOpciones(pregunta.opciones);
+      const isMultipleChoice = pregunta.tipo_respuesta !== 'texto_abierto';
+      const opciones = isMultipleChoice ? mapOpciones(pregunta.opciones) : [];
       const correctOption =
-        opciones[pregunta.indice_correcto] || opciones[0] || { id: 'option-1', label: '' };
+        isMultipleChoice
+          ? opciones[pregunta.indice_correcto ?? 0] || opciones[0] || { id: 'option-1', label: '' }
+          : null;
 
       return {
         id_quiz: quiz_id,
@@ -189,7 +203,7 @@ Devuelve un JSON con esta forma:
         tipo: 'opcion_multiple',
         orden: index + 1,
         opciones,
-        respuesta_correcta: correctOption.id,
+        respuesta_correcta: correctOption ? correctOption.id : null,
         justificacion: pregunta.retroalimentacion || null,
         texto_contexto: lecturaBase,
       };
