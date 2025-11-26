@@ -11,11 +11,6 @@ export function SeccionPreMetricas({
   datos,
   recomendaciones
 }: SeccionPreMetricasProps) {
-  const getProgressVariant = (porcentaje: number): "success" | "warning" | "danger" => {
-    if (porcentaje >= 70) return "success";
-    if (porcentaje >= 40) return "warning";
-    return "danger";
-  };
   return <div className="space-y-4">
       <div>
         <h2 className="text-2xl font-bold mb-2">Evaluación Inicial (PRE)</h2>
@@ -76,7 +71,7 @@ export function SeccionPreMetricas({
                 </div>
                 <Progress 
                   value={datos.nivel_preparacion.porcentaje} 
-                  variant={getProgressVariant(datos.nivel_preparacion.porcentaje)}
+                  className="h-3"
                 />
               </div>
               
