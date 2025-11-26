@@ -78,6 +78,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
 
     const esTemaTemporalOExtraordinario = (clase.temas as any)?.es_tema_temporal || false;
+    console.log('Clase tema info:', { 
+      tema_nombre: (clase.temas as any)?.nombre,
+      es_tema_temporal: (clase.temas as any)?.es_tema_temporal,
+      esTemaTemporalOExtraordinario 
+    });
 
     // Get current guide version
     if (!clase.id_guia_version_actual) {
@@ -96,6 +101,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     // Validate prerequisites
     if (tipo === 'pre') {
+      console.log('Pre-quiz validation:', {
+        esTemaTemporalOExtraordinario,
+        guideEstado: guideVersion.estado,
+        shouldSkipApproval: esTemaTemporalOExtraordinario,
+        needsApproval: !esTemaTemporalOExtraordinario && guideVersion.estado !== 'aprobada'
+      });
+      
       // Quiz pre requires approved guide (except for temporary/extraordinary themes)
       if (!esTemaTemporalOExtraordinario && guideVersion.estado !== 'aprobada') {
         return createErrorResponse('La guía debe estar aprobada antes de generar el quiz previo', 400);
