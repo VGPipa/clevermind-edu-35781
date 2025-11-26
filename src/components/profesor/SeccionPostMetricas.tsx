@@ -60,22 +60,18 @@ export function SeccionPostMetricas({ datos }: SeccionPostMetricasProps) {
                 </div>
                 <Progress value={datos.nivel_logro.promedio} className="h-2" />
               </div>
-              <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="grid grid-cols-3 gap-2 text-xs">
                 <div className="flex items-center gap-1">
                   <Circle className="h-3 w-3 fill-red-600 text-red-600" />
-                  <span>Riesgo: {datos.nivel_logro.distribucion.riesgo}</span>
+                  <span>Bajo (&lt;50%): {datos.nivel_logro.distribucion.bajo}</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <Circle className="h-3 w-3 fill-yellow-600 text-yellow-600" />
-                  <span>Suficiente: {datos.nivel_logro.distribucion.suficiente}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Circle className="h-3 w-3 fill-blue-600 text-blue-600" />
-                  <span>Bueno: {datos.nivel_logro.distribucion.bueno}</span>
+                  <span>Intermedio (50-75%): {datos.nivel_logro.distribucion.intermedio}</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <Circle className="h-3 w-3 fill-green-600 text-green-600" />
-                  <span>Destacado: {datos.nivel_logro.distribucion.destacado}</span>
+                  <span>Alto (≥75%): {datos.nivel_logro.distribucion.alto}</span>
                 </div>
               </div>
             </div>

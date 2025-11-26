@@ -615,7 +615,7 @@ function calcularAlumnosRiesgoPre(quizzes: any[], alumnosSalon: any[]) {
   alumnosStats.forEach((stats, alumnoId) => {
     if (stats.porcentajes.length > 0) {
       const promedio = stats.porcentajes.reduce((sum, p) => sum + p, 0) / stats.porcentajes.length;
-      if (promedio < 40) { // Preparación baja
+      if (promedio < 50) { // Preparación baja
         const alumno = alumnosSalon.find((a: any) => a.id === alumnoId);
         if (alumno) {
           alumnosRiesgo.push({
@@ -664,10 +664,9 @@ function calcularDatosPost(quizzesPost: any[], alumnosSalon: any[], conceptosMap
 
   // Distribución por niveles
   const distribucion = {
-    riesgo: porcentajesAciertos.filter(p => p < 50).length,
-    suficiente: porcentajesAciertos.filter(p => p >= 50 && p < 75).length,
-    bueno: porcentajesAciertos.filter(p => p >= 75 && p < 90).length,
-    destacado: porcentajesAciertos.filter(p => p >= 90).length,
+    bajo: porcentajesAciertos.filter(p => p < 50).length,
+    intermedio: porcentajesAciertos.filter(p => p >= 50 && p < 75).length,
+    alto: porcentajesAciertos.filter(p => p >= 75).length,
   };
 
   // Conceptos logrados
