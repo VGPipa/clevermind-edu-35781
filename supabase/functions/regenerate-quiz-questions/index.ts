@@ -6,6 +6,37 @@ import {
   createSuccessResponse,
 } from '../_shared/auth.ts';
 
+function buildGuideContext(guide: any) {
+  if (!guide) {
+    return 'No hay detalles suficientes de la guía.';
+  }
+
+  const objetivosList = typeof guide.objetivos === 'string'
+    ? guide.objetivos.split('\n').map((item: string) => item.trim()).filter(Boolean)
+    : [];
+
+  const objetivosTexto = objetivosList.length
+    ? objetivosList.map((obj: string, idx: number) => `${idx + 1}. ${obj}`).join('\n')
+    : 'No se especificaron objetivos detallados.';
+
+  const estructuraArray = Array.isArray(guide.estructura) ? guide.estructura : [];
+  const estructuraTexto = estructuraArray.length
+    ? estructuraArray.slice(0, 4).map((fase: any, idx: number) => {
+        const titulo = fase.titulo || fase.actividad || `Fase ${idx + 1}`;
+        const detalle = fase.descripcion || fase.detalle || fase.contexto || '';
+        return `${idx + 1}. ${titulo}: ${detalle}`;
+      }).join('\n')
+    : 'La estructura de la clase no fue detallada.';
+
+  const preguntasSocraticasTexto = Array.isArray(guide.preguntas_socraticas) && guide.preguntas_socraticas.length
+    ? guide.preguntas_socraticas.slice(0, 3).map((q: string, idx: number) => `${idx + 1}. ${q}`).join('\n')
+    : '';
+
+  return `Objetivos principales:\n${objetivosTexto}\n\nEstructura clave:\n${estructuraTexto}${
+    preguntasSocraticasTexto ? `\n\nPreguntas guía:\n${preguntasSocraticasTexto}` : ''
+  }`;
+}
+
 interface AIPregunta {
   texto_pregunta: string;
   tipo?: string;
@@ -48,6 +79,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         id_profesor,
         grupo_edad,
         metodologia,
+        id_guia_version_actual,
         temas!inner(nombre, descripcion, objetivos)
       `)
       .eq('id', quiz.id_clase)
@@ -66,6 +98,16 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const objetivos = (clase.temas as any)?.objetivos || '';
     const lecturaBase = quiz.instrucciones || 'Lectura introductoria no especificada.';
 
+    let guideContext = 'No hay detalles suficientes de la guía.';
+    if (clase.id_guia_version_actual) {
+      const { data: guideVersion } = await supabase
+        .from('guias_clase_versiones')
+        .select('objetivos, estructura, preguntas_socraticas')
+        .eq('id', clase.id_guia_version_actual)
+        .maybeSingle();
+      guideContext = buildGuideContext(guideVersion);
+    }
+
     const systemPrompt = `Eres un diseñador de evaluaciones diagnósticas para pensamiento crítico.
 Generas preguntas de opción múltiple con 4 alternativas y una respuesta correcta.`;
 
@@ -81,10 +123,14 @@ Lectura base para el estudiante:
 ${lecturaBase}
 """
 
+Resumen de la guía y corazón teórico:
+${guideContext}
+
 Requisitos:
 - Enfócate en comprobar conocimientos previos teóricos.
 - Cada pregunta debe tener 4 opciones claras y una única respuesta correcta.
 - Alterna los verbos e introduce ejemplos concretos relacionados con la lectura.
+- Vincula cada situación o ejemplo con los objetivos y estructura descritos anteriormente para mantener el corazón teórico de la clase.
 
 Devuelve un JSON con esta forma:
 {

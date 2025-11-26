@@ -1276,6 +1276,20 @@ export default function GenerarClase() {
     [formData.adaptacionesSeleccionadas]
   );
 
+  const isPerQuestionActionRunning = useMemo(
+    () => Object.values(preQuizActionLoading.perQuestion || {}).some(Boolean),
+    [preQuizActionLoading.perQuestion]
+  );
+
+  const isStep3AsyncInFlight =
+    currentStep === 3 &&
+    (preQuizLoading ||
+      preQuizActionLoading.reading ||
+      preQuizActionLoading.regenerateAll ||
+      isPerQuestionActionRunning);
+
+  const isContinueDisabled = loading || isStep3AsyncInFlight;
+
   const customMetodologias = useMemo(
     () => metodologiasSeleccionadas.filter((met) => !METODOLOGIAS.includes(met)),
     [metodologiasSeleccionadas]
@@ -2345,7 +2359,7 @@ export default function GenerarClase() {
 
           <ProgressBar steps={STEPS} currentStep={currentStep} />
 
-          <div className="grid lg:grid-cols-[1fr_280px] gap-6">
+          <div className="grid gap-6">
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between mb-2">
@@ -2382,28 +2396,15 @@ export default function GenerarClase() {
                   )}
                   <Button
                     onClick={handleNextStep}
-                    disabled={loading}
+                    disabled={isContinueDisabled}
                     className="flex-1"
                   >
-                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {(loading || isStep3AsyncInFlight) && (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    )}
                     {currentStep === 5 ? 'Confirmar y Programar' : 'Continuar'}
                   </Button>
                 </div>
-              </CardContent>
-            </Card>
-
-            <Card className="sticky top-4 h-fit">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Lightbulb className="h-4 w-4 text-primary" />
-                  Consejos
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-xs text-muted-foreground">
-                <p>• Sé específico en el contexto de tus estudiantes</p>
-                <p>• Selecciona las metodologías más apropiadas para tu grupo</p>
-                <p>• Revisa y ajusta el contenido generado según necesites</p>
-                <p>• Las evaluaciones pre y post están diseñadas para medir el progreso real</p>
               </CardContent>
             </Card>
           </div>

@@ -7,6 +7,40 @@ import {
   createSuccessResponse,
 } from '../_shared/auth.ts';
 
+function buildGuideContext(guide: any) {
+  if (!guide) {
+    return 'No se proporcionó información adicional de la guía.';
+  }
+
+  const objetivosList = typeof guide.objetivos === 'string'
+    ? guide.objetivos.split('\n').map((item: string) => item.trim()).filter(Boolean)
+    : [];
+
+  const objetivosTexto = objetivosList.length
+    ? objetivosList.map((obj: string, idx: number) => `${idx + 1}. ${obj}`).join('\n')
+    : 'No se especificaron objetivos detallados.';
+
+  const estructuraArray = Array.isArray(guide.estructura) ? guide.estructura : [];
+  const estructuraTexto = estructuraArray.length
+    ? estructuraArray.map((fase: any, idx: number) => {
+        const titulo = fase.titulo || fase.actividad || `Fase ${idx + 1}`;
+        const meta = fase.objetivo || fase.meta || '';
+        const detalle = fase.descripcion || fase.detalle || fase.contexto || '';
+        const tiempo = fase.tiempo ? `${fase.tiempo} min` : '';
+        const partes = [titulo, meta, detalle, tiempo].filter(Boolean).join(' — ');
+        return `${idx + 1}. ${partes}`;
+      }).join('\n')
+    : 'La estructura de la clase no fue detallada.';
+
+  const preguntasSocraticasTexto = Array.isArray(guide.preguntas_socraticas) && guide.preguntas_socraticas.length
+    ? guide.preguntas_socraticas.slice(0, 5).map((q: string, idx: number) => `${idx + 1}. ${q}`).join('\n')
+    : '';
+
+  return `Objetivos principales:\n${objetivosTexto}\n\nEstructura propuesta:\n${estructuraTexto}${
+    preguntasSocraticasTexto ? `\n\nPreguntas guía:\n${preguntasSocraticasTexto}` : ''
+  }`;
+}
+
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
     return handleCors();
@@ -50,7 +84,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     const { data: guideVersion, error: guideError } = await supabase
       .from('guias_clase_versiones')
-      .select('objetivos, estructura, estado, es_version_final')
+      .select('objetivos, estructura, preguntas_socraticas, estado, es_version_final')
       .eq('id', clase.id_guia_version_actual)
       .single();
 
@@ -86,6 +120,7 @@ Para quiz PRE: enfócate en conocimientos teóricos básicos (máximo 3 pregunta
 Para quiz POST: incluye análisis, aplicación y razonamiento (5-10 preguntas, 15 minutos).`;
 
     const complexity = tipo === 'pre' ? 'básico' : 'avanzado';
+    const guideContext = buildGuideContext(guideVersion);
     const userPrompt = `Necesito preparar un quiz ${tipo === 'pre' ? 'PRE (diagnóstico)' : 'POST (sumativo)'} para una clase.
 Debes producir un JSON con dos partes:
 {
@@ -110,6 +145,9 @@ Enfoque: ${enfoque}
 Objetivos de aprendizaje:
 ${guideVersion.objetivos}
 
+Contexto detallado de la guía (teoría central, estructura y preguntas guía):
+${guideContext}
+
 La lectura debe:
 - Preparar cognitivamente al estudiante para el quiz
 - Mencionar al menos un ejemplo concreto relacionado al tema
@@ -120,6 +158,7 @@ Las preguntas deben:
 ${tipo === 'pre' 
   ? '- Enfocarse en conocimientos teóricos básicos del tema\n- Ser breves y directas (máximo 3 preguntas)' 
   : '- Ser más desafiantes que una evaluación pre\n- Incluir análisis profundo y aplicación práctica'}
+- Conectar explícitamente su enunciado con el corazón teórico descrito arriba (menciona situaciones, materiales o ejemplos alineados a la guía)
 - Incluir retroalimentación automática específica para cada respuesta
 ${tipo === 'pre' ? '- Tiempo estimado: 5 minutos total' : '- Tiempo estimado: 15 minutos total'}
 
