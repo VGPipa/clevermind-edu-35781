@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Brain, Loader2, FileText, CheckCircle2, AlertCircle, Target, Clock, Plus, X, ChevronDown, Lock, Monitor, Clipboard, Globe, Smartphone, Blocks, Book } from "lucide-react";
+import { Brain, Loader2, FileText, CheckCircle2, AlertCircle, Target, Clock, Plus, X, ChevronDown, Lock, Monitor, Clipboard, Globe, Smartphone, Blocks, Book, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -823,40 +823,26 @@ export default function GenerarClase() {
 
   const renderStep1 = () => (
     <div className="space-y-6">
-      {/* Banner de Recomendación */}
-      {temaData && sesionesRecomendadas > 1 && !esSesionPreprogramada && (
-        <div className="bg-blue-50/50 border-l-4 border-blue-400 px-4 py-2 mb-4 rounded-r">
-          <p className="text-sm text-blue-800">
-            <strong>💡 Recomendación:</strong> Este tema sugiere {sesionesRecomendadas} sesiones para cubrir todo el contenido.
-          </p>
-        </div>
-      )}
-
-      {/* Banner de Datos Preliminares */}
-      {esSesionPreprogramada && datosPreliminares && (
-        <div className="bg-green-50/50 border-l-4 border-green-400 px-4 py-2 mb-4 rounded-r">
-          <p className="text-sm text-green-800">
-            <strong>📋 Datos Preliminares Sesión {claseData?.numero_sesion}:</strong>{" "}
-            {datosPreliminares.duracion_sugerida && `Duración sugerida: ${datosPreliminares.duracion_sugerida} min`}
-            {datosPreliminares.titulo_preliminar && ` • ${datosPreliminares.titulo_preliminar}`}
-          </p>
-        </div>
-      )}
-
-      {/* Barra de Progreso */}
-      <Card className="mb-6">
-        <CardHeader>
-          <div className="space-y-2">
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>Progreso del formulario</span>
-              <span>{Math.round(progresoStep1)}% completado</span>
-            </div>
-            <Progress value={progresoStep1} className="h-1.5" />
+      {/* Banners Compactos */}
+      <div className="flex flex-wrap gap-2 mb-4">
+        {temaData && sesionesRecomendadas > 1 && !esSesionPreprogramada && (
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-blue-700 text-xs rounded-full">
+            <Lightbulb className="h-3 w-3" />
+            <span>Este tema sugiere {sesionesRecomendadas} sesiones</span>
           </div>
-        </CardHeader>
-      </Card>
+        )}
+        {esSesionPreprogramada && datosPreliminares && (
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-green-50 text-green-700 text-xs rounded-full">
+            <FileText className="h-3 w-3" />
+            <span>Sesión {claseData?.numero_sesion}</span>
+            {datosPreliminares.duracion_sugerida && (
+              <span>• {datosPreliminares.duracion_sugerida} min</span>
+            )}
+          </div>
+        )}
+      </div>
 
-      <Accordion type="multiple" defaultValue={["seccion-1"]} className="w-full">
+      <Accordion type="multiple" defaultValue={["seccion-1", "seccion-3", "seccion-4"]} className="w-full">
         {/* SECCIÓN 1: Información Básica */}
         <AccordionItem value="seccion-1">
           <AccordionTrigger>
@@ -1605,10 +1591,20 @@ export default function GenerarClase() {
 
           <ProgressBar steps={STEPS} currentStep={currentStep} />
 
-          <div className="grid lg:grid-cols-2 gap-6">
+          <div className="grid lg:grid-cols-[1fr_280px] gap-6">
             <Card>
               <CardHeader>
-                <CardTitle>{STEPS[currentStep - 1].label}</CardTitle>
+                <div className="flex items-center justify-between mb-2">
+                  <CardTitle>{STEPS[currentStep - 1].label}</CardTitle>
+                  {currentStep === 1 && (
+                    <span className="text-xs text-muted-foreground font-normal">
+                      {Math.round(progresoStep1)}% completado
+                    </span>
+                  )}
+                </div>
+                {currentStep === 1 && (
+                  <Progress value={progresoStep1} className="h-1.5 mb-2" />
+                )}
                 <CardDescription>
                   Completa la información para este paso
                 </CardDescription>
@@ -1642,11 +1638,14 @@ export default function GenerarClase() {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Consejos para Mejores Resultados</CardTitle>
+            <Card className="sticky top-4 h-fit">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Lightbulb className="h-4 w-4 text-primary" />
+                  Consejos
+                </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3 text-sm">
+              <CardContent className="space-y-2 text-xs text-muted-foreground">
                 <p>• Sé específico en el contexto de tus estudiantes</p>
                 <p>• Selecciona las metodologías más apropiadas para tu grupo</p>
                 <p>• Revisa y ajusta el contenido generado según necesites</p>
