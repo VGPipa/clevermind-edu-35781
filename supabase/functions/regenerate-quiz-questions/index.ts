@@ -137,7 +137,6 @@ Devuelve un JSON con esta forma:
   "preguntas": [
     {
       "texto_pregunta": "¿...?",
-      "tipo": "conocimiento|analisis|aplicacion|razonamiento",
       "opciones": ["A", "B", "C", "D"],
       "indice_correcto": 1,
       "retroalimentacion": "Explicación breve"
@@ -187,7 +186,7 @@ Devuelve un JSON con esta forma:
       return {
         id_quiz: quiz_id,
         texto_pregunta: pregunta.texto_pregunta,
-        tipo: (pregunta.tipo || 'conocimiento') as any,
+        tipo: 'opcion_multiple',
         orden: index + 1,
         opciones,
         respuesta_correcta: correctOption.id,

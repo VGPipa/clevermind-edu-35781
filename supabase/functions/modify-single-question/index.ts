@@ -163,7 +163,6 @@ ${actionInstructions}
 Devuelve JSON con la forma:
 {
   "texto_pregunta": "...",
-  "tipo": "conocimiento|analisis|aplicacion|razonamiento",
   "opciones": ["A", "B", "C", "D"],
   "indice_correcto": 1,
   "retroalimentacion": "..."
@@ -195,7 +194,7 @@ Devuelve JSON con la forma:
       .from('preguntas')
       .update({
         texto_pregunta: parsed.texto_pregunta,
-        tipo: (parsed.tipo || pregunta.tipo) as any,
+        tipo: 'opcion_multiple',
         opciones: opcionesMap,
         respuesta_correcta: correcta.id,
         justificacion: parsed.retroalimentacion || pregunta.justificacion,
