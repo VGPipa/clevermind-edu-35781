@@ -65,7 +65,7 @@ El flujo docente está segmentado en etapas que garantizan consistencia entre pl
 
 3. **Generación de Clase (`/profesor/generar-clase`):**
    - Paso 1: seleccionar una sesión pendiente (`get-sesiones-pendientes`). El sistema bloquea Tema/Grupo si provienen de una sesión ya programada.
-   - Paso 2: completar o ajustar contexto (metodologías, consideraciones del grupo). Se actualiza la clase o se crea una extraordinaria (`crear-clase`).
+   - Paso 2: completar o ajustar contexto avanzado. Además de metodologías y grupo etario, se capturan el objetivo específico de la sesión, recursos disponibles (multi-select con opción “Otro”), necesidades de inclusión/adaptaciones y observaciones detalladas. Estos datos se guardan en `clases.contexto` y `clases.observaciones` (JSON) para alimentar el resto del flujo.
    - Paso 3: solicitar guía personalizada (`generar-guia-clase`). Se crea una versión en `guias_clase_versiones` y el estado pasa a `editando_guia`.
    - Paso 4-5: generar quizzes previo y posterior (`generar-evaluacion` con tipo `previo` y `post`). Los quizzes pasan a `borrador` listos para revisión.
    - Paso 6: validar el conjunto (`validar-clase`). La clase queda en `guia_aprobada` o `clase_programada` según completitud.

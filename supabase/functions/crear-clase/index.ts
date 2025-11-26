@@ -21,6 +21,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       grupo_edad,
       metodologia,
       contexto,
+      observaciones,
       areas_transversales,
       numero_sesion // Optional, will be calculated if not provided
     } = await req.json();
@@ -111,6 +112,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         grupo_edad,
         metodologia,
         contexto,
+        observaciones,
         areas_transversales,
         numero_sesion: siguienteSesion,
         estado: 'generando_clase',
