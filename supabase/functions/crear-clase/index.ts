@@ -32,7 +32,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
     console.log('Creating class for profesor:', profesor.id);
 
     let idTemaFinal = id_tema;
-    let temaLibreTexto = null;
     let tema: any = null;
 
     // Si tema_libre está presente, crear un tema temporal
@@ -77,7 +76,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }
       
       idTemaFinal = temaTemporal.id;
-      temaLibreTexto = tema_libre.trim();
       tema = temaTemporal;
     } else if (id_tema) {
       // Get tema data to calculate recommended sessions
@@ -163,25 +161,26 @@ Deno.serve(async (req: Request): Promise<Response> => {
       .maybeSingle();
 
     // Create class with numero_sesion
+    const insertPayload: Record<string, any> = {
+      id_profesor: profesor.id,
+      id_tema: idTemaFinal,
+      id_grupo,
+      fecha_programada,
+      duracion_minutos,
+      grupo_edad,
+      metodologia,
+      contexto,
+      observaciones,
+      areas_transversales,
+      numero_sesion: siguienteSesion,
+      estado: 'generando_clase',
+      id_guia_tema: guiaTema?.id || null, // Nullable para temas temporales
+      total_sesiones_tema: guiaTema?.total_sesiones || null,
+    };
+
     const { data: newClass, error: classError } = await supabase
       .from('clases')
-      .insert({
-        id_profesor: profesor.id,
-        id_tema: idTemaFinal,
-        id_grupo,
-        fecha_programada,
-        duracion_minutos,
-        grupo_edad,
-        metodologia,
-        contexto,
-        observaciones,
-        areas_transversales,
-        numero_sesion: siguienteSesion,
-        estado: 'generando_clase',
-        id_guia_tema: guiaTema?.id || null, // Nullable para temas temporales
-        total_sesiones_tema: guiaTema?.total_sesiones || null,
-        tema_libre: temaLibreTexto
-      })
+      .insert(insertPayload)
       .select()
       .single();
 
