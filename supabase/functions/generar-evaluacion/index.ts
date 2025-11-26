@@ -210,7 +210,7 @@ Mantén el formato JSON descrito anteriormente sin texto adicional.`;
       lectura?: string;
       preguntas: Array<{
         texto_pregunta: string;
-        tipo: string;
+        tipo?: string;
         puntos: number;
         retroalimentacion: string;
         opciones?: string[];
@@ -218,6 +218,8 @@ Mantén el formato JSON descrito anteriormente sin texto adicional.`;
         tipo_respuesta?: 'multiple_choice' | 'texto_abierto';
       }>;
     }>(aiResponse.content);
+
+    console.log('Parsed AI response:', JSON.stringify(quizContent, null, 2));
 
     const readingText = wantsReadingBlock
       ? quizContent.lectura?.trim() || `Lectura introductoria para el tema ${temaNombre}.`
@@ -270,13 +272,20 @@ Mantén el formato JSON descrito anteriormente sin texto adicional.`;
     };
 
     const preguntasToInsert = quizContent.preguntas.map((q, index: number) => {
-      const isMultipleChoice = q.tipo_respuesta === 'multiple_choice';
+      // Determine if it's multiple choice - default to true if not specified
+      const isMultipleChoice = q.tipo_respuesta !== 'texto_abierto';
       const opciones = isMultipleChoice ? buildOpciones(q.opciones) : [];
       const correctOption =
         isMultipleChoice
           ? opciones?.[typeof q.indice_correcto === 'number' ? q.indice_correcto : 0] ||
             opciones?.[0] || { id: 'option-1', label: '' }
           : null;
+
+      console.log(`Question ${index + 1} mapping:`, {
+        tipo_respuesta: q.tipo_respuesta,
+        isMultipleChoice,
+        mapped_tipo: isMultipleChoice ? 'opcion_multiple' : 'respuesta_corta'
+      });
 
       return {
         id_quiz: quiz.id,
