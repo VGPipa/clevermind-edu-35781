@@ -284,7 +284,8 @@ Mantén el formato JSON descrito anteriormente sin texto adicional.`;
       console.log(`Question ${index + 1} mapping:`, {
         tipo_respuesta: q.tipo_respuesta,
         isMultipleChoice,
-        mapped_tipo: isMultipleChoice ? 'opcion_multiple' : 'respuesta_corta'
+        mapped_tipo: isMultipleChoice ? 'opcion_multiple' : 'respuesta_corta',
+        respuesta_correcta: correctOption ? correctOption.id : 'N/A'
       });
 
       return {
@@ -294,7 +295,7 @@ Mantén el formato JSON descrito anteriormente sin texto adicional.`;
         orden: index + 1,
         justificacion: q.retroalimentacion,
         texto_contexto: readingText,
-        respuesta_correcta: correctOption ? correctOption.id : null,
+        respuesta_correcta: correctOption ? correctOption.id : 'N/A',
         opciones,
       };
     });
