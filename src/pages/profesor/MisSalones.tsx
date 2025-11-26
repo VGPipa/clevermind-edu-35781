@@ -173,12 +173,6 @@ export default function MisSalones() {
         {/* Contenido Principal */}
         {salonSeleccionado && (
           <>
-            {/* Métricas Globales */}
-            <MetricasGlobalesSalon
-              metricas={salonSeleccionado.metricas_globales}
-              nombreSalon={salonSeleccionado.grupo.nombre}
-            />
-
             {/* Filtros */}
             <FiltrosMetricasSalon
               filtros={salonSeleccionado.filtros}
@@ -188,6 +182,12 @@ export default function MisSalones() {
               onMateriaChange={setMateriaSeleccionada}
               onTemaChange={setTemaSeleccionado}
               onClaseChange={setClaseSeleccionada}
+            />
+
+            {/* Métricas Globales */}
+            <MetricasGlobalesSalon
+              metricas={salonSeleccionado.metricas_globales}
+              nombreSalon={salonSeleccionado.grupo.nombre}
             />
 
             {/* Sección PRE */}
