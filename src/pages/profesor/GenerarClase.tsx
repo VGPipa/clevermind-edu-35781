@@ -2449,6 +2449,16 @@ export default function GenerarClase() {
     navigate("/profesor/generar-clase?extraordinaria=true");
   };
 
+  const handleVolverAlSelector = useCallback(() => {
+    resetWorkflowState();
+    navigate("/profesor/generar-clase");
+  }, [resetWorkflowState, navigate]);
+
+  const handleDescartarEIniciarNueva = useCallback(() => {
+    resetWorkflowState({ clearInProgress: true });
+    navigate("/profesor/generar-clase");
+  }, [resetWorkflowState, navigate]);
+
   return (
     <AppLayout>
       {sinParametros ? (
@@ -2473,6 +2483,36 @@ export default function GenerarClase() {
               Crea clases centradas en el desarrollo del pensamiento crítico con ayuda de IA
             </p>
           </div>
+
+          {claseEnProceso && (
+            <Card className="border-primary/30 bg-primary/5">
+              <CardContent className="py-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="text-sm font-medium text-primary flex items-center gap-2">
+                    <Sparkles className="h-4 w-4" />
+                    Estás editando una clase en proceso
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {claseEnProceso.tema || "Tema sin nombre"}
+                    {claseEnProceso.grupo ? ` • ${claseEnProceso.grupo}` : ""}
+                  </p>
+                  {claseEnProceso.estado && (
+                    <Badge variant="outline" className="mt-1">
+                      Paso: {claseEnProceso.estado.replace(/_/g, " ")}
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex flex-col gap-2 md:flex-row">
+                  <Button variant="ghost" onClick={handleVolverAlSelector}>
+                    Volver al selector
+                  </Button>
+                  <Button variant="outline" onClick={handleDescartarEIniciarNueva}>
+                    Descartar e iniciar otra
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <ProgressBar steps={STEPS} currentStep={currentStep} />
 
