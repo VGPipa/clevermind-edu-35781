@@ -1,16 +1,15 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Users, AlertTriangle, CheckCircle2, Circle } from "lucide-react";
-import { DatosPost } from "@/types/metricas-salon";
+import { Users, AlertTriangle, CheckCircle2, Circle, Lightbulb } from "lucide-react";
+import { DatosPost, RecomendacionPost } from "@/types/metricas-salon";
 
 interface SeccionPostMetricasProps {
   datos: DatosPost;
+  recomendaciones: RecomendacionPost[];
 }
 
-export function SeccionPostMetricas({ datos }: SeccionPostMetricasProps) {
-  // Conceptos por reforzar (solo rojos < 50%)
-  const conceptosPorReforzar = datos.conceptos_logrados.filter(c => c.porcentaje_logro < 50);
+export function SeccionPostMetricas({ datos, recomendaciones }: SeccionPostMetricasProps) {
 
   return (
     <div className="space-y-4">
@@ -78,88 +77,92 @@ export function SeccionPostMetricas({ datos }: SeccionPostMetricasProps) {
           </CardContent>
         </Card>
 
-        {/* Conceptos por Reforzar y Alumnos que Requieren Apoyo - En la misma fila */}
-        <div className="md:col-span-2 grid gap-4 md:grid-cols-2">
-          {/* Conceptos por Reforzar */}
-          <Card className="border-red-200 bg-red-50/30">
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-red-600" />
-                Conceptos por Reforzar
-              </CardTitle>
-              <CardDescription>
-                Conceptos con bajo logro (menos del 50%)
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {conceptosPorReforzar.length > 0 ? (
-                <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                  {conceptosPorReforzar.map((concepto, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-center justify-between p-2 rounded-lg bg-white/60"
-                    >
-                      <div className="flex-1">
-                        <p className="text-sm font-medium">{concepto.concepto}</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <div className="w-3 h-3 rounded-full bg-red-600" />
-                          <span className="text-xs text-muted-foreground">
-                            Necesita refuerzo
-                          </span>
-                        </div>
-                      </div>
-                      <Badge variant="destructive" className="ml-2">
-                        {concepto.porcentaje_logro}%
-                      </Badge>
+        {/* Alumnos que Requieren Apoyo */}
+        <Card className="border-amber-200 bg-amber-50/30">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              Alumnos que Requieren Apoyo
+            </CardTitle>
+            <CardDescription>
+              Alumnos con bajo nivel de logro (basado en POST)
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {datos.alumnos_apoyo.length > 0 ? (
+              <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                {datos.alumnos_apoyo.map((alumno) => (
+                  <div
+                    key={alumno.id}
+                    className="flex items-center justify-between p-2 rounded-lg bg-white/60"
+                  >
+                    <div>
+                      <p className="text-sm font-medium">
+                        {alumno.nombre} {alumno.apellido}
+                      </p>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  No hay conceptos que requieran refuerzo
-                </p>
-              )}
-            </CardContent>
-          </Card>
+                    <Badge variant="destructive" className="text-xs ml-2">
+                      {alumno.porcentaje}%
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No hay alumnos que requieran apoyo adicional
+              </p>
+            )}
+          </CardContent>
+        </Card>
 
-          {/* Alumnos que Requieren Apoyo */}
-          <Card className="border-amber-200 bg-amber-50/30">
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-amber-600" />
-                Alumnos que Requieren Apoyo
-              </CardTitle>
-              <CardDescription>
-                Alumnos con bajo nivel de logro (basado en POST)
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {datos.alumnos_apoyo.length > 0 ? (
-                <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                  {datos.alumnos_apoyo.map((alumno) => (
-                    <div
-                      key={alumno.id}
-                      className="flex items-center justify-between p-2 rounded-lg bg-white/60"
-                    >
-                      <div>
-                        <p className="text-sm font-medium">
-                          {alumno.nombre} {alumno.apellido}
-                        </p>
-                      </div>
-                      <Badge variant="destructive" className="text-xs ml-2">
-                        {alumno.porcentaje}%
+        {/* Recomendaciones POST CLASE */}
+        <Card className="border-blue-200 bg-blue-50/30">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Lightbulb className="h-4 w-4 text-blue-600" />
+              Recomendaciones POST CLASE
+            </CardTitle>
+            <CardDescription>
+              Acciones sugeridas después de la clase
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {recomendaciones && recomendaciones.length > 0 ? (
+              <div className="space-y-3 max-h-[300px] overflow-y-auto">
+                {recomendaciones.map((rec, idx) => (
+                  <div
+                    key={idx}
+                    className="p-3 rounded-lg bg-white/60 border border-blue-100"
+                  >
+                    <div className="flex items-start gap-2 mb-1">
+                      <Badge
+                        variant={rec.tipo === 'refuerzo' ? 'destructive' : 'secondary'}
+                        className="text-xs"
+                      >
+                        {rec.tipo === 'refuerzo' ? 'Refuerzo' : 'Evaluación'}
                       </Badge>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  No hay alumnos que requieran apoyo adicional
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+                    <p className="text-sm font-medium text-blue-900 mb-1">
+                      {rec.recomendacion}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {rec.sugerencia}
+                    </p>
+                    {rec.evidencia && (
+                      <p className="text-xs text-muted-foreground mt-1 italic">
+                        {rec.evidencia}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No hay recomendaciones disponibles aún
+              </p>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

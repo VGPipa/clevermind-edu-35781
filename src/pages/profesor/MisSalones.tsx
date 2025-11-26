@@ -9,7 +9,6 @@ import { MetricasGlobalesSalon } from "@/components/profesor/MetricasGlobalesSal
 import { FiltrosMetricasSalon } from "@/components/profesor/FiltrosMetricasSalon";
 import { SeccionPreMetricas } from "@/components/profesor/SeccionPreMetricas";
 import { SeccionPostMetricas } from "@/components/profesor/SeccionPostMetricas";
-import { RecomendacionesMetricas } from "@/components/profesor/RecomendacionesMetricas";
 import { ResponseMisSalones } from "@/types/metricas-salon";
 
 export default function MisSalones() {
@@ -193,7 +192,10 @@ export default function MisSalones() {
 
             {/* Sección PRE */}
             {salonSeleccionado.datos_pre ? (
-              <SeccionPreMetricas datos={salonSeleccionado.datos_pre} />
+              <SeccionPreMetricas 
+                datos={salonSeleccionado.datos_pre} 
+                recomendaciones={salonSeleccionado.recomendaciones.pre}
+              />
             ) : (
               <Card>
                 <CardContent className="py-8 text-center">
@@ -209,7 +211,10 @@ export default function MisSalones() {
 
             {/* Sección POST */}
             {salonSeleccionado.datos_post ? (
-              <SeccionPostMetricas datos={salonSeleccionado.datos_post} />
+              <SeccionPostMetricas 
+                datos={salonSeleccionado.datos_post}
+                recomendaciones={salonSeleccionado.recomendaciones.post}
+              />
             ) : (
               <Card>
                 <CardContent className="py-8 text-center">
@@ -223,15 +228,6 @@ export default function MisSalones() {
               </Card>
             )}
 
-            {/* Recomendaciones */}
-            <RecomendacionesMetricas 
-              recomendaciones={salonSeleccionado.recomendaciones}
-              idGrupo={salonSeleccionado.grupo.id}
-              onRecomendacionesGeneradas={() => {
-                // Refetch data after generating recommendations
-                queryClient.invalidateQueries({ queryKey: ["mis-salones"] });
-              }}
-            />
           </>
         )}
       </div>
