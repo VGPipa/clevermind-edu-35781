@@ -228,9 +228,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
         
         (clases || []).forEach((clase: any) => {
           (clase.quizzes || []).forEach((quiz: any) => {
-            if (quiz.tipo_evaluacion === 'pre') {
+            // Usar 'tipo' que tiene valores 'previo'/'post', no 'tipo_evaluacion'
+            const tipoQuiz = quiz.tipo?.toLowerCase();
+            if (tipoQuiz === 'previo' || tipoQuiz === 'pre') {
               quizzesPre.push({ ...quiz, id_clase: clase.id, clase_metadata: clase });
-            } else if (quiz.tipo_evaluacion === 'post') {
+            } else if (tipoQuiz === 'post') {
               quizzesPost.push({ ...quiz, id_clase: clase.id, clase_metadata: clase });
             }
           });
@@ -348,7 +350,10 @@ function calcularMetricasGlobales(
     : 0;
 
   // Calcular dominio por conceptos (solo POST)
-  const quizzesPost = todosLosQuizzes.filter((q: any) => q.tipo_evaluacion === 'post');
+  const quizzesPost = todosLosQuizzes.filter((q: any) => {
+    const tipoQuiz = q.tipo?.toLowerCase();
+    return tipoQuiz === 'post';
+  });
   const dominioPorConceptos = calcularDominioPorConceptos(quizzesPost, conceptosMap);
 
   // Áreas fuertes y débiles
