@@ -11,29 +11,10 @@ export function SeccionPreMetricas({
   datos,
   recomendaciones
 }: SeccionPreMetricasProps) {
-  const getClasificacionColor = (clasificacion: string) => {
-    switch (clasificacion) {
-      case "alta":
-        return "bg-green-600";
-      case "media":
-        return "bg-yellow-600";
-      case "baja":
-        return "bg-red-600";
-      default:
-        return "bg-gray-600";
-    }
-  };
-  const getClasificacionLabel = (clasificacion: string) => {
-    switch (clasificacion) {
-      case "alta":
-        return "Alta";
-      case "media":
-        return "Media";
-      case "baja":
-        return "Baja";
-      default:
-        return "N/A";
-    }
+  const getProgressVariant = (porcentaje: number): "success" | "warning" | "danger" => {
+    if (porcentaje >= 70) return "success";
+    if (porcentaje >= 40) return "warning";
+    return "danger";
   };
   return <div className="space-y-4">
       <div>
@@ -48,7 +29,7 @@ export function SeccionPreMetricas({
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <Users className="h-4 w-4" />
+              <Users className="h-4 w-4 text-[#ff5426]" />
               Participación
             </CardTitle>
           </CardHeader>
@@ -59,7 +40,7 @@ export function SeccionPreMetricas({
                   <span className="text-muted-foreground">Porcentaje de completación</span>
                   <span className="font-semibold">{datos.participacion.porcentaje}%</span>
                 </div>
-                <Progress value={datos.participacion.porcentaje} className="h-2" />
+                <Progress value={datos.participacion.porcentaje} />
               </div>
               {datos.participacion.ausentes.length > 0 && <div>
                   <p className="text-xs text-muted-foreground mb-2">
@@ -82,7 +63,7 @@ export function SeccionPreMetricas({
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4" />
+              <CheckCircle2 className="h-4 w-4 text-[#ff5426]" />
               Nivel de Preparación
             </CardTitle>
           </CardHeader>
@@ -93,7 +74,10 @@ export function SeccionPreMetricas({
                   <span className="text-muted-foreground">Porcentaje de aciertos promedio</span>
                   <span className="font-semibold">{datos.nivel_preparacion.porcentaje}%</span>
                 </div>
-                <Progress value={datos.nivel_preparacion.porcentaje} className="h-2" />
+                <Progress 
+                  value={datos.nivel_preparacion.porcentaje} 
+                  variant={getProgressVariant(datos.nivel_preparacion.porcentaje)}
+                />
               </div>
               
             </div>
@@ -104,7 +88,7 @@ export function SeccionPreMetricas({
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <TrendingDown className="h-4 w-4 text-red-600" />
+              <TrendingDown className="h-4 w-4 text-[#ff5426]" />
               Conceptos que necesitan refuerzo
             </CardTitle>
             <CardDescription>
@@ -129,18 +113,18 @@ export function SeccionPreMetricas({
         </Card>
 
         {/* Recomendaciones PREVIO A LA CLASE */}
-        <Card className="border-blue-200 bg-blue-50/30">
+        <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <Lightbulb className="h-4 w-4 text-blue-600" />
+              <Lightbulb className="h-4 w-4 text-[#ff5426]" />
               Recomendaciones
             </CardTitle>
             <CardDescription>Acciones sugeridas para preparar la sesión</CardDescription>
           </CardHeader>
           <CardContent>
             {recomendaciones && recomendaciones.length > 0 ? <div className="space-y-3">
-                {recomendaciones.map((rec, idx) => <div key={idx} className="p-3 rounded-lg bg-white/60 border border-blue-100">
-                    <p className="text-sm font-medium text-blue-900 mb-1">
+                {recomendaciones.map((rec, idx) => <div key={idx} className="p-3 rounded-lg bg-muted/30 border border-border">
+                    <p className="text-sm font-medium mb-1">
                       {rec.recomendacion}
                     </p>
                     <p className="text-xs text-muted-foreground">

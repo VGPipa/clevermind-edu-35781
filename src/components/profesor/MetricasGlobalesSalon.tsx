@@ -30,7 +30,7 @@ export function MetricasGlobalesSalon({
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Users className="h-4 w-4 text-primary" />
+              <Users className="h-4 w-4 text-[#ff5426]" />
               Participación
             </CardTitle>
           </CardHeader>
@@ -50,7 +50,7 @@ export function MetricasGlobalesSalon({
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <AlertTriangle className="h-4 w-4 text-[#ff5426]" />
               Alumnos que requieren refuerzo
             </CardTitle>
           </CardHeader>
@@ -69,7 +69,7 @@ export function MetricasGlobalesSalon({
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-primary" />
+              <CheckCircle2 className="h-4 w-4 text-[#ff5426]" />
               Desempeño
             </CardTitle>
           </CardHeader>
