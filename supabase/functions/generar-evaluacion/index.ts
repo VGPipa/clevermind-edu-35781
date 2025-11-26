@@ -277,6 +277,18 @@ Mantén el formato JSON descrito anteriormente sin texto adicional.`;
       quizContent.preguntas = quizContent.preguntas.slice(0, 10);
     }
 
+    // Delete existing quizzes of this type for this class to prevent duplicates
+    const { error: deleteError } = await supabase
+      .from('quizzes')
+      .delete()
+      .eq('id_clase', id_clase)
+      .eq('tipo_evaluacion', tipo);
+
+    if (deleteError) {
+      console.error('Error deleting existing quizzes:', deleteError);
+      // Continue anyway - not critical
+    }
+
     // Create quiz with specific parameters
     const { data: quiz, error: quizError } = await supabase
       .from('quizzes')
