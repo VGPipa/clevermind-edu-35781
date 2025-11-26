@@ -47,3 +47,6 @@ verify_jwt = true
 
 [functions.generar-recomendaciones-metricas]
 verify_jwt = true
+
+[functions.poblar-datos-demo]
+verify_jwt = false
