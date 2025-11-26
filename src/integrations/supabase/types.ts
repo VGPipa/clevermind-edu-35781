@@ -1145,6 +1145,7 @@ export type Database = {
           created_at: string | null
           descripcion: string | null
           duracion_estimada: number | null
+          es_tema_temporal: boolean | null
           id: string
           id_materia: string
           nombre: string
@@ -1157,6 +1158,7 @@ export type Database = {
           created_at?: string | null
           descripcion?: string | null
           duracion_estimada?: number | null
+          es_tema_temporal?: boolean | null
           id?: string
           id_materia: string
           nombre: string
@@ -1169,6 +1171,7 @@ export type Database = {
           created_at?: string | null
           descripcion?: string | null
           duracion_estimada?: number | null
+          es_tema_temporal?: boolean | null
           id?: string
           id_materia?: string
           nombre?: string
